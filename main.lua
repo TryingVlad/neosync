@@ -80,6 +80,140 @@ local function ensureJniCache(jni)
     logger.info("OnyxSync: JNI Cache initialized")
     return true
 end
+local function sendSyncIntent(jni, android, path, progress, timestamp, reading_status)
+    local env = jni.env
+    
+    if env[0].PushLocalFrame(env, 20) ~= 0 then
+        logger.err("OnyxSync: PushLocalFrame failed for intent")
+        return false
+    end
+    
+    local intent_ok, intent_err = pcall(function()
+        local activity = android.app.activity.clazz
+        
+        -- Create Intent class and constructor
+        local intent_class = env[0].FindClass(env, "android/content/Intent")
+        local intent_init = env[0].GetMethodID(env, intent_class, "<init>", "(Ljava/lang/String;)V")
+        
+        -- Create action string
+        local action_str = env[0].NewStringUTF(env, "org.koreader.onyx.SYNC_PROGRESS")
+        
+        -- Create new Intent with action
+        local intent = env[0].NewObject(env, intent_class, intent_init, action_str)
+
+        -- Get setPackage method
+        local set_package_method = env[0].GetMethodID(env, intent_class, "setPackage", 
+            "(Ljava/lang/String;)Landroid/content/Intent;")
+        
+        -- Set the target package
+        local package_str = env[0].NewStringUTF(env, "org.koreader.backgroundonyxsynckoreader")
+        env[0].CallObjectMethod(env, intent, set_package_method, package_str)
+
+        -- Get putExtra methods
+        local put_extra_string = env[0].GetMethodID(env, intent_class, "putExtra",
+            "(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;")
+        local put_extra_long = env[0].GetMethodID(env, intent_class, "putExtra",
+            "(Ljava/lang/String;J)Landroid/content/Intent;")
+        local put_extra_int = env[0].GetMethodID(env, intent_class, "putExtra",
+            "(Ljava/lang/String;I)Landroid/content/Intent;")
+
+        -- Add string extras
+        local path_key = env[0].NewStringUTF(env, "path")
+        local path_val = env[0].NewStringUTF(env, path)
+        env[0].CallObjectMethod(env, intent, put_extra_string, path_key, path_val)
+
+        local progress_key = env[0].NewStringUTF(env, "progress")
+        local progress_val = env[0].NewStringUTF(env, progress)
+        env[0].CallObjectMethod(env, intent, put_extra_string, progress_key, progress_val)
+
+        -- Add long extra for timestamp
+        local timestamp_key = env[0].NewStringUTF(env, "timestamp")
+        env[0].CallObjectMethod(env, intent, put_extra_long, timestamp_key, ffi.cast("jlong", timestamp))
+
+        -- Add int extra for reading status
+        local status_key = env[0].NewStringUTF(env, "readingStatus")
+        env[0].CallObjectMethod(env, intent, put_extra_int, status_key, ffi.cast("jint", reading_status))
+
+        -- Get Activity class and sendBroadcast method
+        local activity_class = env[0].GetObjectClass(env, activity)
+        local send_broadcast = env[0].GetMethodID(env, activity_class, "sendBroadcast", 
+            "(Landroid/content/Intent;)V")
+
+        -- Send the broadcast
+        env[0].CallVoidMethod(env, activity, send_broadcast, intent)
+
+        logger.info("OnyxSync: Intent sent to background service")
+    end)
+
+    env[0].PopLocalFrame(env, nil)
+
+    if not intent_ok then
+        logger.warn("OnyxSync: Failed to send intent:", tostring(intent_err))
+    end
+    
+    return intent_ok
+end
+
+-- Send bulk sync intent
+local function sendBulkSyncIntent(jni, android, book_data)
+    local env = jni.env
+    
+    local intent_ok, intent_err = pcall(function()
+        local activity = android.app.activity.clazz
+        
+        -- Create new Intent with bulk sync action
+        local intent = jni:newObject(
+            "android/content/Intent",
+            "(Ljava/lang/String;)V",
+            jni:newString("org.koreader.onyx.BULK_SYNC")
+        )
+
+        -- Set the target package
+        jni:callObjectMethod(
+            intent,
+            "setPackage",
+            "(Ljava/lang/String;)Landroid/content/Intent;",
+            jni:newString("org.koreader.backgroundonyxsynckoreader")
+        )
+
+        -- Convert book_data to JSON string for bulk transfer
+        local json_data = "["
+        for i, book in ipairs(book_data) do
+            if i > 1 then json_data = json_data .. "," end
+            json_data = json_data .. string.format(
+                '{"path":"%s","progress":"%s","timestamp":%d,"readingStatus":%d}',
+                book.path:gsub('"', '\\"'), -- Escape quotes in path
+                book.progress,
+                book.timestamp,
+                book.reading_status
+            )
+        end
+        json_data = json_data .. "]"
+
+        -- Add JSON data as string extra
+        jni:callObjectMethod(intent, "putExtra",
+            "(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;",
+            jni:newString("bookData"),
+            jni:newString(json_data)
+        )
+
+        -- Send the broadcast
+        jni:callVoidMethod(
+            activity,
+            "sendBroadcast",
+            "(Landroid/content/Intent;)V",
+            intent
+        )
+
+        logger.info("OnyxSync: Bulk intent sent with", #book_data, "books")
+    end)
+
+    if not intent_ok then
+        logger.warn("OnyxSync: Failed to send bulk intent:", tostring(intent_err))
+    end
+    
+    return intent_ok
+end
 
 -- Build ContentValues for a book update
 local function buildContentValues(jni, progress, timestamp, reading_status)
@@ -118,6 +252,9 @@ end
 -- This bypasses any cached dead Binder proxy in ContentResolver.
 local function updateOneBook(jni, android, path, progress, timestamp, reading_status)
     local env = jni.env
+
+    -- Send intent to background service first (best-effort)
+    sendSyncIntent(jni, android, path, progress, timestamp, reading_status)
 
     if env[0].PushLocalFrame(env, 32) ~= 0 then
         logger.err("OnyxSync: PushLocalFrame failed")
@@ -201,7 +338,7 @@ local function updateOneBook(jni, android, path, progress, timestamp, reading_st
                 env[0].ExceptionClear(env)
             end
 
-            logger.dbg("OnyxSync: ContentProviderClient closed")
+            logger.info("OnyxSync: ContentProviderClient closed")
         end)
 
         if not close_ok then
@@ -264,6 +401,9 @@ local function updateOnyxProgressBatch(book_data)
                 logger.err("OnyxSync: JNI cache initialization failed")
                 return
             end
+
+            -- Send bulk intent first (best-effort)
+            sendBulkSyncIntent(jni, android, book_data)
 
             for i, book in ipairs(book_data) do
                 local rows = updateOneBook(jni, android,
