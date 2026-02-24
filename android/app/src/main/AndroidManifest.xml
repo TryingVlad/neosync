@@ -42,11 +42,13 @@
             </intent-filter>
         </receiver>
 
-        <!-- JobIntentService requires BIND_JOB_SERVICE permission -->
-        <service
-            android:name=".helper.SyncService"
-            android:exported="false"
-            android:permission="android.permission.BIND_JOB_SERVICE" />
+        <receiver
+            android:name=".helper.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

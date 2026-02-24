@@ -2,6 +2,8 @@ package org.koreader.backgroundonyxsynckoreader.helper;
 
 import android.app.Application;
 import android.content.ContentProviderClient;
+import android.content.ContentProviderOperation;
+import android.content.ContentProviderResult;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -9,6 +11,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.util.Log;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class OnyxContentProvider {
@@ -19,27 +22,23 @@ public class OnyxContentProvider {
     );
 
     private static OnyxContentProvider instance;
-    private final ContentResolver resolver;
 
-    private OnyxContentProvider() {
-        this.resolver = getAppContext().getContentResolver();
+    private final ContentResolver resolver;  // ← fixed
+
+
+    private OnyxContentProvider(Context context) {
+        this.resolver = context.getApplicationContext().getContentResolver();
+    }
+
+    public static void init(Context context) {
+        if (instance == null) {
+            instance = new OnyxContentProvider(context);
+        }
     }
 
     public static OnyxContentProvider getInstance() {
-        if (instance == null) {
-            instance = new OnyxContentProvider();
-        }
+        if (instance == null) throw new IllegalStateException("Call init() first");
         return instance;
-    }
-
-    private static Context getAppContext() {
-        try {
-            return (Application) Class.forName("android.app.ActivityThread")
-                    .getMethod("currentApplication")
-                    .invoke(null);
-        } catch (Exception e) {
-            throw new RuntimeException("Could not get application context", e);
-        }
     }
 
     public boolean syncProgress(String path, String progress, Long timestamp, int readingStatus) {
@@ -58,6 +57,7 @@ public class OnyxContentProvider {
             return false;
         }
     }
+
     public int batchSync(List<BookData> books) {
         int updated = 0;
         try (ContentProviderClient client = resolver.acquireUnstableContentProviderClient(METADATA_URI)) {
@@ -65,20 +65,23 @@ public class OnyxContentProvider {
                 Log.e(TAG, "batchSync: could not acquire ContentProviderClient");
                 return 0;
             }
+            var operation = new ArrayList<ContentProviderOperation>();
             for (BookData book : books) {
-                int rows = client.update(
-                        METADATA_URI,
-                        book.toContentValues(),
-                        "nativeAbsolutePath = ?",
-                        new String[]{book.path}
-                );
-                if (rows > 0) updated++;
+                operation.add(ContentProviderOperation
+                        .newUpdate(METADATA_URI)
+                        .withValues(book.toContentValues())
+                        .withSelection("nativeAbsolutePath = ?", new String[]{book.path}).build());
+
             }
+            client.applyBatch(
+                    operation);
+
         } catch (Exception e) {
             Log.e(TAG, "batchSync error", e);
         }
         return updated;
     }
+
     private int blindUpdate(String path, String progress, Long timestamp, int readingStatus) {
         try (ContentProviderClient client = resolver.acquireUnstableContentProviderClient(METADATA_URI)) {
             if (client == null) {
@@ -123,15 +126,18 @@ public class OnyxContentProvider {
             }
             Log.i(TAG, "logAllBooks: " + cursor.getCount() + " row(s) found");
             while (cursor.moveToNext()) {
-                String id   = cursor.getString(0);
+                String id = cursor.getString(0);
                 String name = cursor.getString(1);
-                String p    = cursor.getString(2);
+                String p = cursor.getString(2);
                 Log.i(TAG, "  [" + id + "] " + name + " -> " + p);
             }
         } catch (Exception e) {
             Log.w(TAG, "logAllBooks error: " + e.getMessage());
         } finally {
-            if (cursor != null) try { cursor.close(); } catch (Exception ignored) {}
+            if (cursor != null) try {
+                cursor.close();
+            } catch (Exception ignored) {
+            }
             if (client != null) client.close();
         }
     }

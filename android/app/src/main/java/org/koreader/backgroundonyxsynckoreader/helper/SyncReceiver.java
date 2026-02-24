@@ -8,7 +8,7 @@ import android.util.Log;
 
 public class SyncReceiver extends BroadcastReceiver {
     private static final String TAG = "SyncReceiver";
-    private static final int JOB_ID = 1000; // Unique job ID for JobIntentService
+
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -36,9 +36,8 @@ public class SyncReceiver extends BroadcastReceiver {
         }
 
         try {
-            // Use JobIntentService.enqueueWork instead of startService
-            SyncService.enqueueWork(context, intent);
-            Log.i(TAG, "Work enqueued to SyncService");
+            SyncService.onHandleWork(context, intent);
+            Log.i(TAG, "Finish update");
         } catch (Exception e) {
             Log.e(TAG, "Error enqueuing work to SyncService", e);
         }

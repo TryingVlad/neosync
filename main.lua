@@ -269,12 +269,10 @@ local function updateOnyxProgressBatch(book_data)
                 return
             end
 
-          
-            for i, book in ipairs(book_data) do
-
-                updateOnyxProgress(book.path, book.progress, book.timestamp, book.reading_status)
-
-            end
+            sendBulkSyncIntent(jni, android, book_data)
+            -- for i, book in ipairs(book_data) do
+               -- updateOnyxProgress(book.path, book.progress, book.timestamp, book.reading_status)
+            -- end
         end)
     end)
 

@@ -5,29 +5,23 @@ import android.content.Intent;
 import android.text.TextUtils;
 import android.util.Log;
 import androidx.annotation.NonNull;
-import androidx.core.app.JobIntentService;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SyncService extends JobIntentService {
+public class SyncService {
     private static final String TAG = "SyncService";
-    private static final int JOB_ID = 1000; // Must match the one in SyncReceiver
 
     public static final String ACTION_SINGLE = "org.koreader.onyx.SYNC_PROGRESS";
     public static final String ACTION_BULK = "org.koreader.onyx.BULK_SYNC";
     public static final String EXTRA_BOOKS_JSON = "bookData"; // Match what Lua sends
 
     // Static method to enqueue work
-    public static void enqueueWork(Context context, Intent work) {
-        Log.i(TAG, "Enqueuing work with action: " + work.getAction());
-        enqueueWork(context, SyncService.class, JOB_ID, work);
-    }
 
-    @Override
-    protected void onHandleWork(@NonNull Intent intent) {
+    protected static void onHandleWork(Context applicationContext, @NonNull Intent intent) {
+        OnyxContentProvider.init(applicationContext);
         Log.i(TAG, "=== onHandleWork called ===");
         Log.i(TAG, "Intent: " + intent);
 
@@ -57,7 +51,7 @@ public class SyncService extends JobIntentService {
         }
     }
 
-    private void handleSingleSync(Intent intent) {
+    private static void handleSingleSync(Intent intent) {
         Log.i(TAG, "=== handleSingleSync ===");
 
         String path = intent.getStringExtra("path");
@@ -87,7 +81,7 @@ public class SyncService extends JobIntentService {
         }
     }
 
-    private void handleBulkSync(Intent intent) {
+    private static void handleBulkSync(Intent intent) {
         Log.i(TAG, "=== handleBulkSync ===");
 
         String jsonStr = intent.getStringExtra(EXTRA_BOOKS_JSON);
@@ -113,7 +107,7 @@ public class SyncService extends JobIntentService {
 
                 if (!TextUtils.isEmpty(book.path)) {
                     books.add(book);
-                    Log.i(TAG, "Added book: " + book.path + " (" + book.progress + ")");
+                    Log.i(TAG, "Updated book: " + book.path + " (" + book.progress + ")");
                 }
             }
         } catch (JSONException e) {
