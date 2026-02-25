@@ -44,7 +44,7 @@ The plugin adds a menu entry under **Onyx Progress Sync → Update all books in 
 
 This scans the current folder and pushes progress for every book, so the Onyx library shows up-to-date percentages and reading statuses without having to open each book individually.
 
-![menu](__/asset/librarymenudetail.png__)
+![menu](./asset/librarymenudetail.png__)
 
 ## ADB Cheat-Sheet
 
