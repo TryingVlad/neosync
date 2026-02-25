@@ -7,7 +7,8 @@ local ffi = require("ffi")
 local DocSettings = require("docsettings")
 local ReadHistory = require("readhistory")
 local _ = require("gettext")
-
+local ConfirmBox = require("ui/widget/confirmbox")
+local MIN_VERSION_CODE = 1  -- minimum required versionCode
 local JNI_CACHE = {
     initialized = false,
     cv_class = nil,
@@ -23,8 +24,79 @@ local OnyxSync = WidgetContainer:extend {
     last_synced_page = 0,
 }
 
+
+local function getCompanionVersionCode()
+    local ok, android = pcall(require, "android")
+    if not ok or not android or not android.app or not android.app.activity then
+        return nil
+    end
+
+    local version_code = nil
+    pcall(function()
+        android.jni:context(android.app.activity.vm, function(jni)
+            local env = jni.env
+            if env[0].PushLocalFrame(env, 16) ~= 0 then return end
+
+            pcall(function()
+                local activity = android.app.activity.clazz
+                local activity_class = env[0].GetObjectClass(env, activity)
+
+                local get_pm = env[0].GetMethodID(env, activity_class, "getPackageManager",
+                    "()Landroid/content/pm/PackageManager;")
+                local pm = env[0].CallObjectMethod(env, activity, get_pm)
+
+                local pm_class = env[0].GetObjectClass(env, pm)
+                local get_pi = env[0].GetMethodID(env, pm_class, "getPackageInfo",
+                    "(Ljava/lang/String;I)Landroid/content/pm/PackageInfo;")
+
+                local pkg_str = env[0].NewStringUTF(env, "org.koreader.backgroundonyxsynckoreader")
+                local info = env[0].CallObjectMethod(env, pm, get_pi, pkg_str, ffi.cast("jint", 0))
+
+                if env[0].ExceptionCheck(env) == 0 and info ~= nil then
+                    -- Get versionCode field from PackageInfo
+                    local info_class = env[0].GetObjectClass(env, info)
+                    local vc_field = env[0].GetFieldID(env, info_class, "versionCode", "I")
+                    version_code = env[0].GetIntField(env, info, vc_field)
+                else
+                    env[0].ExceptionClear(env)
+                end
+            end)
+
+            env[0].PopLocalFrame(env, nil)
+        end)
+    end)
+
+    return version_code
+end
+
 function OnyxSync:init()
     logger.info("OnyxSync: Plugin initialized")
+
+    if Device:isAndroid() then
+        local vc = getCompanionVersionCode()
+        if vc == nil then
+            UIManager:show(ConfirmBox:new{
+                text = _("OnyxSync companion app is not installed.\nWould you like to download it?"),
+                ok_text = _("Download"),
+                cancel_text = _("Dismiss"),
+                ok_callback = function()
+                    Device:openLink("https://github.com/Tukks/onyxbooxsync.koplugin/releases/latest")
+                end,
+            })
+            return
+        elseif vc < MIN_VERSION_CODE then
+            UIManager:show(ConfirmBox:new{
+                text = _("OnyxSync companion app is outdated (v" .. vc .. ").\nPlease update to at least v" .. MIN_VERSION_CODE .. "."),
+                ok_text = _("Download update"),
+                cancel_text = _("Dismiss"),
+                ok_callback = function()
+                    Device:openLink("https://github.com/Tukks/onyxbooxsync.koplugin/releases/latest")
+                end,
+            })
+            return
+        end
+    end
+
     self.ui.menu:registerToMainMenu(self)
 end
 
@@ -283,7 +355,6 @@ local function updateOnyxProgressBatch(book_data)
 
     return updated_count, skipped_count
 end
-
 function OnyxSync:doSync()
     if not self.ui or not self.ui.document or not self.view or not Device:isAndroid() then return end
 

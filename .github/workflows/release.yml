@@ -44,7 +44,7 @@ jobs:
       - name: Prepare artifacts
         run: |
           mkdir release
-          cp android/app/build/outputs/apk/release/app-release.apk release/
+          cp android/app/build/outputs/apk/release/app-release.apk release/onyx-sync.apk
           cp main.lua release/
           cp _meta.lua release/
 
