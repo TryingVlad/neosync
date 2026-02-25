@@ -16,19 +16,13 @@ public class SyncService {
 
     public static final String ACTION_SINGLE = "org.koreader.onyx.SYNC_PROGRESS";
     public static final String ACTION_BULK = "org.koreader.onyx.BULK_SYNC";
-    public static final String EXTRA_BOOKS_JSON = "bookData"; // Match what Lua sends
+    public static final String EXTRA_BOOKS_JSON = "bookData";
 
-    // Static method to enqueue work
 
     protected static void onHandleWork(Context applicationContext, @NonNull Intent intent) {
         OnyxContentProvider.init(applicationContext);
         Log.i(TAG, "=== onHandleWork called ===");
         Log.i(TAG, "Intent: " + intent);
-
-        if (intent == null) {
-            Log.w(TAG, "Intent is null in onHandleWork");
-            return;
-        }
 
         String action = intent.getAction();
         Log.i(TAG, "Handling action: " + action);

@@ -12,7 +12,6 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         Log.e(TAG, "MainActivity created - app process started");
         
-        // You can close the activity immediately since this is just a background service app
         finish();
     }
 }

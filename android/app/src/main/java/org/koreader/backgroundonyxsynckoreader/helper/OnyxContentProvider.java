@@ -23,8 +23,7 @@ public class OnyxContentProvider {
 
     private static OnyxContentProvider instance;
 
-    private final ContentResolver resolver;  // ← fixed
-
+    private final ContentResolver resolver;
 
     private OnyxContentProvider(Context context) {
         this.resolver = context.getApplicationContext().getContentResolver();

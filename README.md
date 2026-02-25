@@ -17,8 +17,7 @@ The plugin communicates with a small companion app running as a background servi
 ### 1. Companion App
 1. Download and install `onyx-sync.apk` from the [latest release](../../releases/latest).
 2. Long press the app icon on the home screen and tap **Unfreeze** — Onyx freezes newly installed apps by default, which would prevent the service from running in the background.
-3. Long press the app icon again, go to **Optimize**, open the **Other** tab and enable **Allow to stay active in the background**.
-4. Launch the app once — nothing will appear on screen, this is expected. It starts the background service and can be closed immediately.
+3. Launch the app once — nothing will appear on screen, this is expected. It starts the background service and can be closed immediately.
 
 ### 2. Plugin
 1. Create the folder `koreader/plugins/onyx_sync.koplugin` on your device.
