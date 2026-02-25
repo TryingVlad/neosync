@@ -16,12 +16,9 @@ The plugin communicates with a small companion app running as a background servi
 
 ### 1. Companion App
 1. Download and install `onyx-sync.apk` from the [latest release](../../releases/latest).
-2. Once installed, open the app **once** — nothing will appear on screen, this is expected. It starts the background service and can be closed immediately.
-3. Grant the following permissions (usually prompted on first launch, or find them in **Settings → Apps → Onyx Sync**):
-   - **Autostart** — allows the service to start automatically on boot.
-   - **Background activity** — keeps the service running while KOReader is in use.
-   - **Battery optimization exemption** — prevents Android from killing the service. Look for "Battery" or "Power" in the app settings and set it to **Unrestricted** or **No restrictions**.
-4. Make sure the app is **not frozen**. Go to **Settings → Freeze Settings**, find Onyx Sync and ensure it is not in the frozen list. Freezing the app will prevent it from running in the background entirely, which will break syncing.
+2. Long press the app icon on the home screen and tap **Unfreeze** — Onyx freezes newly installed apps by default, which would prevent the service from running in the background.
+3. Long press the app icon again, go to **Optimize**, open the **Other** tab and enable **Allow to stay active in the background**.
+4. Launch the app once — nothing will appear on screen, this is expected. It starts the background service and can be closed immediately.
 
 ### 2. Plugin
 1. Create the folder `koreader/plugins/onyx_sync.koplugin` on your device.
