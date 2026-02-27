@@ -34,7 +34,7 @@ On every page turn, the companion app reads KOReader's `statistics.sqlite3` data
 
 1. Download and install `onyx-sync.apk` from the [latest release](../../releases/latest).
 2. Long press the app icon on the home screen and tap **Unfreeze** — Onyx freezes newly installed apps by default, which would prevent the service from running in the background.
-3. Launch the app once — a permission dialog will appear asking for **All files access**. Grant it so the app can read KOReader's statistics database. Nothing else will appear on screen; the app will close automatically.
+3. Launch the app once — a permission dialog will appear asking for **All files access**. Grant it so the app can read KOReader's statistics database. Nothing else will appear on screen; the app will close automatically. (Note : nothing will be prompted on Android 10)
 
 ### 2. Plugin
 
