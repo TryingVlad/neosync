@@ -31,7 +31,9 @@
         <!-- Main activity to ensure app can start -->
         <activity
             android:name=".activity.MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
