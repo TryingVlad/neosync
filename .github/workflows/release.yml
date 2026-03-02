@@ -47,6 +47,10 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release.apk release/onyx-sync.apk
           cp main.lua release/
           cp _meta.lua release/
+          mkdir onyxbooxsync.koplugin
+          cp main.lua onyxbooxsync.koplugin/
+          cp _meta.lua onyxbooxsync.koplugin/
+          zip -r release/onyxbooxsync.koplugin.zip onyxbooxsync.koplugin/
 
       - name: Clean up keystore
         if: always()
