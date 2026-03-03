@@ -503,13 +503,31 @@ local function updateAllBooks()
     UIManager:show(InfoMessage:new { text = _("Scanning for books..."), timeout = 2 })
 
     local book_files = {}
+    local supported_formats = {
+        -- Ebooks
+        epub = true,
+        mobi = true,
+        fb2  = true,
+        pdb  = true,
+        doc  = true,
+        rtf  = true,
+        chm  = true,
+        -- Documents
+        pdf  = true,
+        djvu = true,
+        xps  = true,
+        -- Comics
+        cbz  = true,
+        cbt  = true,
+        cbr  = true
+    }
     for entry in lfs.dir(start_dir) do
         if entry ~= "." and entry ~= ".." then
             local full_path = start_dir .. "/" .. entry
             local attr = lfs.attributes(full_path)
             if attr and attr.mode == "file" then
                 local ext = entry:match("%.([^%.]+)$")
-                if ext and (ext:lower() == "epub" or ext:lower() == "pdf") then
+                if ext and supported_formats[ext:lower()] then
                     table.insert(book_files, full_path)
                 end
             end
