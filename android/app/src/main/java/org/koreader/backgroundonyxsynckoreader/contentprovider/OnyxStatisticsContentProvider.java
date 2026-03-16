@@ -118,6 +118,8 @@ public class OnyxStatisticsContentProvider {
         public boolean hideRecord = false;
     }
 
+    private static final int CONTENT_PROVIDER_APPLY_BATCH_SIZE = 20;
+
     // -------------------------------------------------------------------------
     // Public API
     // -------------------------------------------------------------------------
@@ -302,7 +304,15 @@ public class OnyxStatisticsContentProvider {
                 return;
             }
 
-            client.applyBatch(ops);
+            for (int i = 0; i < ops.size(); i += CONTENT_PROVIDER_APPLY_BATCH_SIZE) {
+                ArrayList<ContentProviderOperation> batch =
+                        new ArrayList(
+                                ops.subList(i, Math.min(ops.size(), i + CONTENT_PROVIDER_APPLY_BATCH_SIZE))
+                        );
+
+                client.applyBatch(batch);
+            }
+
             Log.i(TAG, "syncBookHistory: inserted " + ops.size()
                     + " missing rows for " + bookPath);
 
