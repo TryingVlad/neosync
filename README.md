@@ -143,6 +143,8 @@ The Onyx library needs to be rescanned to pick up newly indexed books:
 
 ## Release Process
 
+### Plugin-only release
+
 1. Update the version string in `_meta.lua`:
    ```lua
    version = "v0.0.X",
@@ -162,6 +164,23 @@ The Onyx library needs to be rescanned to pick up newly indexed books:
    ```
 
 4. GitHub Actions will pick up the new tag and publish a release automatically.
+
+### Release with a new companion APK
+
+If the companion app has changed, bump the APK version before tagging:
+
+1. In `build.gradle`, increment `versionCode` and `versionName`:
+   ```groovy
+   versionCode X
+   versionName "X.0"
+   ```
+
+2. In `main.lua`, update the minimum required APK version to match:
+   ```lua
+   local MIN_VERSION_CODE = X -- minimum APK required versionCode
+   ```
+
+3. Then follow the plugin-only steps above. The GitHub Actions release will include the new APK and the plugin will prompt users to update it if their installed version is older than `MIN_VERSION_CODE`.
 
 ## License
 
