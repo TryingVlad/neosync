@@ -48,5 +48,8 @@ public class PageTurnReceiver extends BroadcastReceiver {
                 title != null ? title : "",
                 bookPath
         );
+
+        // Force refresh of onyx widget
+        context.sendBroadcast(new Intent("com.onyx.statisticswidget.action.UPDATE"));
     }
 }
