@@ -43,6 +43,10 @@ On every page turn, the companion app reads KOReader's `statistics.sqlite3` data
 3. Restart KOReader.
 4. Ensure the plugin is enabled in KOReader settings.
 
+### Auto-updates
+
+Install the [UpdatesManager plugin](https://github.com/advokatb/updatesmanager.koplugin) to keep Onyx Progress Sync up to date automatically from within KOReader.
+
 ## When It Syncs
 
 ### Progress & metadata
