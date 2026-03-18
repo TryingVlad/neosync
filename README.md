@@ -38,7 +38,7 @@ On every page turn, the companion app reads KOReader's `statistics.sqlite3` data
 
 ### 2. Plugin
 
-1. Create the folder `koreader/plugins/onyx_sync.koplugin` on your device.
+1. Create the folder `koreader/plugins/onyxbooxsync.koplugin` on your device.
 2. Copy `main.lua` and `_meta.lua` into the folder.
 3. Restart KOReader.
 4. Ensure the plugin is enabled in KOReader settings.
@@ -136,6 +136,28 @@ The Onyx library needs to be rescanned to pick up newly indexed books:
 2. Tap the menu icon in the upper right corner.
 3. Go to **Library Settings → Select folders → Rescan** (upper right corner).
 4. Come back to KOReader and run **Scan and update all books in current directory** again.
+
+## Release Process
+
+1. Update the version string in `_meta.lua`:
+   ```lua
+   version = "v0.0.X",
+   ```
+
+2. Commit and push the version bump:
+   ```sh
+   git add _meta.lua
+   git commit -m "Bump version to 0.0.X"
+   git push origin main
+   ```
+
+3. Create and push the git tag:
+   ```sh
+   git tag v0.0.X
+   git push origin v0.0.X
+   ```
+
+4. GitHub Actions will pick up the new tag and publish a release automatically.
 
 ## License
 
