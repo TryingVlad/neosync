@@ -17,7 +17,11 @@ Grab the APK from the
 [latest release](https://github.com/TryingVlad/neosync/releases/latest)
 (direct link:
 [neosync.apk](https://github.com/TryingVlad/neosync/releases/latest/download/neosync.apk))
-and sideload it on the Boox.
+and sideload it on the Boox. Later releases install as updates over it.
+
+Coming from **7.0.0 or older**: uninstall that version first. Those builds
+were signed with a temporary key, so Android won't accept 7.0.1 as an update
+(you'll need to sign in again).
 
 ## What you need
 
@@ -169,6 +173,10 @@ cd android
 ```
 
 The debug APK is signed with the machine's debug key; no secrets are needed.
+Published releases are built by `.github/workflows/release.yml` when a
+`v*.*.*` tag is pushed, signed with the project's release key from the
+repository secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`,
+`KEY_PASSWORD`).
 
 ## Credits
 

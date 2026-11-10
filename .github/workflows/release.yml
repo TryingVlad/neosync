@@ -23,19 +23,34 @@ jobs:
           java-version: 21
           cache: gradle
 
-      # Debug build: signed with the auto-generated debug key, so no secrets
-      # are needed. Note the debug key differs per machine/runner, so an APK
-      # from CI cannot be installed over one built locally without uninstalling.
+      # Release build signed with the permanent NeoSync key (repository
+      # secrets), so every published APK installs as an update over the
+      # previous one. Fails rather than publish an unsigned or debug APK.
+      - name: Restore signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "KEYSTORE_BASE64 secret is missing" >&2
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/neosync-release.jks"
+
       - name: Build and test
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/neosync-release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew testDebugUnitTest assembleDebug
+          ./gradlew testDebugUnitTest assembleRelease
 
       - name: Prepare artifact
         run: |
           mkdir release
-          cp android/app/build/outputs/apk/debug/app-debug.apk release/neosync.apk
+          cp android/app/build/outputs/apk/release/app-release.apk release/neosync.apk
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
