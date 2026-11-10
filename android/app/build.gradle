@@ -35,8 +35,8 @@ android {
         applicationId "dev.neosync.boox"
         minSdk 24
         targetSdk 33
-        versionCode 6
-        versionName "6.0"
+        versionCode 7
+        versionName "7.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -52,12 +52,18 @@ android {
         targetCompatibility JavaVersion.VERSION_11
     }
     buildToolsVersion '36.1.0'
+    testOptions {
+        // android.util.Log etc. are stubs in JVM unit tests; let them no-op.
+        unitTests.returnDefaultValues = true
+    }
 }
 
 dependencies {
     implementation libs.appcompat
     implementation libs.material
     testImplementation libs.junit
+    // android.jar's org.json is a stub in JVM tests; use the real one.
+    testImplementation libs.json
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
 }

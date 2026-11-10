@@ -1,0 +1,268 @@
+package dev.neosync.boox.transfer;
+
+import android.util.Log;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * Talks to the CrossPoint file-transfer server that runs on the Picco while
+ * its "File Transfer" screen is open (crosspoint-reader,
+ * docs/webserver-endpoints.md). Purely local Wi-Fi traffic — this never goes
+ * near the kosync server, so no pacing or cooldown applies here.
+ *
+ *   GET  /api/files?path=<dir>  -> JSON listing of one directory
+ *   POST /upload?path=<dir>     -> multipart upload; 400 when the name exists
+ */
+public class PiccoClient {
+
+    private static final String TAG = "PiccoClient";
+    private static final int CONNECT_TIMEOUT_MS = 8000;
+    private static final int LIST_READ_TIMEOUT_MS = 15000;
+    // The Picco answers an upload only after the whole file is written to its
+    // SD card, which can take a while for a large book.
+    private static final int UPLOAD_READ_TIMEOUT_MS = 180_000;
+    private static final int MAX_SCAN_DEPTH = 4;
+
+    /** File extensions treated as books when listing the Picco's library. */
+    private static final Set<String> BOOK_EXTENSIONS = new HashSet<>(Arrays.asList(
+            "epub", "pdf", "mobi", "azw", "azw3", "fb2", "cbz", "cbr", "djvu"));
+
+    public enum Status { SENT, ALREADY_THERE, SERVER_ERROR }
+
+    public static class UploadResult {
+        public final Status status;
+        public final int httpCode;
+        public final String serverMessage;
+
+        UploadResult(Status status, int httpCode, String serverMessage) {
+            this.status = status;
+            this.httpCode = httpCode;
+            this.serverMessage = serverMessage;
+        }
+    }
+
+    private final String baseUrl;
+
+    /** Accepts "192.168.1.50" or "crosspoint.local", with or without a scheme. */
+    public PiccoClient(String address) {
+        String url = address.trim();
+        if (!url.contains("://")) {
+            url = "http://" + url;
+        }
+        while (url.endsWith("/")) {
+            url = url.substring(0, url.length() - 1);
+        }
+        this.baseUrl = url;
+    }
+
+    /** True when a file with this exact name exists anywhere on the Picco. */
+    public boolean hasBook(String fileName) throws IOException {
+        return scan("/", fileName, 0);
+    }
+
+    /**
+     * Every book file on the Picco, as paths relative to its root
+     * ("Fiction/Title.epub"), sorted case-insensitively.
+     */
+    public List<String> listBooks() throws IOException {
+        List<String> books = new ArrayList<>();
+        collectBooks("/", 0, books);
+        Collections.sort(books, String.CASE_INSENSITIVE_ORDER);
+        return books;
+    }
+
+    /**
+     * Looks at every file of a folder before descending into its subfolders:
+     * NeoSync uploads to the top level, so the common case is answered by the
+     * first request instead of a walk over the whole library.
+     */
+    private boolean scan(String path, String fileName, int depth) throws IOException {
+        JSONArray entries = listDir(path);
+        List<String> subdirs = new ArrayList<>();
+        for (int i = 0; i < entries.length(); i++) {
+            JSONObject entry = entries.optJSONObject(i);
+            if (entry == null) {
+                continue;
+            }
+            String name = entry.optString("name", "");
+            if (entry.optBoolean("isDirectory", false)) {
+                if (isDescendable(name, depth)) {
+                    subdirs.add("/".equals(path) ? "/" + name : path + "/" + name);
+                }
+            } else if (name.equals(fileName)) {
+                return true;
+            }
+        }
+        for (String child : subdirs) {
+            if (scan(child, fileName, depth + 1)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void collectBooks(String path, int depth, List<String> out) throws IOException {
+        JSONArray entries = listDir(path);
+        for (int i = 0; i < entries.length(); i++) {
+            JSONObject entry = entries.optJSONObject(i);
+            if (entry == null) {
+                continue;
+            }
+            String name = entry.optString("name", "");
+            boolean isDirectory = entry.optBoolean("isDirectory", false);
+            String child = "/".equals(path) ? "/" + name : path + "/" + name;
+            if (isDirectory) {
+                if (isDescendable(name, depth)) {
+                    collectBooks(child, depth + 1, out);
+                }
+            } else if (isBookFile(name)) {
+                // Drop the leading slash: paths are shown relative to the root.
+                out.add(child.startsWith("/") ? child.substring(1) : child);
+            }
+        }
+    }
+
+    /** Directories worth descending into: no hidden/system folders, bounded depth. */
+    private static boolean isDescendable(String name, int depth) {
+        return depth < MAX_SCAN_DEPTH && !name.startsWith(".")
+                && !name.equals("XTCache") && !name.equals("System Volume Information");
+    }
+
+    private static boolean isBookFile(String name) {
+        int dot = name.lastIndexOf('.');
+        return dot > 0 && BOOK_EXTENSIONS.contains(
+                name.substring(dot + 1).toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /** Raw JSON listing of one directory; throws on any non-200 or bad body. */
+    private JSONArray listDir(String path) throws IOException {
+        HttpURLConnection conn = open("/api/files?path=" + URLEncoder.encode(path, "UTF-8"), "GET");
+        int code;
+        String body;
+        try {
+            code = conn.getResponseCode();
+            body = readBody(conn);
+        } finally {
+            conn.disconnect();
+        }
+        if (code != 200 || body == null) {
+            throw new IOException("Picco file listing failed: HTTP " + code);
+        }
+        try {
+            return new JSONArray(body);
+        } catch (Exception e) {
+            throw new IOException("Picco file listing unreadable: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Uploads the file into the Picco's top-level folder under its current
+     * name. CrossPoint indexes uploaded book files into its library on its
+     * own. Uses a fixed content length: the Picco's tiny HTTP server does not
+     * handle chunked bodies reliably.
+     */
+    public UploadResult upload(File file) throws IOException {
+        String boundary = "NeoSync" + Long.toHexString(System.currentTimeMillis());
+        String fileName = file.getName().replace('"', '_');
+        byte[] head = ("--" + boundary + "\r\n"
+                + "Content-Disposition: form-data; name=\"file\"; filename=\"" + fileName + "\"\r\n"
+                + "Content-Type: " + contentType(fileName) + "\r\n\r\n").getBytes(StandardCharsets.UTF_8);
+        byte[] tail = ("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8);
+
+        HttpURLConnection conn = open("/upload?path=%2F", "POST");
+        conn.setDoOutput(true);
+        conn.setReadTimeout(UPLOAD_READ_TIMEOUT_MS);
+        conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+        conn.setFixedLengthStreamingMode(head.length + file.length() + tail.length);
+        try {
+            try (OutputStream out = conn.getOutputStream();
+                 InputStream in = new FileInputStream(file)) {
+                out.write(head);
+                byte[] buf = new byte[32768];
+                int n;
+                while ((n = in.read(buf)) > 0) {
+                    out.write(buf, 0, n);
+                }
+                out.write(tail);
+            }
+            int code = conn.getResponseCode();
+            String body = readBody(conn);
+            Log.d(TAG, "upload " + fileName + " -> " + code);
+            if (code >= 200 && code < 300) {
+                return new UploadResult(Status.SENT, code, body);
+            }
+            if (code == 400 && body != null && body.contains("already exists")) {
+                return new UploadResult(Status.ALREADY_THERE, code, body);
+            }
+            return new UploadResult(Status.SERVER_ERROR, code, body);
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    /** MIME type for the multipart part, from the file extension. */
+    static String contentType(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        String ext = dot >= 0 ? fileName.substring(dot + 1).toLowerCase(java.util.Locale.ROOT) : "";
+        switch (ext) {
+            case "epub": return "application/epub+zip";
+            case "pdf": return "application/pdf";
+            case "mobi": return "application/x-mobipocket-ebook";
+            case "azw":
+            case "azw3": return "application/vnd.amazon.ebook";
+            case "fb2": return "application/x-fictionbook+xml";
+            case "cbz": return "application/vnd.comicbook+zip";
+            case "cbr": return "application/vnd.comicbook-rar";
+            case "djvu": return "image/vnd.djvu";
+            case "txt": return "text/plain";
+            default: return "application/octet-stream";
+        }
+    }
+
+    private HttpURLConnection open(String pathAndQuery, String method) throws IOException {
+        HttpURLConnection conn = (HttpURLConnection) new URL(baseUrl + pathAndQuery).openConnection();
+        conn.setRequestMethod(method);
+        conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        conn.setReadTimeout(LIST_READ_TIMEOUT_MS);
+        return conn;
+    }
+
+    private static String readBody(HttpURLConnection conn) {
+        try {
+            InputStream stream = conn.getResponseCode() >= 400
+                    ? conn.getErrorStream() : conn.getInputStream();
+            if (stream == null) return null;
+            StringBuilder sb = new StringBuilder();
+            try (BufferedReader reader =
+                         new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+                char[] buf = new char[1024];
+                int n;
+                while ((n = reader.read(buf)) > 0) {
+                    sb.append(buf, 0, n);
+                }
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+}

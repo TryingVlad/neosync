@@ -26,6 +26,7 @@ public class SyncSettings {
     private static final String KEY_LAST_BOOK = "last_book";
     private static final String KEY_ONBOARDED = "onboarded";
     private static final String KEY_AUTO_SYNC = "auto_sync";
+    private static final String KEY_PICCO_ADDRESS = "picco_address";
 
     private static final String DEFAULT_SERVER_URL = "https://sync.crosspointreader.com";
 
@@ -96,6 +97,19 @@ public class SyncSettings {
         prefs.edit().putBoolean(KEY_AUTO_SYNC, enabled).apply();
     }
 
+    /**
+     * Address of the Picco's CrossPoint file-transfer server, as shown on its
+     * File Transfer screen ("192.168.1.50", "crosspoint.local", …). Used only
+     * for sending book files over the local network.
+     */
+    public String getPiccoAddress() {
+        return prefs.getString(KEY_PICCO_ADDRESS, "");
+    }
+
+    public void setPiccoAddress(String address) {
+        prefs.edit().putString(KEY_PICCO_ADDRESS, address.trim()).apply();
+    }
+
     public boolean hasCredentials() {
         return !getUsername().isEmpty() && !getPasswordMd5().isEmpty();
     }
@@ -105,12 +119,22 @@ public class SyncSettings {
      * server when empty, http:// prepended when no scheme, trailing slashes
      * stripped.
      */
+    /**
+     * True for a plain-HTTP sync server address. Those are refused: the
+     * username and password hash would travel unencrypted.
+     */
+    public static boolean isInsecureServerUrl(String url) {
+        return url.trim().toLowerCase(java.util.Locale.ROOT).startsWith("http://");
+    }
+
     public String getBaseUrl() {
         String url = getServerUrl();
         if (url.isEmpty()) {
             url = DEFAULT_SERVER_URL;
         } else if (!url.contains("://")) {
-            url = "http://" + url;
+            // The app allows cleartext HTTP (for the Picco on the local
+            // network), so the sync server must be HTTPS explicitly.
+            url = "https://" + url;
         }
         while (url.endsWith("/")) {
             url = url.substring(0, url.length() - 1);

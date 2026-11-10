@@ -84,6 +84,14 @@ By default a book is identified by the MD5 of its **file name**, CrossPoint's
 default. "By file contents" uses KOReader's partial-MD5 instead and needs
 byte-identical files. Use the same mode on both devices.
 
+### Sending the book file to the Picco
+
+If the Picco doesn't have the book yet, the home screen can send it over your
+local Wi-Fi: start **File Transfer → Join a Network** on the Picco, enter the
+address it shows under Settings in NeoSync, and use **Send book to Picco**.
+This talks to CrossPoint's own upload endpoint directly — no sync server
+involved, so it also works while the server is rate-limiting.
+
 ## Privacy
 
 Only the MD5 of your password is stored on the device, which is the credential

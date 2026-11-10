@@ -305,8 +305,14 @@ public class KoSyncClient {
     }
 
     private HttpURLConnection open(String path, String method) throws Exception {
+        String base = settings.getBaseUrl();
+        if (SyncSettings.isInsecureServerUrl(base)) {
+            // Never send credentials over cleartext, even if an http:// address
+            // got stored somehow. Surfaces as a network error.
+            throw new java.io.IOException("Refusing plain-HTTP sync server: " + base);
+        }
         pace();
-        URL url = new URL(settings.getBaseUrl() + path);
+        URL url = new URL(base + path);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod(method);
         conn.setConnectTimeout(TIMEOUT_MS);

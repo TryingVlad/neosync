@@ -9,6 +9,8 @@
     </queries>
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Tells "not connected to the Picco's network" apart from "Picco not answering". -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
@@ -31,7 +33,10 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.NeoSync">
+        android:theme="@style/Theme.NeoSync"
+        android:usesCleartextTraffic="true">
+        <!-- Cleartext is needed for the Picco's file-transfer server, which is
+             plain HTTP on the local network. Sync-server traffic stays HTTPS. -->
 
         <activity
             android:name=".activity.MainActivity"
@@ -41,6 +46,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".activity.SettingsActivity"
+            android:exported="false" />
 
         <activity
             android:name=".activity.OnboardingActivity"

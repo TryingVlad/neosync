@@ -68,7 +68,12 @@ public class SignInActivity extends Activity {
             showResult(getString(R.string.signin_missing));
             return;
         }
-        settings.setServerUrl(serverUrlField.getText().toString());
+        String serverUrl = serverUrlField.getText().toString();
+        if (SyncSettings.isInsecureServerUrl(serverUrl)) {
+            showResult(getString(R.string.signin_https_required));
+            return;
+        }
+        settings.setServerUrl(serverUrl);
         settings.setUsername(username);
         if (!password.isEmpty()) {
             settings.setPassword(password);

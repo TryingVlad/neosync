@@ -75,7 +75,15 @@
     <string name="status_never_synced">Nothing synced yet. Read a few pages in Neo Reader.</string>
     <string name="status_running">Sync is running in the background.</string>
     <string name="autosync_label">Automatic sync</string>
+    <string name="autosync_hint">Syncs your position in the background</string>
     <string name="status_auto_off">Automatic sync is off. Nothing is sent until you turn it on; the buttons below still work.</string>
+    <string name="cd_refresh">Refresh</string>
+    <string name="cd_settings">Settings</string>
+    <string name="cd_back">Back</string>
+    <string name="status_headline_synced">In sync</string>
+    <string name="status_headline_paused">Sync paused</string>
+    <string name="status_headline_attention">Needs attention</string>
+    <string name="status_headline_never">Not synced yet</string>
 
     <string name="manual_sync_header">Latest book</string>
     <string name="manual_hint">Sync normally happens by itself. Use these buttons to force a direction. Close the book in Neo Reader before using “Fetch from Picco”.</string>
@@ -88,7 +96,41 @@
     <string name="manual_apply_done">Position fetched. Open the book in Neo Reader.</string>
     <string name="manual_upload_done">Position sent.</string>
 
+    <string name="button_send_book">Send book file to Picco</string>
+    <string name="label_book_file">Book file</string>
+    <string name="transfer_no_address">Set the Picco address in Settings → Connection first.</string>
+    <string name="transfer_no_network">The tablet isn’t connected to the Picco’s network. Connect it to the Picco’s hotspot — or put both devices on the same Wi-Fi — then try again.</string>
+    <string name="transfer_checking">Looking for the Picco…</string>
+    <string name="transfer_sending">Sending the book…</string>
+    <string name="transfer_sent">Book sent. It appears in the Picco’s library.</string>
+    <string name="transfer_already">Already on the Picco — nothing to send.</string>
+    <string name="transfer_missing">Not on the Picco yet.</string>
+    <string name="transfer_unreachable">Can’t reach the Picco at %1$s. Check the address in Settings → Connection and make sure the Picco’s File Transfer screen is open.</string>
+    <string name="transfer_server_error">The Picco refused the upload (HTTP %1$d).</string>
+    <string name="transfer_unexpected">Something went wrong talking to the Picco: %1$s</string>
+    <string name="manual_remote_problem">Online: %1$s</string>
+    <string name="manual_no_book_file">cannot read the book file</string>
+    <string name="signin_https_required">The sync server address must start with https:// — your account details would otherwise travel unencrypted.</string>
+    <string name="transfer_no_file">Can’t read the book file. Allow book file access via “How it works”.</string>
+    <string name="label_picco_address">Picco address</string>
+    <string name="hint_picco_address">192.168.1.50 — shown on the Picco’s File Transfer screen</string>
+
+    <string name="picco_library_header">On the Picco</string>
+    <string name="button_list_picco">List books on the Picco</string>
+    <string name="picco_books_loading">Asking the Picco for its library…</string>
+    <string name="picco_books_empty">No books on the Picco yet.</string>
+    <plurals name="picco_books_count">
+        <item quantity="one">%1$d book on the Picco:</item>
+        <item quantity="other">%1$d books on the Picco:</item>
+    </plurals>
+
     <string name="settings_header">Settings</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_account_header">Account</string>
+    <string name="settings_connection_header">Connection</string>
+    <string name="settings_books_header">Books</string>
+    <string name="settings_about_header">About</string>
+    <string name="button_manage_account">Manage account</string>
     <string name="label_match_method">How books are recognised</string>
     <string name="match_filename">By file name (CrossPoint default)</string>
     <string name="match_binary">By file contents (files must be byte-identical)</string>
