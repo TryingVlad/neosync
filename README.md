@@ -5,7 +5,8 @@ tablet and **CrossPoint** on a Boox Picco (or any other device that speaks the
 KOReader progress-sync protocol, "kosync").
 
 You stay in Neo Reader, with its pen annotations. NeoSync runs beside it,
-watches where you are, and exchanges that position with a sync server.
+watches where you are, and exchanges that position with a sync server. It can
+also copy your books to the Picco over Wi-Fi.
 
 Forked from [eszter007/boox-kosync](https://github.com/eszter007/boox-kosync),
 itself forked from [Tukks/onyxbooxsync.koplugin](https://github.com/Tukks/onyxbooxsync.koplugin).
@@ -38,11 +39,66 @@ and sideload it on the Boox.
    permissions (book file access, notification).
 3. Sign in with the account you use on the Picco, or create one in the app.
    An empty server address means `https://sync.crosspointreader.com`,
-   CrossPoint's default.
+   CrossPoint's default. A custom server must use `https://`.
 4. In *Settings → Apps → NeoSync*, allow background running and auto-start.
    Boox power management can otherwise stop the sync service.
 
 On the Picco: open the book, press Confirm, choose **Sync Progress**.
+
+## Using it
+
+The home screen has three parts:
+
+- **Status**: whether sync is working, the last book synced, and an
+  automatic-sync switch. When something goes wrong it says *Needs attention*
+  with a **Try again** button; the message also clears by itself as soon as
+  the server answers again.
+- **Latest book**: your position here and on the server for the book you
+  read last, with buttons to force a direction (**Fetch from Picco** /
+  **Send to Picco**) and to copy the book file to the Picco.
+- **On the Picco**: the books on your Picco (see below).
+
+Account, Picco address, book matching and the guide are behind the gear icon.
+
+## The Picco library
+
+Set the Picco's address in *Settings* (CrossPoint shows it on its
+**File Transfer** screen). NeoSync then keeps a list of the books on the
+Picco. It is saved between visits and refreshed quietly in the background
+whenever the Picco's File Transfer screen is open; when the Picco can't be
+reached, the last list stays, with its age shown.
+
+Each book shows how it stands on this Boox: *Synced* (with the time), *Read
+further here* (the sync service sends it soon), *Not synced yet*, or *Not on
+this Boox*. This comes from what the Boox already knows, so it costs no
+requests to the sync server; reading done on the Picco shows up once the Boox
+has fetched it.
+
+Two buttons work on the whole list:
+
+- **Sync all positions**: for every book on both devices, asks the server
+  and keeps the newest position: fetched if the Picco is ahead, sent if this
+  Boox is ahead. Just opening a book in Neo Reader doesn't count as reading,
+  so it never overwrites the Picco's position with a stale one. Requests are
+  spaced out for the server's rate limit; the run stops (and says why) at the
+  first rate limit or network error.
+- **Send missing books**: copies every EPUB on this Boox that the Picco
+  doesn't have yet, after showing how many and their total size.
+
+Book files travel straight to CrossPoint's upload endpoint on your local
+network: no sync server involved, so it works while the server is
+rate-limiting.
+
+### Wi-Fi: hotspot or shared network
+
+Positions go through the sync server on the internet; book files go to the
+Picco on the local network. If the Boox joins the **Picco's own hotspot**,
+book files work but positions can't sync, because that network has no
+internet. NeoSync then shows a hint with a **Wi-Fi settings** button
+(Android doesn't let apps switch networks themselves).
+
+To do both without switching, use **File Transfer → Join a Network** on the
+Picco, so it joins your usual Wi-Fi next to the Boox.
 
 ## How it works
 
@@ -84,23 +140,21 @@ By default a book is identified by the MD5 of its **file name**, CrossPoint's
 default. "By file contents" uses KOReader's partial-MD5 instead and needs
 byte-identical files. Use the same mode on both devices.
 
-### Sending the book file to the Picco
-
-If the Picco doesn't have the book yet, the home screen can send it over your
-local Wi-Fi: start **File Transfer → Join a Network** on the Picco, enter the
-address it shows under Settings in NeoSync, and use **Send book to Picco**.
-This talks to CrossPoint's own upload endpoint directly — no sync server
-involved, so it also works while the server is rate-limiting.
-
 ## Privacy
 
 Only the MD5 of your password is stored on the device, which is the credential
 the protocol uses. Your username, book identifiers (hashes, not titles) and
-positions are stored on the sync server you choose.
+positions are stored on the sync server you choose, always over HTTPS. Book
+files and the Picco's book list only travel between the Boox and the Picco on
+your local network (plain HTTP, as CrossPoint's file-transfer server speaks
+it).
 
 ## Known limitations
 
 - A fetch cannot move a book that is open on screen; close it first.
+- "Send missing books" only sends EPUBs.
+- Books are matched between the devices by exact file name, also in the
+  Picco list.
 - KOReader on the same device with the same account will fight this app.
 - Calibre-Web-Automated's kosync bridge expects the plaintext password and
   will not work.
@@ -117,8 +171,6 @@ cd android
 The debug APK is signed with the machine's debug key; no secrets are needed.
 
 ## Credits
-
-App icon by [ふにゃ猫 – funyaneko](https://iconbu.com/).
 
 Forked from [Tukks/onyxbooxsync.koplugin](https://github.com/Tukks/onyxbooxsync.koplugin);
 kosync protocol compatibility modeled on
