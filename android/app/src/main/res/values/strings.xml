@@ -83,6 +83,8 @@
     <string name="status_headline_synced">In sync</string>
     <string name="status_headline_paused">Sync paused</string>
     <string name="status_headline_attention">Needs attention</string>
+    <string name="button_retry_sync">Try again</string>
+    <string name="status_retrying">Trying again…</string>
     <string name="status_headline_never">Not synced yet</string>
 
     <string name="manual_sync_header">Latest book</string>

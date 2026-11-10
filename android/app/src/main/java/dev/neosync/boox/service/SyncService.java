@@ -42,6 +42,7 @@ public class SyncService extends Service {
     private static final String TAG = "SyncService";
     private static final String CHANNEL_ID = "kosync_service";
     private static final int NOTIFICATION_ID = 1;
+    private static final String ACTION_SYNC_NOW = "dev.neosync.boox.action.SYNC_NOW";
 
     /** Debounce after a provider change before scanning, absorbs rapid page turns. */
     private static final long DEBOUNCE_MS = 3000;
@@ -150,6 +151,16 @@ public class SyncService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null && ACTION_SYNC_NOW.equals(intent.getAction()) && worker != null) {
+            // "Try again" on the home screen: check the latest book now
+            // instead of waiting for the next poll. Pending failed pushes are
+            // retried by the same scan (their snapshot was never updated).
+            worker.post(() -> {
+                wakeCheckPending = true;
+                scan();
+                settings.recordSyncAttempt();
+            });
+        }
         return START_STICKY;
     }
 
@@ -182,6 +193,22 @@ public class SyncService extends Service {
             return;
         }
         Intent intent = new Intent(context, SyncService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent);
+        } else {
+            context.startService(intent);
+        }
+    }
+
+    /**
+     * Asks the running service (starting it if needed) to sync right away.
+     * Does nothing while automatic sync is off.
+     */
+    public static void syncNow(Context context) {
+        if (!new SyncSettings(context).isAutoSyncEnabled()) {
+            return;
+        }
+        Intent intent = new Intent(context, SyncService.class).setAction(ACTION_SYNC_NOW);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(intent);
         } else {
@@ -321,6 +348,7 @@ public class SyncService extends Service {
         }
         if (remote.error == KoSyncClient.Error.OK || remote.error == KoSyncClient.Error.NOT_FOUND) {
             lastServerCheckMs.put(book.path, System.currentTimeMillis());
+            settings.clearSyncError();
         }
         if (remote.error == KoSyncClient.Error.OK && remote.progress != null) {
             long remoteMs = remote.progress.timestampSec * 1000L;

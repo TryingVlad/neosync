@@ -39,6 +39,16 @@ public class MainActivity extends Activity {
     private OnyxMetadataRepository repository;
     private SyncStateStore stateStore;
     private TextView statusHeadlineView;
+    private Button retryButton;
+    private boolean retrying;
+    // Refreshes the status card whenever the sync service records an outcome.
+    private final android.content.SharedPreferences.OnSharedPreferenceChangeListener
+            statusListener = (prefs, key) -> runOnUiThread(() -> {
+                if (SyncSettings.KEY_LAST_ATTEMPT_MS.equals(key)) {
+                    retrying = false;
+                }
+                refreshStatus();
+            });
     private TextView statusView;
     private View statusDot;
     private TextView manualBookView;
@@ -80,6 +90,8 @@ public class MainActivity extends Activity {
         statusHeadlineView = findViewById(R.id.text_status_headline);
         statusDot = findViewById(R.id.status_dot);
         statusView = findViewById(R.id.text_status);
+        retryButton = findViewById(R.id.button_retry_sync);
+        retryButton.setOnClickListener(v -> retrySync());
         findViewById(R.id.button_settings).setOnClickListener(v ->
                 startActivity(new Intent(this, SettingsActivity.class)));
 
@@ -121,9 +133,18 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        if (statusView != null) {
+            settings.unregisterListener(statusListener);
+        }
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         if (statusView != null) {
+            settings.registerListener(statusListener);
             refreshStatus();
             // The Picco address may have been changed on the settings screen.
             if (manualBook != null && !settings.getPiccoAddress().equals(piccoAddressChecked)) {
@@ -149,6 +170,10 @@ public class MainActivity extends Activity {
         statusHeadlineView.setText(headline);
         statusDot.setBackgroundResource(headline == R.string.status_headline_synced
                 ? R.drawable.status_dot_ok : R.drawable.status_dot_idle);
+        retryButton.setVisibility(headline == R.string.status_headline_attention
+                ? View.VISIBLE : View.GONE);
+        retryButton.setEnabled(!retrying);
+        retryButton.setText(retrying ? R.string.status_retrying : R.string.button_retry_sync);
 
         StringBuilder sb = new StringBuilder();
         if (lastSync > 0) {
@@ -169,6 +194,23 @@ public class MainActivity extends Activity {
                     .append("Open Settings → How it works to allow it.");
         }
         statusView.setText(sb.toString());
+    }
+
+    /**
+     * Asks the sync service to try again now. The status card updates through
+     * statusListener once the attempt is recorded; the timeout only guards
+     * against an attempt that never reports back (service killed meanwhile).
+     */
+    private void retrySync() {
+        retrying = true;
+        refreshStatus();
+        SyncService.syncNow(this);
+        retryButton.postDelayed(() -> {
+            if (retrying) {
+                retrying = false;
+                refreshStatus();
+            }
+        }, 60_000);
     }
 
     // --- Manual sync ---------------------------------------------------------

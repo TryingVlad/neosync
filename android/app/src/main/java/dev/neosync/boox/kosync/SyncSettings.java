@@ -27,6 +27,9 @@ public class SyncSettings {
     private static final String KEY_ONBOARDED = "onboarded";
     private static final String KEY_AUTO_SYNC = "auto_sync";
     private static final String KEY_PICCO_ADDRESS = "picco_address";
+    // Bumped after every sync attempt, so listeners hear about an attempt
+    // even when its outcome (same error text) leaves the other keys unchanged.
+    public static final String KEY_LAST_ATTEMPT_MS = "last_attempt_ms";
 
     private static final String DEFAULT_SERVER_URL = "https://sync.crosspointreader.com";
 
@@ -157,14 +160,44 @@ public class SyncSettings {
     }
 
     public void recordSyncSuccess(String bookName) {
+        long now = System.currentTimeMillis();
         prefs.edit()
-                .putLong(KEY_LAST_SYNC_MS, System.currentTimeMillis())
+                .putLong(KEY_LAST_SYNC_MS, now)
                 .putString(KEY_LAST_BOOK, bookName)
                 .putString(KEY_LAST_ERROR, "")
+                .putLong(KEY_LAST_ATTEMPT_MS, now)
                 .apply();
     }
 
     public void recordSyncError(String error) {
-        prefs.edit().putString(KEY_LAST_ERROR, error).apply();
+        prefs.edit()
+                .putString(KEY_LAST_ERROR, error)
+                .putLong(KEY_LAST_ATTEMPT_MS, System.currentTimeMillis())
+                .apply();
+    }
+
+    /**
+     * The server answered normally, so whatever went wrong before is over —
+     * even when there was nothing to push or pull. Without this a passing
+     * network blip would keep "Needs attention" up until the next page turn.
+     */
+    public void clearSyncError() {
+        if (!getLastError().isEmpty()) {
+            prefs.edit().putString(KEY_LAST_ERROR, "").apply();
+        }
+    }
+
+    /** Marks the end of an attempt (e.g. a manual retry) whatever its outcome. */
+    public void recordSyncAttempt() {
+        prefs.edit().putLong(KEY_LAST_ATTEMPT_MS, System.currentTimeMillis()).apply();
+    }
+
+    /** Notifies about any change to the sync status (success, error, attempt). */
+    public void registerListener(SharedPreferences.OnSharedPreferenceChangeListener listener) {
+        prefs.registerOnSharedPreferenceChangeListener(listener);
+    }
+
+    public void unregisterListener(SharedPreferences.OnSharedPreferenceChangeListener listener) {
+        prefs.unregisterOnSharedPreferenceChangeListener(listener);
     }
 }
