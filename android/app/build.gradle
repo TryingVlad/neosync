@@ -35,8 +35,8 @@ android {
         applicationId "dev.neosync.boox"
         minSdk 24
         targetSdk 33
-        versionCode 8
-        versionName "7.0.1"
+        versionCode 9
+        versionName "7.0.2"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

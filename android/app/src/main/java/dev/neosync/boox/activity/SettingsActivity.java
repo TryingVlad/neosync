@@ -54,6 +54,17 @@ public class SettingsActivity extends Activity {
                 id == R.id.radio_match_binary
                         ? SyncSettings.MATCH_BINARY : SyncSettings.MATCH_FILENAME));
 
+        findViewById(R.id.button_support).setOnClickListener(v -> {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW,
+                        android.net.Uri.parse(getString(R.string.support_url))));
+            } catch (android.content.ActivityNotFoundException e) {
+                // No browser on this device: the address is in the text above.
+                android.widget.Toast.makeText(this, R.string.support_url,
+                        android.widget.Toast.LENGTH_LONG).show();
+            }
+        });
+
         findViewById(R.id.button_how_it_works).setOnClickListener(v ->
                 startActivity(new Intent(this, OnboardingActivity.class)
                         .putExtra(OnboardingActivity.EXTRA_REVIEW, true)));
