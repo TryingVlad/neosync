@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -19,44 +20,31 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
           cache: gradle
 
-      - name: Make gradlew executable
-        run: chmod +x android/gradlew
-
-      - name: Decode keystore
-        run: echo "${{ secrets.KEYSTORE }}" | base64 -d > release.keystore
-
-      - name: Build APK
-        env:
-          KEYSTORE_FILE: ${{ github.workspace }}/release.keystore
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      # Debug build: signed with the auto-generated debug key, so no secrets
+      # are needed. Note the debug key differs per machine/runner, so an APK
+      # from CI cannot be installed over one built locally without uninstalling.
+      - name: Build and test
         run: |
           cd android
-          ./gradlew assembleRelease
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest assembleDebug
 
-      - name: Verify APK exists
-        run: ls android/app/build/outputs/apk/release/
-
-      - name: Prepare artifacts
+      - name: Prepare artifact
         run: |
           mkdir release
-          cp android/app/build/outputs/apk/release/app-release.apk release/onyx-sync.apk
-          cp main.lua release/
-          cp _meta.lua release/
-          mkdir onyxbooxsync.koplugin
-          cp main.lua onyxbooxsync.koplugin/
-          cp _meta.lua onyxbooxsync.koplugin/
-          zip -r release/onyxbooxsync.koplugin.zip onyxbooxsync.koplugin/
+          cp android/app/build/outputs/apk/debug/app-debug.apk release/neosync.apk
 
-      - name: Clean up keystore
-        if: always()
-        run: rm -f release.keystore
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: neosync-apk
+          path: release/neosync.apk
 
       - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true

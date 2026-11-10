@@ -1,141 +1,112 @@
-# KOSync for Boox
+# NeoSync
 
-A standalone [KOReader-Sync (kosync)](https://github.com/koreader/koreader-sync-server)
-client for Onyx Boox devices. It keeps **NeoReader** (Onyx's built-in reader) in sync
-with any other kosync-speaking device — KOReader itself, or an Xteink X4 running
-[CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader) firmware.
+Keeps your reading position in sync between **Neo Reader** on an Onyx Boox
+tablet and **CrossPoint** on a Boox Picco (or any other device that speaks the
+KOReader progress-sync protocol, "kosync").
 
-Forked from [Tukks/onyxbooxsync.koplugin](https://github.com/Tukks/onyxbooxsync.koplugin),
-but repurposed: the original was a KOReader plugin plus a headless mirror app.
-**KOReader is no longer required on the device.** This app watches Onyx's own
-content provider for reading activity in NeoReader and talks to the sync server
-directly.
+You stay in Neo Reader, with its pen annotations. NeoSync runs beside it,
+watches where you are, and exchanges that position with a sync server.
 
-## How it works
+Forked from [eszter007/boox-kosync](https://github.com/eszter007/boox-kosync),
+itself forked from [Tukks/onyxbooxsync.koplugin](https://github.com/Tukks/onyxbooxsync.koplugin).
 
-A foreground service observes Onyx's `Metadata` content provider
-(`content://com.onyx.content.database.ContentProvider/Metadata`), with a
-periodic poll as fallback:
+## Download
 
-- **Push** — when NeoReader's page position changes (debounced ~3 s so rapid
-  page turns produce one request), the book's progress is converted to a
-  percentage (`page / totalPages`) and PUT to the sync server.
-- **Pull** — when a book is opened (its `lastAccess` bumps) the server is
-  queried. If the remote position carries a **strictly newer timestamp** than
-  the local one, the percentage is converted back to a page and written into
-  the Onyx provider so NeoReader reflects it. Newest-timestamp-wins; the local
-  position is never blindly overwritten.
-- **Boot** — a `BOOT_COMPLETED` receiver restarts the service automatically.
+Grab the APK from the
+[latest release](https://github.com/TryingVlad/neosync/releases/latest)
+(direct link:
+[neosync.apk](https://github.com/TryingVlad/neosync/releases/latest/download/neosync.apk))
+and sideload it on the Boox.
 
-### Cross-device book matching
+## What you need
 
-Books are identified by **KOReader's partial-MD5 document hash**: MD5 over
-1024-byte chunks read at offset 0 and at `1024 << (2*i)` for `i = 0..10`
-(1 KB, 4 KB, 16 KB … 1 GB), skipping offsets past end-of-file. This matches
-KOReader's `util.partialMD5()` and CrossPoint's binary match mode
-byte-for-byte (note: KOReader's first chunk is offset **0**, not 256 — LuaJIT's
-`lshift(1024, -2)` masks to zero). A filename-MD5 mode is also available for
-setups that match by filename instead; pick the **same mode on every device**.
-
-The unit test `KoReaderDocumentHashTest` locks the hash to reference values —
-a mismatch here breaks book matching silently, with both devices happily
-"syncing" to different document IDs.
-
-### Position resolution
-
-Onyx's provider only exposes `page/totalPages`, so pushes carry percentage
-(and page number as the progress string) — no paragraph-level XPath. Pulling
-into NeoReader rounds the remote percentage to the nearest page. This is the
-same accepted resolution loss CrossPoint had before its XPath rework.
-
-### How pulls reach NeoReader (verified on a Poke3, Android 10)
-
-Two separate mechanisms, discovered the hard way:
-
-- The `progress` column ("page/total") only drives the **library shelf**.
-- NeoReader's actual reading position is `current_page_position_v2` inside
-  the `extraAttributes` JSON — character-offset-like units, book-specific.
-  The app learns the units by recording NeoReader-authored
-  (position, percentage) pairs per book and scales pulled percentages
-  accordingly (lands within a page).
-- NeoReader only **reads** that field on a cold start; a cached process
-  restores its private store and overwrites the row. Applying remote progress
-  therefore kills NeoReader's background process first
-  (`KILL_BACKGROUND_PROCESSES`, background-only — an active foreground
-  reading session is never interrupted).
-
-### Reading statistics
-
-Reading done on other kosync devices is written into Onyx's statistics
-provider (`OnyxStatisticsModel`) so it shows up in the Boox reading stats and
-account. Requires a signed-in Onyx account. kosync only carries
-percentage + timestamp, so per-page durations are **estimates** (the window
-between syncs spread across the pages read, clamped to 15–120 s/page);
-page counts and reading days are accurate. Synthetic rows carry a
-`synced from <device>` comment so they can be told apart from NeoReader's
-native records. Local NeoReader reading is recorded by Onyx natively and is
-never touched. Known edge: if a newer-stamped remote position re-covers pages
-already read locally, those pages can be double-counted.
-
-### Manual sync
-
-The settings screen has a "Manual sync" section for the most recently read
-book: it shows the local and remote positions side by side, with **Apply
-remote** / **Upload local** buttons that skip the newest-timestamp rule —
-for the standoff where opening a book locally re-stamped `lastAccess` newer
-than remote progress you actually want. Automatic sync is unaffected.
+- A Boox running Neo Reader. Developed and tested on a **Go 10.3 Gen 2 Lumi,
+  firmware 4.2 (Android 15)**. The upstream project was tested on a Poke3
+  (Android 10); that older position format is still supported in the code but
+  has not been re-tested in this fork.
+- A Picco running **CrossPoint** firmware with *Settings → Connectivity →
+  CrossPoint Sync*. The firmware the Picco ships with does not have it. See
+  [crosspointreader.com](https://crosspointreader.com). Boox does not support
+  custom firmware and says it may void your warranty.
+- The **same EPUB with the same file name** on both devices.
 
 ## Setup
 
-1. Install the APK, long-press the icon and **Unfreeze** it (Onyx freezes new
-   apps by default), then launch it.
-2. Grant **All files access** when prompted — needed to read book files for
-   the partial-MD5 hash.
-3. Enter the same values you use in CrossPoint's KOReader Sync menu:
-   - **Sync server URL** — e.g. `https://sync.koreader.rocks` or a self-hosted
-     `http://<server-ip>:17200`. A bare host gets `http://` prepended, same as
-     CrossPoint.
-   - **Username** and **password** — only the MD5 hash of the password is
-     stored (computed once at entry, identical to what CrossPoint sends as
-     `x-auth-key`), never the plaintext.
-4. Tap **Save & Authenticate** to round-trip test against the server.
-5. **On Onyx devices, also check** Settings → Apps → this app → allow
-   auto-start / background running. Onyx's own power management can kill or
-   block the service after boot regardless of the manifest permissions —
-   verify the persistent "Syncing reading progress" notification survives a
-   reboot.
+1. Install the APK. If the icon is greyed out, long-press it and choose
+   **Unfreeze**.
+2. Follow the in-app guide: it covers the Picco settings and asks for two
+   permissions (book file access, notification).
+3. Sign in with the account you use on the Picco, or create one in the app.
+   An empty server address means `https://sync.crosspointreader.com`,
+   CrossPoint's default.
+4. In *Settings → Apps → NeoSync*, allow background running and auto-start.
+   Boox power management can otherwise stop the sync service.
 
-### Registering an account
+On the Picco: open the book, press Confirm, choose **Sync Progress**.
 
-The app has no register button. Create the account once from KOReader or
-CrossPoint (both have a register flow), or via the server's own UI, then enter
-the same credentials here.
+## How it works
+
+- A foreground service watches Onyx's `Metadata` content provider
+  (`content://com.onyx.content.database.ContentProvider/Metadata`), with a
+  60-second poll as fallback.
+- **Upload:** when Neo Reader's position changes, it is sent to the server.
+- **Fetch:** when the server holds a newer position from another device, it
+  is written into Neo Reader's row. Neo Reader only reads it on a cold start,
+  so its background process is killed first; a book open in the foreground is
+  never interrupted and cannot be moved.
+
+### Position mapping (firmware 4.x)
+
+Neo Reader stores `current_page_position_v2` as
+`{chapterIndex, nodePosition, chapterStartPosition, chapterEndPosition, chapterID, …}`:
+
+- `chapterStartPosition` / `chapterEndPosition` are cumulative **uncompressed
+  byte sizes of the EPUB's spine items**, in reading order.
+- `nodePosition` is a **character** offset (UTF-8 code points) into the
+  chapter file.
+
+CrossPoint defines its sync percentage over the same cumulative spine bytes.
+NeoSync therefore reads the EPUB's spine and converts exactly, instead of
+using `page/totalPages`, which can be several percent off because pages and
+bytes do not grow at the same rate. Neo Reader accepts a bare `nodePosition`
+with an empty `xpath` and starts the page there.
+
+Accuracy: fetching into Neo Reader lands within a line or two. Sending to the
+Picco is accurate to the paragraph Neo Reader last recorded, then rounded to
+CrossPoint's own page breaks (about a page).
+
+Non-EPUB files, and EPUBs the app cannot read, fall back to page-based
+percentages.
+
+### Book matching
+
+By default a book is identified by the MD5 of its **file name**, CrossPoint's
+default. "By file contents" uses KOReader's partial-MD5 instead and needs
+byte-identical files. Use the same mode on both devices.
+
+## Privacy
+
+Only the MD5 of your password is stored on the device, which is the credential
+the protocol uses. Your username, book identifiers (hashes, not titles) and
+positions are stored on the sync server you choose.
 
 ## Known limitations
 
-- **Calibre-Web-Automated**: CWA's kosync bridge authenticates with HTTP Basic
-  using the *plaintext* password. Since this app deliberately stores only the
-  MD5 hash, it sends the standard kosync `x-auth-user`/`x-auth-key` headers
-  only. Stock kosync servers (and CrossPoint-compatible setups) work; CWA may
-  not.
-- Progress resolution is one page — see *Position resolution* above.
-- A pull landing while NeoReader has the book open in the foreground cannot
-  move the open reader; the synced position takes effect on the next cold
-  open. If you read from the stale spot instead, that position legitimately
-  wins as newest — use the manual sync buttons to recover.
-- KOReader installed on the same device with the same kosync account will
-  fight this app (it pushes its own positions, e.g. the cover page on open).
-  Disable its kosync plugin or log it out.
+- A fetch cannot move a book that is open on screen; close it first.
+- KOReader on the same device with the same account will fight this app.
+- Calibre-Web-Automated's kosync bridge expects the plaintext password and
+  will not work.
+- The provider schema is firmware-specific. Other Boox firmware versions may
+  need adjustments.
 
 ## Building
 
 ```bash
 cd android
-./gradlew assembleDebug   # needs JDK 17+ and the Android SDK (compileSdk 36)
+./gradlew assembleDebug testDebugUnitTest   # JDK 21, Android SDK platform 36.1
 ```
 
-Release builds are signed when `KEYSTORE_FILE` / `KEYSTORE_PASSWORD` /
-`KEY_ALIAS` / `KEY_PASSWORD` are provided via environment or `local.properties`.
+The debug APK is signed with the machine's debug key; no secrets are needed.
 
 ## Credits
 
@@ -144,3 +115,6 @@ App icon by [ふにゃ猫 – funyaneko](https://iconbu.com/).
 Forked from [Tukks/onyxbooxsync.koplugin](https://github.com/Tukks/onyxbooxsync.koplugin);
 kosync protocol compatibility modeled on
 [CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader)'s KOReaderSync client.
+NeoSync is a client of the kosync protocol whose reference server is
+[koreader-sync-server](https://github.com/koreader/koreader-sync-server) — it
+shares no code with it, but it talks to any server that implements that API.

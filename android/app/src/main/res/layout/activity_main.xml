@@ -1,170 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/white" android:fitsSystemWindows="true">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="28dp">
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="0dp" android:text="@string/app_name" style="@style/NeoSync.Title" />
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+<TextView android:id="@+id/text_account" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="" style="@style/NeoSync.Small" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings_header"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+<View android:layout_width="match_parent" android:layout_height="2dp" android:layout_marginTop="14dp" android:background="@color/black" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/label_server_url" />
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="@string/status_header" style="@style/NeoSync.Section" />
 
-        <EditText
-            android:id="@+id/edit_server_url"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/hint_server_url"
-            android:inputType="textUri" />
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="10dp" style="@style/NeoSync.Card">
+<Switch android:id="@+id/switch_auto_sync" android:layout_width="match_parent" android:layout_height="48dp" android:text="@string/autosync_label" android:textSize="17sp" android:textColor="@color/black" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/label_username" />
+<TextView android:id="@+id/text_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="" style="@style/NeoSync.Body" />
 
-        <EditText
-            android:id="@+id/edit_username"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="text" />
+</LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/label_password" />
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:text="@string/manual_sync_header" style="@style/NeoSync.Section" />
 
-        <EditText
-            android:id="@+id/edit_password"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="textPassword" />
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="10dp" style="@style/NeoSync.Card">
+<TextView android:id="@+id/text_manual_book" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="0dp" android:text="" style="@style/NeoSync.Body" android:textStyle="bold" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/label_match_method" />
+<TextView android:id="@+id/text_manual_local" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="" style="@style/NeoSync.Body" />
 
-        <RadioGroup
-            android:id="@+id/group_match_method"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+<TextView android:id="@+id/text_manual_remote" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="" style="@style/NeoSync.Body" />
 
-            <RadioButton
-                android:id="@+id/radio_match_binary"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:checked="true"
-                android:text="@string/match_binary" />
+<Button android:id="@+id/button_manual_check" android:layout_width="match_parent" android:layout_marginTop="14dp" android:text="@string/button_manual_check" style="@style/NeoSync.Button.Secondary" />
 
-            <RadioButton
-                android:id="@+id/radio_match_filename"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/match_filename" />
-        </RadioGroup>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="10dp">
+<Button android:id="@+id/button_apply_remote" android:layout_width="0dp" android:layout_marginTop="0dp" android:text="@string/button_apply_remote" style="@style/NeoSync.Button.Primary" android:layout_weight="1" android:enabled="false" />
 
-        <Button
-            android:id="@+id/button_authenticate"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/button_authenticate" />
+<View android:layout_width="10dp" android:layout_height="1dp" />
+<Button android:id="@+id/button_upload_local" android:layout_width="0dp" android:layout_marginTop="0dp" android:text="@string/button_upload_local" style="@style/NeoSync.Button.Primary" android:layout_weight="1" android:enabled="false" />
 
-        <TextView
-            android:id="@+id/text_auth_result"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="" />
+</LinearLayout>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/manual_hint" style="@style/NeoSync.Small" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/manual_sync_header"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+</LinearLayout>
 
-        <TextView
-            android:id="@+id/text_manual_book"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textStyle="bold"
-            android:text="" />
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:text="@string/settings_header" style="@style/NeoSync.Section" />
 
-        <TextView
-            android:id="@+id/text_manual_local"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="" />
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/label_match_method" style="@style/NeoSync.Body" />
 
-        <TextView
-            android:id="@+id/text_manual_remote"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="" />
+<RadioGroup android:id="@+id/group_match_method" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="4dp">
+<RadioButton android:id="@+id/radio_match_filename" android:layout_width="match_parent" android:layout_height="48dp" android:text="@string/match_filename" android:textSize="17sp" android:textColor="@color/black" />
+<RadioButton android:id="@+id/radio_match_binary" android:layout_width="match_parent" android:layout_height="48dp" android:text="@string/match_binary" android:textSize="17sp" android:textColor="@color/black" />
+</RadioGroup>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="16dp">
+<Button android:id="@+id/button_account" android:layout_width="0dp" android:layout_marginTop="0dp" android:text="@string/button_account" style="@style/NeoSync.Button.Secondary" android:layout_weight="1" />
 
-        <Button
-            android:id="@+id/button_manual_check"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/button_manual_check" />
+<View android:layout_width="10dp" android:layout_height="1dp" />
+<Button android:id="@+id/button_how_it_works" android:layout_width="0dp" android:layout_marginTop="0dp" android:text="@string/button_how_it_works" style="@style/NeoSync.Button.Secondary" android:layout_weight="1" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
+</LinearLayout>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:text="@string/main_footer" style="@style/NeoSync.Small" />
 
-            <Button
-                android:id="@+id/button_apply_remote"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:enabled="false"
-                android:text="@string/button_apply_remote" />
-
-            <Button
-                android:id="@+id/button_upload_local"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:enabled="false"
-                android:text="@string/button_upload_local" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/status_header"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/text_status"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="" />
-    </LinearLayout>
+</LinearLayout>
 </ScrollView>
