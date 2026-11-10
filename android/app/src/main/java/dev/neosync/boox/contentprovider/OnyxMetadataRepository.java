@@ -113,16 +113,25 @@ public class OnyxMetadataRepository {
 
     /** All books that have been opened at least once (progress recorded). */
     public List<Book> queryBooksWithProgress() {
+        return queryBooks(COL_PROGRESS + " IS NOT NULL");
+    }
+
+    /** Every book in the Boox library, opened or not, most recently read first. */
+    public List<Book> queryAllBooks() {
+        return queryBooks(null);
+    }
+
+    private List<Book> queryBooks(String selection) {
         List<Book> books = new ArrayList<>();
         try (Cursor cursor = resolver.query(
                 METADATA_URI,
                 new String[]{COL_PATH, COL_NAME, COL_PROGRESS, COL_LAST_ACCESS, COL_READING_STATUS,
                         COL_EXTRA, "uuid", "hashTag"},
-                COL_PROGRESS + " IS NOT NULL",
+                selection,
                 null,
                 COL_LAST_ACCESS + " DESC")) {
             if (cursor == null) {
-                Log.w(TAG, "queryBooksWithProgress: null cursor — Onyx provider unavailable?");
+                Log.w(TAG, "queryBooks: null cursor — Onyx provider unavailable?");
                 return books;
             }
             while (cursor.moveToNext()) {

@@ -65,13 +65,34 @@
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/manual_hint" style="@style/NeoSync.Small" />
 </LinearLayout>
 
-<!-- Picco library: every book file the Picco currently holds. -->
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:text="@string/picco_library_header" style="@style/NeoSync.Section" />
+<!-- Picco library: the last known list of books on the Picco, kept between
+     visits and refreshed quietly, each with its sync status on this tablet. -->
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:orientation="horizontal" android:gravity="center_vertical">
+<TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/picco_library_header" style="@style/NeoSync.Section" />
 
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="10dp" style="@style/NeoSync.Card">
-<Button android:id="@+id/button_list_picco" android:layout_width="match_parent" android:text="@string/button_list_picco" style="@style/NeoSync.Button.Secondary" />
+<ImageButton android:id="@+id/button_refresh_picco" android:layout_width="44dp" android:layout_height="44dp" android:layout_marginEnd="-10dp" android:src="@drawable/ic_refresh" android:background="@null" android:padding="10dp" android:contentDescription="@string/cd_refresh_picco" />
+</LinearLayout>
 
-<TextView android:id="@+id/text_picco_books" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="" style="@style/NeoSync.Small" />
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="4dp" style="@style/NeoSync.Card">
+<TextView android:id="@+id/text_picco_updated" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Small" />
+
+<!-- Shown while the Boox is on a Wi-Fi without internet (the Picco's hotspot). -->
+<LinearLayout android:id="@+id/group_wifi_hint" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/hotspot_hint" style="@style/NeoSync.Body" android:textStyle="bold" />
+
+<Button android:id="@+id/button_wifi_settings" android:layout_width="match_parent" android:layout_marginTop="8dp" android:text="@string/button_wifi_settings" style="@style/NeoSync.Button.Secondary" />
+</LinearLayout>
+
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="12dp">
+<Button android:id="@+id/button_sync_all" android:layout_width="0dp" android:layout_marginTop="0dp" android:text="@string/button_sync_all" style="@style/NeoSync.Button.Primary" android:layout_weight="1" />
+
+<View android:layout_width="10dp" android:layout_height="1dp" />
+<Button android:id="@+id/button_send_missing" android:layout_width="0dp" android:layout_marginTop="0dp" android:text="@string/button_send_missing" style="@style/NeoSync.Button.Secondary" android:layout_weight="1" />
+</LinearLayout>
+
+<TextView android:id="@+id/text_bulk_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="" style="@style/NeoSync.Small" android:visibility="gone" />
+
+<LinearLayout android:id="@+id/list_picco_books" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
 </LinearLayout>
 
 </LinearLayout>

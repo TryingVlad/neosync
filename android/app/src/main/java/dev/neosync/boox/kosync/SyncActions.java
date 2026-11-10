@@ -83,6 +83,7 @@ public final class SyncActions {
         String written = page + "/" + total;
         state.lastWrittenProgress = written;
         state.lastWrittenAccessMs = remoteMs;
+        state.lastSyncMs = System.currentTimeMillis();
         stateStore.put(book.path, state);
 
         // Reading done on the other device should show up in the Boox reading
@@ -145,6 +146,7 @@ public final class SyncActions {
         if (result.error == KoSyncClient.Error.OK) {
             SyncStateStore.BookState state = stateStore.get(book.path);
             state.lastPushedProgress = book.progress;
+            state.lastSyncMs = System.currentTimeMillis();
             stateStore.put(book.path, state);
         }
         return result;

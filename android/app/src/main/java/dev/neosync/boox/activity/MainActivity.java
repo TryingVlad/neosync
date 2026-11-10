@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.TextView;
 
@@ -13,15 +14,20 @@ import dev.neosync.boox.R;
 import dev.neosync.boox.contentprovider.OnyxMetadataRepository;
 import dev.neosync.boox.kosync.KoSyncClient;
 import dev.neosync.boox.kosync.SyncActions;
+import dev.neosync.boox.kosync.SyncAll;
 import dev.neosync.boox.kosync.SyncSettings;
 import dev.neosync.boox.kosync.SyncStateStore;
 import dev.neosync.boox.service.SyncService;
+import dev.neosync.boox.transfer.BookSyncStatus;
 import dev.neosync.boox.transfer.PiccoClient;
+import dev.neosync.boox.transfer.PiccoLibraryStore;
 
 import java.io.File;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -48,6 +54,7 @@ public class MainActivity extends Activity {
                     retrying = false;
                 }
                 refreshStatus();
+                renderPiccoLibrary();
             });
     private TextView statusView;
     private View statusDot;
@@ -58,8 +65,32 @@ public class MainActivity extends Activity {
     private Button uploadLocalButton;
     private Button sendBookButton;
     private TextView transferStatusView;
-    private Button listPiccoButton;
-    private TextView piccoBooksView;
+    private PiccoLibraryStore piccoLibrary;
+    private Button syncAllButton;
+    private Button sendMissingButton;
+    private TextView bulkStatusView;
+    private View wifiHintView;
+    // Keeps the hotspot hint current as the Boox switches networks.
+    private final android.net.ConnectivityManager.NetworkCallback networkCallback =
+            new android.net.ConnectivityManager.NetworkCallback() {
+                @Override
+                public void onCapabilitiesChanged(android.net.Network network,
+                                                  android.net.NetworkCapabilities caps) {
+                    runOnUiThread(MainActivity.this::refreshNetworkHints);
+                }
+
+                @Override
+                public void onLost(android.net.Network network) {
+                    runOnUiThread(MainActivity.this::refreshNetworkHints);
+                }
+            };
+    private boolean bulkRunning; // "Sync all positions" or "Send missing books"
+    private TextView piccoUpdatedView;
+    private LinearLayout piccoBookList;
+    // Picco list refresh state: whether one is running, and whether the last
+    // one failed (then the saved list is shown as possibly out of date).
+    private boolean piccoRefreshing;
+    private String piccoRefreshError;
 
     // Latest book + remote progress from the last "Compare positions" run.
     private OnyxMetadataRepository.Book manualBook;
@@ -116,9 +147,17 @@ public class MainActivity extends Activity {
         uploadLocalButton = findViewById(R.id.button_upload_local);
         sendBookButton = findViewById(R.id.button_send_book);
         transferStatusView = findViewById(R.id.text_transfer_status);
-        listPiccoButton = findViewById(R.id.button_list_picco);
-        piccoBooksView = findViewById(R.id.text_picco_books);
-        listPiccoButton.setOnClickListener(v -> listPiccoBooks());
+        piccoLibrary = new PiccoLibraryStore(this);
+        piccoUpdatedView = findViewById(R.id.text_picco_updated);
+        piccoBookList = findViewById(R.id.list_picco_books);
+        findViewById(R.id.button_refresh_picco).setOnClickListener(v -> refreshPiccoLibrary());
+        syncAllButton = findViewById(R.id.button_sync_all);
+        sendMissingButton = findViewById(R.id.button_send_missing);
+        bulkStatusView = findViewById(R.id.text_bulk_status);
+        wifiHintView = findViewById(R.id.group_wifi_hint);
+        findViewById(R.id.button_wifi_settings).setOnClickListener(v -> openWifiPicker());
+        syncAllButton.setOnClickListener(v -> syncAllPositions());
+        sendMissingButton.setOnClickListener(v -> sendMissingBooks());
         findViewById(R.id.button_manual_check).setOnClickListener(v -> manualCheck());
         applyRemoteButton.setOnClickListener(v -> manualApplyRemote());
         uploadLocalButton.setOnClickListener(v -> manualUploadLocal());
@@ -137,6 +176,12 @@ public class MainActivity extends Activity {
         super.onPause();
         if (statusView != null) {
             settings.unregisterListener(statusListener);
+            try {
+                ((android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE))
+                        .unregisterNetworkCallback(networkCallback);
+            } catch (Exception ignored) {
+                // Not registered (e.g. registration failed in onResume).
+            }
         }
     }
 
@@ -145,10 +190,18 @@ public class MainActivity extends Activity {
         super.onResume();
         if (statusView != null) {
             settings.registerListener(statusListener);
+            try {
+                ((android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE))
+                        .registerDefaultNetworkCallback(networkCallback);
+            } catch (Exception e) {
+                android.util.Log.w("MainActivity", "No network callback: " + e);
+            }
             refreshStatus();
+            renderPiccoLibrary();
             // The Picco address may have been changed on the settings screen.
-            if (manualBook != null && !settings.getPiccoAddress().equals(piccoAddressChecked)) {
-                checkPiccoPresence(manualBook);
+            if (piccoAddressChecked != null
+                    && !settings.getPiccoAddress().equals(piccoAddressChecked)) {
+                refreshPiccoLibrary();
             }
         }
     }
@@ -188,6 +241,9 @@ public class MainActivity extends Activity {
         }
         if (!error.isEmpty()) {
             sb.append("\nLast problem: ").append(error);
+            if (onWifiWithoutInternet()) {
+                sb.append("\n").append(getString(R.string.hotspot_hint_short));
+            }
         }
         if (!Permissions.hasAllFilesAccess()) {
             sb.append("\nBook file access is off, so positions are less accurate. ")
@@ -216,10 +272,7 @@ public class MainActivity extends Activity {
     // --- Manual sync ---------------------------------------------------------
 
     private KoSyncClient buildClient() {
-        String androidId = Settings.Secure.getString(getContentResolver(),
-                Settings.Secure.ANDROID_ID);
-        return new KoSyncClient(settings, "NeoSync",
-                androidId != null ? androidId : "boox-companion");
+        return new KoSyncClient(settings, "NeoSync", deviceId());
     }
 
     private static String time(long ms) {
@@ -252,7 +305,10 @@ public class MainActivity extends Activity {
         new Thread(() -> {
             List<OnyxMetadataRepository.Book> books = repository.queryBooksWithProgress();
             if (books.isEmpty()) {
-                runOnUiThread(() -> manualBookView.setText(R.string.manual_no_books));
+                runOnUiThread(() -> {
+                    manualBookView.setText(R.string.manual_no_books);
+                    refreshPiccoLibrary(); // The Picco list doesn't need a local book.
+                });
                 return;
             }
             OnyxMetadataRepository.Book book = books.get(0);
@@ -302,50 +358,237 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Asks the Picco whether it already has this book file, so the send button
-     * only lights up when there is something to send. Runs on the UI thread;
-     * the network part goes to a background thread. A newer check (another
-     * book, another address) makes the result of an older one irrelevant.
+     * Whether the Picco already has this book decides whether the send button
+     * lights up. Answered by refreshing the Picco's book list, which keeps the
+     * library section current with the same single walk over the Picco.
      */
     private void checkPiccoPresence(OnyxMetadataRepository.Book book) {
+        refreshPiccoLibrary();
+    }
+
+    /**
+     * Fetches the Picco's book list in the background and saves it. The saved
+     * list stays on screen meanwhile and when the Picco can't be reached.
+     * Also settles the send button for the current book. A newer refresh
+     * (another address, a transfer) makes an older one's result irrelevant.
+     */
+    private void refreshPiccoLibrary() {
         final int generation = ++piccoCheckGeneration;
         final String address = settings.getPiccoAddress();
         piccoAddressChecked = address;
         if (address.isEmpty()) {
+            piccoRefreshing = false;
+            piccoRefreshError = null;
             // Clicking explains that the address is missing.
-            sendBookButton.setEnabled(true);
+            sendBookButton.setEnabled(manualBook != null);
             transferStatusView.setText("");
+            renderPiccoLibrary();
             return;
         }
-        sendBookButton.setEnabled(false);
-        transferStatusView.setText(R.string.transfer_checking);
+        piccoRefreshing = true;
+        piccoRefreshError = null;
+        if (manualBook != null) {
+            sendBookButton.setEnabled(false);
+            transferStatusView.setText(R.string.transfer_checking);
+        }
+        renderPiccoLibrary();
         new Thread(() -> {
-            Boolean onPicco = null; // null = unknown: Picco unreachable.
+            List<String> books = null;
+            String error = null;
             try {
-                onPicco = new PiccoClient(address).hasBook(new File(book.path).getName());
+                books = new PiccoClient(address).listBooks();
+                piccoLibrary.save(address, books);
+            } catch (IOException e) {
+                android.util.Log.d("MainActivity", "Picco listing failed: " + e);
+                error = hasLocalNetwork()
+                        ? getString(R.string.transfer_unreachable, address)
+                        : getString(R.string.transfer_no_network);
             } catch (Exception e) {
-                android.util.Log.d("MainActivity", "Picco presence check failed: " + e);
+                android.util.Log.e("MainActivity", "Picco listing error", e);
+                error = getString(R.string.transfer_unexpected, String.valueOf(e));
             }
-            final Boolean piccoHas = onPicco;
+            final List<String> listed = books;
+            final String failure = error;
             runOnUiThread(() -> {
                 if (generation != piccoCheckGeneration) {
                     return;
                 }
-                if (Boolean.TRUE.equals(piccoHas)) {
-                    sendBookButton.setEnabled(false);
-                    transferStatusView.setText(R.string.transfer_already);
-                } else {
-                    // Absent or unknown: offer the upload and let the transfer
-                    // itself report any problem.
-                    sendBookButton.setEnabled(true);
-                    if (piccoHas == null) {
+                piccoRefreshing = false;
+                piccoRefreshError = failure;
+                OnyxMetadataRepository.Book book = manualBook;
+                if (book != null) {
+                    if (listed == null) {
+                        // Unknown: offer the upload and let it report problems.
+                        sendBookButton.setEnabled(true);
                         transferStatusView.setText("");
+                    } else if (containsFile(listed, fileName(book.path))) {
+                        sendBookButton.setEnabled(false);
+                        transferStatusView.setText(R.string.transfer_already);
                     } else {
+                        sendBookButton.setEnabled(true);
                         transferStatusView.setText(R.string.transfer_missing);
                     }
                 }
+                renderPiccoLibrary();
             });
         }).start();
+    }
+
+    /** True when any listed path ends in exactly this file name. */
+    private static boolean containsFile(List<String> paths, String fileName) {
+        for (String path : paths) {
+            if (fileName(path).equals(fileName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String fileName(String path) {
+        return path == null ? "" : path.substring(path.lastIndexOf('/') + 1);
+    }
+
+    /** One row of the Picco list, prepared off the UI thread. */
+    private static class PiccoRow {
+        String title;
+        String status;
+        long lastAccessMs;
+    }
+
+    /**
+     * Redraws the Picco list from the saved copy, with each book's status on
+     * this tablet. Reads the Onyx library on a background thread; never talks
+     * to the Picco or the sync server.
+     */
+    private void renderPiccoLibrary() {
+        if (piccoBookList == null) {
+            return;
+        }
+        final String address = settings.getPiccoAddress();
+        final boolean autoSync = settings.isAutoSyncEnabled();
+        new Thread(() -> {
+            List<String> books = piccoLibrary.getBooks(address);
+            final boolean hasList = piccoLibrary.hasList(address);
+            final long updatedMs = piccoLibrary.getUpdatedMs();
+            Map<String, OnyxMetadataRepository.Book> localByName = new HashMap<>();
+            if (!books.isEmpty()) {
+                for (OnyxMetadataRepository.Book local : repository.queryBooksWithProgress()) {
+                    if (local.path != null) {
+                        localByName.put(fileName(local.path), local);
+                    }
+                }
+            }
+            final List<PiccoRow> rows = new ArrayList<>();
+            for (String path : books) {
+                OnyxMetadataRepository.Book local = localByName.get(fileName(path));
+                PiccoRow row = new PiccoRow();
+                row.title = displayTitle(path);
+                row.status = statusLine(path, local, autoSync);
+                row.lastAccessMs = local != null ? local.lastAccessMs : 0;
+                rows.add(row);
+            }
+            // Most recently read here first; books not read here after, A–Z
+            // (the listing order, kept by the stable sort).
+            Collections.sort(rows, (x, y) -> Long.compare(y.lastAccessMs, x.lastAccessMs));
+            runOnUiThread(() -> showPiccoRows(address, hasList, updatedMs, rows));
+        }).start();
+    }
+
+    private void showPiccoRows(String address, boolean hasList, long updatedMs,
+                               List<PiccoRow> rows) {
+        String updated = hasList ? time(updatedMs) : null;
+        if (address.isEmpty()) {
+            piccoUpdatedView.setText(R.string.picco_list_no_address);
+        } else if (piccoRefreshing) {
+            piccoUpdatedView.setText(hasList
+                    ? getString(R.string.picco_list_refreshing, updated)
+                    : getString(R.string.picco_list_loading));
+        } else if (piccoRefreshError != null) {
+            piccoUpdatedView.setText(hasList
+                    ? getString(R.string.picco_list_stale, updated) + "\n" + piccoRefreshError
+                    : piccoRefreshError);
+        } else if (hasList) {
+            piccoUpdatedView.setText(getString(R.string.picco_list_updated, updated));
+        } else {
+            piccoUpdatedView.setText(R.string.picco_list_never);
+        }
+
+        piccoBookList.removeAllViews();
+        if (hasList && rows.isEmpty()) {
+            piccoBookList.addView(rowText(getString(R.string.picco_books_empty),
+                    R.style.NeoSync_Small, 12));
+            return;
+        }
+        for (int i = 0; i < rows.size(); i++) {
+            PiccoRow row = rows.get(i);
+            if (i > 0) {
+                View divider = new View(this);
+                divider.setBackgroundResource(R.color.ink_soft);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, 1);
+                lp.topMargin = dp(10);
+                divider.setLayoutParams(lp);
+                piccoBookList.addView(divider);
+            }
+            TextView title = rowText(row.title, R.style.NeoSync_Body, 10);
+            title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
+            piccoBookList.addView(title);
+            piccoBookList.addView(rowText(row.status, R.style.NeoSync_Small, 2));
+        }
+    }
+
+    private TextView rowText(String text, int style, int marginTopDp) {
+        TextView view = new TextView(this);
+        view.setTextAppearance(style);
+        view.setText(text);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(marginTopDp);
+        view.setLayoutParams(lp);
+        return view;
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    /** "Fiction/Dune.epub" -> "Dune". */
+    private static String displayTitle(String path) {
+        String name = fileName(path);
+        int dot = name.lastIndexOf('.');
+        return dot > 0 ? name.substring(0, dot) : name;
+    }
+
+    /** The grey line under a book: its folder on the Picco, then its status here. */
+    private String statusLine(String piccoPath, OnyxMetadataRepository.Book local,
+                              boolean autoSync) {
+        String status;
+        if (local == null) {
+            status = getString(R.string.book_status_not_here);
+        } else {
+            SyncStateStore.BookState state = stateStore.get(local.path);
+            String pct = String.format(Locale.US, "%.0f%%",
+                    SyncActions.localPercentage(local) * 100);
+            switch (BookSyncStatus.of(true, local.progress, local.currentPage(),
+                    state.lastPushedProgress, state.lastWrittenProgress)) {
+                case SYNCED:
+                    status = state.lastSyncMs > 0
+                            ? getString(R.string.book_status_synced, pct, time(state.lastSyncMs))
+                            : getString(R.string.book_status_synced_no_time, pct);
+                    break;
+                case CHANGED_HERE:
+                    status = getString(autoSync ? R.string.book_status_changed
+                            : R.string.book_status_changed_paused, pct);
+                    break;
+                case NEVER_SYNCED:
+                    status = getString(R.string.book_status_never, pct);
+                    break;
+                default:
+                    status = getString(R.string.book_status_not_started);
+            }
+        }
+        int slash = piccoPath.lastIndexOf('/');
+        return slash > 0 ? piccoPath.substring(0, slash) + " · " + status : status;
     }
 
     /** Book title for display: file name without path or extension. */
@@ -425,8 +668,13 @@ public class MainActivity extends Activity {
             transferStatusView.setText(R.string.transfer_no_address);
             return;
         }
-        // A presence check still in flight must not overwrite this transfer's result.
+        // A list refresh still in flight must not overwrite this transfer's
+        // result. Its listing is still saved; only its screen update is dropped.
         piccoCheckGeneration++;
+        if (piccoRefreshing) {
+            piccoRefreshing = false;
+            renderPiccoLibrary();
+        }
         sendBookButton.setEnabled(false);
         transferStatusView.setText(R.string.transfer_checking);
         new Thread(() -> {
@@ -466,7 +714,11 @@ public class MainActivity extends Activity {
                             getString(R.string.transfer_server_error, result.httpCode)));
                     return false;
             }
-            transferStatusView.post(() -> transferStatusView.setText(message));
+            piccoLibrary.addUploaded(address, file.getName());
+            transferStatusView.post(() -> {
+                transferStatusView.setText(message);
+                renderPiccoLibrary();
+            });
             return true;
         } catch (IOException e) {
             android.util.Log.w("MainActivity", "Picco transfer failed: " + e);
@@ -488,67 +740,267 @@ public class MainActivity extends Activity {
         }
     }
 
+    // --- Bulk actions ---------------------------------------------------------
+
+    private void setBulkRunning(boolean running) {
+        bulkRunning = running;
+        syncAllButton.setEnabled(!running);
+        sendMissingButton.setEnabled(!running);
+    }
+
+    private void showBulkStatus(String text) {
+        bulkStatusView.setVisibility(View.VISIBLE);
+        bulkStatusView.setText(text);
+    }
+
     /**
-     * Lists every book file currently on the Picco. Uses the same address and
-     * the same network-aware error messages as the book-file transfer.
+     * Brings the position of every book that is both on this Boox and on the
+     * Picco up to date, newest position winning. Without a saved Picco list,
+     * every book opened on this Boox is synced.
      */
-    private void listPiccoBooks() {
-        final String address = settings.getPiccoAddress();
-        if (address.isEmpty()) {
-            piccoBooksView.setText(R.string.transfer_no_address);
+    private void syncAllPositions() {
+        if (bulkRunning) {
             return;
         }
-        listPiccoButton.setEnabled(false);
-        piccoBooksView.setText(R.string.picco_books_loading);
+        setBulkRunning(true);
+        showBulkStatus(getString(R.string.manual_checking));
+        final String address = settings.getPiccoAddress();
         new Thread(() -> {
-            try {
-                final List<String> books = new PiccoClient(address).listBooks();
-                // Local positions by file name, so each Picco book can be
-                // annotated with how far it was read on this tablet. Matching
-                // by exact file name, same as the transfer's presence check.
-                final Map<String, Double> localPctByName = new HashMap<>();
-                for (OnyxMetadataRepository.Book local : repository.queryBooksWithProgress()) {
-                    if (local.path == null) {
-                        continue;
+            List<OnyxMetadataRepository.Book> books = repository.queryBooksWithProgress();
+            if (piccoLibrary.hasList(address)) {
+                List<String> onPicco = piccoLibrary.getBooks(address);
+                List<OnyxMetadataRepository.Book> both = new ArrayList<>();
+                for (OnyxMetadataRepository.Book book : books) {
+                    if (containsFile(onPicco, fileName(book.path))) {
+                        both.add(book);
                     }
-                    String name = local.path.substring(local.path.lastIndexOf('/') + 1);
-                    localPctByName.put(name, SyncActions.localPercentage(local));
                 }
+                books = both;
+            }
+            if (books.isEmpty()) {
                 runOnUiThread(() -> {
-                    listPiccoButton.setEnabled(true);
-                    if (books.isEmpty()) {
-                        piccoBooksView.setText(R.string.picco_books_empty);
-                        return;
-                    }
-                    StringBuilder text = new StringBuilder(getResources().getQuantityString(
-                            R.plurals.picco_books_count, books.size(), books.size()));
-                    for (String book : books) {
-                        String name = book.substring(book.lastIndexOf('/') + 1);
-                        Double pct = localPctByName.get(name);
-                        text.append('\n').append(book);
-                        if (pct != null) {
-                            text.append(String.format(Locale.US, " — here: %.1f%%", pct * 100));
-                        } else {
-                            text.append(" — no position here");
-                        }
-                    }
-                    piccoBooksView.setText(text.toString());
+                    setBulkRunning(false);
+                    showBulkStatus(getString(R.string.sync_all_none));
                 });
+                return;
+            }
+            new SyncAll(this, settings, repository, stateStore, buildClient(), deviceId())
+                    .run(books, new SyncAll.Listener() {
+                        @Override
+                        public void onBook(int index, int count, OnyxMetadataRepository.Book book) {
+                            String text = getString(R.string.sync_all_progress,
+                                    index + 1, count, displayName(book));
+                            runOnUiThread(() -> showBulkStatus(text));
+                        }
+
+                        @Override
+                        public void onFinished(SyncAll.Summary summary) {
+                            runOnUiThread(() -> {
+                                setBulkRunning(false);
+                                String text;
+                                if (summary.stoppedReason != null) {
+                                    int done = summary.fetched + summary.sent
+                                            + summary.unchanged + summary.failed;
+                                    String reason = summary.stoppedError
+                                            == KoSyncClient.Error.NETWORK_ERROR
+                                            ? getString(hasInternet()
+                                                    ? R.string.sync_all_server_unreachable
+                                                    : R.string.sync_all_no_internet)
+                                            : summary.stoppedReason;
+                                    text = done == 0 ? reason : getString(
+                                            R.string.sync_all_stopped, done, summary.count, reason);
+                                } else {
+                                    text = getString(R.string.sync_all_done, summary.fetched,
+                                            summary.sent, summary.unchanged);
+                                    if (summary.failed > 0) {
+                                        text += " " + getString(R.string.sync_all_failed_part,
+                                                summary.failed);
+                                    }
+                                }
+                                showBulkStatus(text);
+                                refreshStatus();
+                                renderPiccoLibrary();
+                                refreshLocalBook();
+                            });
+                        }
+                    });
+        }).start();
+    }
+
+    /**
+     * Copies every EPUB on this Boox that the Picco doesn't have yet, after
+     * asking. Compares against a fresh listing so nothing is sent twice.
+     */
+    private void sendMissingBooks() {
+        if (bulkRunning) {
+            return;
+        }
+        final String address = settings.getPiccoAddress();
+        if (address.isEmpty()) {
+            showBulkStatus(getString(R.string.transfer_no_address));
+            return;
+        }
+        setBulkRunning(true);
+        showBulkStatus(getString(R.string.send_missing_checking));
+        new Thread(() -> {
+            PiccoClient client = new PiccoClient(address);
+            List<String> onPicco;
+            try {
+                onPicco = client.listBooks();
+                piccoLibrary.save(address, onPicco);
             } catch (Exception e) {
-                android.util.Log.w("MainActivity", "Picco library listing failed: " + e);
-                // Only a failed request means "can't reach"; anything else is
-                // a bug on our side and is reported as such.
                 final String message = !(e instanceof IOException)
                         ? getString(R.string.transfer_unexpected, String.valueOf(e))
                         : hasLocalNetwork()
                         ? getString(R.string.transfer_unreachable, address)
                         : getString(R.string.transfer_no_network);
                 runOnUiThread(() -> {
-                    listPiccoButton.setEnabled(true);
-                    piccoBooksView.setText(message);
+                    setBulkRunning(false);
+                    showBulkStatus(message);
                 });
+                return;
             }
+            final List<File> missing = new ArrayList<>();
+            long bytes = 0;
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            for (OnyxMetadataRepository.Book book : repository.queryAllBooks()) {
+                String name = fileName(book.path);
+                File file = new File(book.path);
+                if (!name.toLowerCase(Locale.ROOT).endsWith(".epub") || !seen.add(name)
+                        || containsFile(onPicco, name) || !file.canRead()) {
+                    continue;
+                }
+                missing.add(file);
+                bytes += file.length();
+            }
+            final String size = android.text.format.Formatter.formatShortFileSize(this, bytes);
+            runOnUiThread(() -> {
+                renderPiccoLibrary();
+                if (missing.isEmpty()) {
+                    setBulkRunning(false);
+                    showBulkStatus(getString(R.string.send_missing_none));
+                    return;
+                }
+                bulkStatusView.setVisibility(View.GONE);
+                new android.app.AlertDialog.Builder(this)
+                        .setTitle(R.string.send_missing_confirm_title)
+                        .setMessage(getString(R.string.send_missing_confirm_body,
+                                missing.size(), size))
+                        .setPositiveButton(R.string.send_missing_confirm_ok,
+                                (d, w) -> uploadAll(client, address, missing))
+                        .setNegativeButton(R.string.send_missing_cancel,
+                                (d, w) -> setBulkRunning(false))
+                        .setOnCancelListener(d -> setBulkRunning(false))
+                        .show();
+            });
         }).start();
+    }
+
+    private void uploadAll(PiccoClient client, String address, List<File> files) {
+        new Thread(() -> {
+            int sent = 0;
+            String failure = null;
+            for (int i = 0; i < files.size(); i++) {
+                File file = files.get(i);
+                String text = getString(R.string.send_missing_progress, i + 1, files.size(),
+                        displayTitle(file.getName()));
+                runOnUiThread(() -> showBulkStatus(text));
+                try {
+                    PiccoClient.UploadResult result = client.upload(file);
+                    if (result.status != PiccoClient.Status.SERVER_ERROR) {
+                        sent++;
+                        piccoLibrary.addUploaded(address, file.getName());
+                    }
+                } catch (IOException e) {
+                    // The Picco is gone (File Transfer closed, Wi-Fi dropped):
+                    // the remaining books would all fail the same way.
+                    android.util.Log.w("MainActivity", "Bulk upload stopped: " + e);
+                    failure = getString(R.string.send_missing_lost, i, files.size());
+                    break;
+                }
+            }
+            final String summary = failure != null ? failure
+                    : getString(R.string.send_missing_done, sent, files.size());
+            runOnUiThread(() -> {
+                setBulkRunning(false);
+                showBulkStatus(summary);
+                renderPiccoLibrary();
+                if (manualBook != null) {
+                    refreshPiccoLibrary();
+                }
+            });
+        }).start();
+    }
+
+    private String deviceId() {
+        String androidId = Settings.Secure.getString(getContentResolver(),
+                Settings.Secure.ANDROID_ID);
+        return androidId != null ? androidId : "boox-companion";
+    }
+
+    /**
+     * Apps can't switch Wi-Fi networks themselves (Android 10+), so this opens
+     * the system's Wi-Fi panel over the app; the user picks the network and
+     * comes straight back. Falls back to the full Wi-Fi settings screen on
+     * firmware without the panel.
+     */
+    private void openWifiPicker() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            try {
+                startActivity(new Intent(Settings.Panel.ACTION_WIFI));
+                return;
+            } catch (android.content.ActivityNotFoundException ignored) {
+            }
+        }
+        try {
+            startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
+        } catch (android.content.ActivityNotFoundException e) {
+            android.util.Log.w("MainActivity", "No Wi-Fi settings screen: " + e);
+        }
+    }
+
+    /** Shows or hides the hotspot hints for the current network. */
+    private void refreshNetworkHints() {
+        if (wifiHintView == null || isFinishing()) {
+            return;
+        }
+        wifiHintView.setVisibility(onWifiWithoutInternet() ? View.VISIBLE : View.GONE);
+        refreshStatus();
+    }
+
+    /**
+     * True on a Wi-Fi network that has no internet, which in practice means
+     * the Picco's own hotspot. Mobile data or no network at all don't count.
+     */
+    private boolean onWifiWithoutInternet() {
+        android.net.ConnectivityManager cm =
+                (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (cm == null) {
+            return false;
+        }
+        android.net.Network network = cm.getActiveNetwork();
+        android.net.NetworkCapabilities caps =
+                network != null ? cm.getNetworkCapabilities(network) : null;
+        return caps != null
+                && caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+                && !caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+    }
+
+    /**
+     * True when Android has confirmed the current network reaches the
+     * internet. False on the Picco's own hotspot, which is local only.
+     */
+    private boolean hasInternet() {
+        android.net.ConnectivityManager cm =
+                (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (cm == null) {
+            return true; // Cannot tell — fall back to the generic message.
+        }
+        android.net.Network network = cm.getActiveNetwork();
+        android.net.NetworkCapabilities caps =
+                network != null ? cm.getNetworkCapabilities(network) : null;
+        return caps != null && caps.hasCapability(
+                android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED);
     }
 
     /**

@@ -26,6 +26,7 @@ public class SyncStateStore {
         public String lastPushedProgress = "";   // Onyx progress string we last pushed, e.g. "42/300"
         public String lastWrittenProgress = "";  // progress string we last wrote into Onyx ourselves
         public long lastWrittenAccessMs = 0;     // lastAccess we wrote alongside it
+        public long lastSyncMs = 0;              // when we last pushed or pulled this book
 
         // Position calibration: a NeoReader-authored (internal position,
         // percentage) pair, used to convert a pulled percentage into
@@ -48,6 +49,7 @@ public class SyncStateStore {
                 state.lastPushedProgress = json.optString("pushed", "");
                 state.lastWrittenProgress = json.optString("written", "");
                 state.lastWrittenAccessMs = json.optLong("writtenAccess", 0);
+                state.lastSyncMs = json.optLong("syncedAt", 0);
                 state.calibPosition = json.optLong("calibPos", -1);
                 state.calibPercentage = json.optDouble("calibPct", 0);
             } catch (Exception ignored) {
@@ -62,6 +64,7 @@ public class SyncStateStore {
             json.put("pushed", state.lastPushedProgress);
             json.put("written", state.lastWrittenProgress);
             json.put("writtenAccess", state.lastWrittenAccessMs);
+            json.put("syncedAt", state.lastSyncMs);
             json.put("calibPos", state.calibPosition);
             json.put("calibPct", state.calibPercentage);
             prefs.edit().putString(key(path), json.toString()).apply();
