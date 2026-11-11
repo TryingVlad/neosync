@@ -471,6 +471,12 @@ public class MainActivity extends Activity implements JobSession.Screen {
         return !settings.getPiccoAddress().isEmpty();
     }
 
+    /** A Picco is set up and its book list is known (so "not on the Picco" means something). */
+    boolean hasPiccoList() {
+        String address = settings.getPiccoAddress();
+        return !address.isEmpty() && piccoLibrary.hasList(address);
+    }
+
     /** The book's metadata when its file can be read; null otherwise. */
     BookMeta readableMeta(LibraryEntry e) {
         if (snapshot == null || e.booxPath == null || !snapshot.readable.contains(e.key)) {
@@ -602,7 +608,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
                 }
             }
         }
-        s.entries = LibraryModel.merge(boox, onPicco, remoteByKey, s.piccoConfigured, syncing);
+        s.entries = LibraryModel.merge(boox, onPicco, remoteByKey, s.hasPiccoList, syncing);
 
         for (LibraryEntry e : s.entries) {
             if (e.booxPct > 0 || e.piccoPct > 0 || e.remote != null) {
@@ -611,7 +617,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
         }
         List<String> missingTitles = new ArrayList<>();
         List<LibraryEntry> everyEntry = boox.size() == everyBoox.size() ? s.entries
-                : LibraryModel.merge(everyBoox, onPicco, remoteByKey, s.piccoConfigured, syncing);
+                : LibraryModel.merge(everyBoox, onPicco, remoteByKey, s.hasPiccoList, syncing);
         for (LibraryEntry e : everyEntry) {
             if (e.booxPath == null || !e.isEpub || !s.readable.contains(e.key)) {
                 continue;

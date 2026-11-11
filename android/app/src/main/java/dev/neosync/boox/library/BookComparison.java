@@ -19,11 +19,13 @@ public final class BookComparison {
         this.secondary = secondary;
     }
 
-    public static BookComparison of(LibraryEntry e, boolean liveCheckOk, boolean piccoConfigured) {
-        return of(e, liveCheckOk, piccoConfigured, null);
+    public static BookComparison of(LibraryEntry e, boolean liveCheckOk, boolean hasPiccoList) {
+        return of(e, liveCheckOk, hasPiccoList, null);
     }
 
     /**
+     * @param hasPiccoList a Picco list exists, so e.piccoPath == null means
+     *                     the Picco lacks the file
      * @param ownOnServer the server's record when this Boox wrote it (the live
      *                    check's answer was our own), else null. When it holds
      *                    the Boox's place, that place is already sent: no
@@ -31,17 +33,24 @@ public final class BookComparison {
      *                    the verdict is "Same place.". e.remote stays the
      *                    other device's last record.
      */
-    public static BookComparison of(LibraryEntry e, boolean liveCheckOk, boolean piccoConfigured,
+    public static BookComparison of(LibraryEntry e, boolean liveCheckOk, boolean hasPiccoList,
                                     RemotePosition ownOnServer) {
         if (e.booxPath == null) {
             return new BookComparison(Verdict.NOT_CHECKED, Action.NONE, Action.NONE);
         }
-        boolean sendFile = piccoConfigured && e.piccoPath == null && e.isEpub;
+        boolean sendFile = hasPiccoList && e.piccoPath == null && e.isEpub;
         BookComparison c = compare(e, liveCheckOk);
         if (liveCheckOk && serverHasThisPlace(e, ownOnServer)) {
-            c = new BookComparison(e.remote == null ? Verdict.SAME : c.verdict,
-                    c.primary == Action.SEND_PLACE ? Action.NONE : c.primary,
-                    c.secondary == Action.SEND_PLACE ? Action.NONE : c.secondary);
+            if (e.remote != null && c.verdict != Verdict.SAME
+                    && ownOnServer.timestampMs > e.remote.timestampMs) {
+                // The server's newest record is this place, as the list says
+                // ("Same place"); the other device's older place stays a link.
+                c = new BookComparison(Verdict.SAME, Action.NONE, Action.JUMP_TO_REMOTE);
+            } else {
+                c = new BookComparison(e.remote == null ? Verdict.SAME : c.verdict,
+                        c.primary == Action.SEND_PLACE ? Action.NONE : c.primary,
+                        c.secondary == Action.SEND_PLACE ? Action.NONE : c.secondary);
+            }
         }
         if (sendFile) {
             return new BookComparison(c.verdict, Action.SEND_FILE, Action.NONE);
@@ -69,6 +78,11 @@ public final class BookComparison {
         if (r.timestampMs > e.booxLastMs) {
             return new BookComparison(Verdict.OTHER_MORE_RECENT, Action.JUMP_TO_REMOTE,
                     Action.SEND_PLACE);
+        }
+        if (r.percentage > e.booxPct) {
+            // More recent here only by Neo Reader's last open, while the other
+            // device is further along: sending must not be one black tap.
+            return new BookComparison(Verdict.HERE_MORE_RECENT, Action.NONE, Action.SEND_PLACE);
         }
         return new BookComparison(Verdict.HERE_MORE_RECENT, Action.SEND_PLACE,
                 Action.JUMP_TO_REMOTE);

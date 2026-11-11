@@ -101,11 +101,57 @@ public class BookComparisonTest {
 
     @Test
     public void ownRecordAtThisPlaceDropsSendPlace() {
-        // Read further here and already sent: no "Send this place", jump stays.
-        check(BookComparison.of(onBoox(0.6, 30, remote(0.2, 20)), true, true, own(0.6, 31)),
+        // Own record older than the other device's (a stale store): no
+        // "Send this place", the verdict and the jump stay.
+        check(BookComparison.of(onBoox(0.6, 30, remote(0.2, 20)), true, true, own(0.6, 15)),
                 Verdict.HERE_MORE_RECENT, Action.NONE, Action.JUMP_TO_REMOTE);
-        check(BookComparison.of(onBoox(0.2, 10, remote(0.6, 20)), true, true, own(0.2, 25)),
+        check(BookComparison.of(onBoox(0.2, 10, remote(0.6, 20)), true, true, own(0.2, 15)),
                 Verdict.OTHER_MORE_RECENT, Action.JUMP_TO_REMOTE, Action.NONE);
+    }
+
+    @Test
+    public void ownNewerRecordAtThisPlaceIsSamePlaceWithPiccoLink() {
+        // The server's latest is this Boox's place, newer than the Picco's
+        // record: "Same place." as the list says, and the Picco's older
+        // place stays reachable as the "instead" link.
+        check(BookComparison.of(onBoox(0.6, 30, remote(0.2, 20)), true, true, own(0.6, 31)),
+                Verdict.SAME, Action.NONE, Action.JUMP_TO_REMOTE);
+        check(BookComparison.of(onBoox(0.0, 10, remote(0.02, 20)), true, true, own(0.0, 25)),
+                Verdict.SAME, Action.NONE, Action.JUMP_TO_REMOTE);
+    }
+
+    @Test
+    public void ownNewerRecordWithPiccoAtSamePlaceHasNoLink() {
+        check(BookComparison.of(onBoox(0.5, 30, remote(0.502, 20)), true, true, own(0.5, 31)),
+                Verdict.SAME, Action.NONE, Action.NONE);
+    }
+
+    @Test
+    public void ownNewerRecordStillOffersSendFile() {
+        LibraryEntry e = onBoox(0.6, 30, remote(0.2, 20));
+        e.piccoPath = null;
+        check(BookComparison.of(e, true, true, own(0.6, 31)),
+                Verdict.SAME, Action.SEND_FILE, Action.NONE);
+    }
+
+    @Test
+    public void hereMoreRecentButOtherFurtherAlongHasNoPrimary() {
+        // Opening the book bumped lastAccess: the Picco's 73% must not be
+        // overwritten with 10% by one tap on the black button.
+        check(BookComparison.of(onBoox(0.10, 30, remote(0.73, 20)), true, true),
+                Verdict.HERE_MORE_RECENT, Action.NONE, Action.SEND_PLACE);
+    }
+
+    @Test
+    public void hereMoreRecentAndFurtherAlongKeepsSendPrimary() {
+        check(BookComparison.of(onBoox(0.73, 30, remote(0.10, 20)), true, true),
+                Verdict.HERE_MORE_RECENT, Action.SEND_PLACE, Action.JUMP_TO_REMOTE);
+    }
+
+    @Test
+    public void hereMoreRecentButBehindAlreadySentHasNoActions() {
+        check(BookComparison.of(onBoox(0.10, 30, remote(0.73, 20)), true, true, own(0.10, 15)),
+                Verdict.HERE_MORE_RECENT, Action.NONE, Action.NONE);
     }
 
     @Test

@@ -3,11 +3,15 @@ package dev.neosync.boox;
 import static org.junit.Assert.assertEquals;
 
 import dev.neosync.boox.library.LibraryEntry;
+import dev.neosync.boox.library.LibraryModel;
 import dev.neosync.boox.library.RemotePosition;
 import dev.neosync.boox.library.RowStatus;
 import dev.neosync.boox.transfer.BookSyncStatus;
 
 import org.junit.Test;
+
+import java.util.Collections;
+import java.util.List;
 
 public class RowStatusTest {
     private static LibraryEntry both(BookSyncStatus s) {
@@ -40,7 +44,7 @@ public class RowStatusTest {
     }
 
     @Test
-    public void notOnPiccoWhenConfigured() {
+    public void notOnPiccoOnlyWithAPiccoList() {
         LibraryEntry e = both(BookSyncStatus.SYNCED);
         e.piccoPath = null;
         assertEquals(RowStatus.NOT_ON_PICCO, RowStatus.of(e, true, false));
@@ -105,5 +109,19 @@ public class RowStatusTest {
         LibraryEntry e = both(BookSyncStatus.SYNCED);
         RowStatus.of(e, true, false);
         assertEquals(null, e.status);
+    }
+
+    @Test
+    public void noPiccoListMeansNoNotOnPicco() {
+        // An address that never answered has no list: the merge is told
+        // "no Picco list", so a Boox book shows its place, not "Not on the Picco".
+        List<LibraryEntry> rows = LibraryModel.merge(Collections.singletonList(
+                new LibraryModel.BooxBook("/b/a.epub", 0.4, 1000, BookSyncStatus.CHANGED_HERE,
+                        "A", "")), Collections.<String>emptyList(), null, false, false);
+        assertEquals(RowStatus.WAITING_TO_SYNC, rows.get(0).status);
+        rows = LibraryModel.merge(Collections.singletonList(
+                new LibraryModel.BooxBook("/b/a.epub", 0.4, 1000, BookSyncStatus.CHANGED_HERE,
+                        "A", "")), Collections.<String>emptyList(), null, true, false);
+        assertEquals(RowStatus.NOT_ON_PICCO, rows.get(0).status);
     }
 }

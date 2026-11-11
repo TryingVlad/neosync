@@ -97,11 +97,26 @@ public final class LibraryModel {
     }
 
     /**
+     * The first of paths whose file name is the same as pathOrName's, compared
+     * by keyOf (NFC), as the list and its counts match books; null if none.
+     */
+    public static String findSameName(Iterable<String> paths, String pathOrName) {
+        String key = keyOf(pathOrName);
+        for (String path : paths) {
+            if (path != null && keyOf(path).equals(key)) {
+                return path;
+            }
+        }
+        return null;
+    }
+
+    /**
      * @param remoteByKey positions keyed by the same NFC file name as the merge key
+     * @param hasPiccoList a Picco list exists (see RowStatus.of)
      */
     public static List<LibraryEntry> merge(List<BooxBook> boox, List<String> piccoPaths,
                                            Map<String, RemotePosition> remoteByKey,
-                                           boolean piccoConfigured, boolean syncing) {
+                                           boolean hasPiccoList, boolean syncing) {
         Map<String, BooxBook> booxByKey = new LinkedHashMap<>();
         if (boox != null) {
             for (BooxBook b : boox) {
@@ -158,7 +173,7 @@ public final class LibraryModel {
                 e.piccoPct = e.remote != null ? e.remote.percentage : -1;
             }
             e.activityMs = Math.max(e.booxLastMs, e.remote != null ? e.remote.timestampMs : 0);
-            e.status = RowStatus.of(e, piccoConfigured, syncing);
+            e.status = RowStatus.of(e, hasPiccoList, syncing);
         }
         Collections.sort(list, new Comparator<LibraryEntry>() {
             @Override

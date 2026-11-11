@@ -294,7 +294,7 @@ final class BookSheet {
         bindBar(barOther, pctOther, whenOther, r != null ? r.percentage : -1,
                 r != null ? r.timestampMs : 0);
 
-        BookComparison c = BookComparison.of(e, liveOk, a.piccoConfigured(), ownOnServer);
+        BookComparison c = BookComparison.of(e, liveOk, a.hasPiccoList(), ownOnServer);
         if (checking) {
             verdict.setText(R.string.sheet_checking);
             verdict.setVisibility(View.VISIBLE);
@@ -338,7 +338,12 @@ final class BookSheet {
         primary.setEnabled(enabled);
         hint.setVisibility(main == BookComparison.Action.JUMP_TO_REMOTE ? View.VISIBLE : View.GONE);
 
-        if (instead == BookComparison.Action.SEND_PLACE) {
+        if (instead == BookComparison.Action.SEND_PLACE && main == BookComparison.Action.NONE) {
+            // No black button (the other device is further along): the send
+            // is a plain link that names the percentage.
+            linkInstead.setText(a.getString(R.string.sheet_send_place, pctBooxText));
+            linkInstead.setOnClickListener(x -> sendPlace());
+        } else if (instead == BookComparison.Action.SEND_PLACE) {
             linkInstead.setText(R.string.sheet_keep_boox);
             linkInstead.setOnClickListener(x -> sendPlace());
         } else if (instead == BookComparison.Action.JUMP_TO_REMOTE) {

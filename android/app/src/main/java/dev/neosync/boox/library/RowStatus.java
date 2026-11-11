@@ -10,8 +10,12 @@ public enum RowStatus {
     /** Positions closer than this are the same place (as in BookComparison). */
     private static final double SAME_PLACE_DIFF = 0.005;
 
-    /** Does not modify the entry. */
-    public static RowStatus of(LibraryEntry e, boolean piccoConfigured, boolean syncing) {
+    /**
+     * Does not modify the entry.
+     * @param hasPiccoList a Picco list exists (not merely an address), so a
+     *                     missing piccoPath means the Picco lacks the file
+     */
+    public static RowStatus of(LibraryEntry e, boolean hasPiccoList, boolean syncing) {
         boolean onBoox = e.booxPath != null;
         if (!e.isEpub && onBoox) {
             return BOOX_ONLY_TYPE;
@@ -19,7 +23,7 @@ public enum RowStatus {
         if (!onBoox) {
             return ONLY_ON_PICCO;
         }
-        if (piccoConfigured && e.piccoPath == null) {
+        if (hasPiccoList && e.piccoPath == null) {
             return NOT_ON_PICCO;
         }
         if (e.remote != null && e.booxPct >= 0
