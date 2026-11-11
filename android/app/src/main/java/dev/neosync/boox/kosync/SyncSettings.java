@@ -3,6 +3,8 @@ package dev.neosync.boox.kosync;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import dev.neosync.boox.library.SyncProblem;
+
 /**
  * Persistent sync configuration and status, backed by SharedPreferences.
  *
@@ -23,6 +25,9 @@ public class SyncSettings {
     private static final String KEY_MATCH_METHOD = "match_method";
     private static final String KEY_LAST_SYNC_MS = "last_sync_ms";
     private static final String KEY_LAST_ERROR = "last_error";
+    private static final String KEY_PROBLEM_TYPE = "problem_type";
+    private static final String KEY_FIRST_FAILURE_MS = "first_failure_ms";
+    private static final String KEY_CONSECUTIVE_FAILURES = "consecutive_failures";
     private static final String KEY_LAST_BOOK = "last_book";
     private static final String KEY_ONBOARDED = "onboarded";
     private static final String KEY_AUTO_SYNC = "auto_sync";
@@ -209,15 +214,49 @@ public class SyncSettings {
                 .putLong(KEY_LAST_SYNC_MS, now)
                 .putString(KEY_LAST_BOOK, bookName)
                 .putString(KEY_LAST_ERROR, "")
+                .putString(KEY_PROBLEM_TYPE, SyncProblem.Type.NONE.name())
+                .putLong(KEY_FIRST_FAILURE_MS, 0)
+                .putInt(KEY_CONSECUTIVE_FAILURES, 0)
                 .putLong(KEY_LAST_ATTEMPT_MS, now)
                 .apply();
     }
 
     public void recordSyncError(String error) {
-        prefs.edit()
+        recordSyncError(error, SyncProblem.Type.OTHER);
+    }
+
+    /**
+     * Records a failed attempt: the free-text message, its type, and (only
+     * for the first failure of a streak) when the trouble started.
+     */
+    public void recordSyncError(String error, SyncProblem.Type type) {
+        long now = System.currentTimeMillis();
+        SharedPreferences.Editor edit = prefs.edit()
                 .putString(KEY_LAST_ERROR, error)
-                .putLong(KEY_LAST_ATTEMPT_MS, System.currentTimeMillis())
-                .apply();
+                .putString(KEY_PROBLEM_TYPE, type.name())
+                .putInt(KEY_CONSECUTIVE_FAILURES, getConsecutiveFailures() + 1)
+                .putLong(KEY_LAST_ATTEMPT_MS, now);
+        if (getFirstFailureMs() == 0) {
+            edit.putLong(KEY_FIRST_FAILURE_MS, now);
+        }
+        edit.apply();
+    }
+
+    public SyncProblem.Type getProblemType() {
+        try {
+            return SyncProblem.Type.valueOf(
+                    prefs.getString(KEY_PROBLEM_TYPE, SyncProblem.Type.NONE.name()));
+        } catch (IllegalArgumentException e) {
+            return SyncProblem.Type.NONE;
+        }
+    }
+
+    public long getFirstFailureMs() {
+        return prefs.getLong(KEY_FIRST_FAILURE_MS, 0);
+    }
+
+    public int getConsecutiveFailures() {
+        return prefs.getInt(KEY_CONSECUTIVE_FAILURES, 0);
     }
 
     /**
@@ -226,8 +265,14 @@ public class SyncSettings {
      * network blip would keep "Needs attention" up until the next page turn.
      */
     public void clearSyncError() {
-        if (!getLastError().isEmpty()) {
-            prefs.edit().putString(KEY_LAST_ERROR, "").apply();
+        if (!getLastError().isEmpty() || getFirstFailureMs() != 0
+                || getConsecutiveFailures() != 0) {
+            prefs.edit()
+                    .putString(KEY_LAST_ERROR, "")
+                    .putString(KEY_PROBLEM_TYPE, SyncProblem.Type.NONE.name())
+                    .putLong(KEY_FIRST_FAILURE_MS, 0)
+                    .putInt(KEY_CONSECUTIVE_FAILURES, 0)
+                    .apply();
         }
     }
 

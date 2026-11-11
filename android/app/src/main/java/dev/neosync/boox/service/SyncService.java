@@ -25,6 +25,7 @@ import dev.neosync.boox.kosync.SyncSettings;
 import dev.neosync.boox.kosync.SyncStateStore;
 import dev.neosync.boox.library.RemotePosition;
 import dev.neosync.boox.library.RemotePositionStore;
+import dev.neosync.boox.library.SyncProblem;
 import dev.neosync.boox.transfer.PiccoLibraryStore;
 
 import java.util.HashMap;
@@ -519,7 +520,8 @@ public class SyncService extends Service {
         } else if (remote.error != KoSyncClient.Error.NOT_FOUND) {
             // Can't tell who is newest — never push blind over what might be
             // another device's newer progress.
-            settings.recordSyncError("Sync check failed: " + KoSyncClient.errorString(remote));
+            settings.recordSyncError("Sync check failed: " + KoSyncClient.errorString(remote),
+                    SyncProblem.classify(remote.error, SyncProblem.wifiHasInternet(this)));
             return false;
         }
 
@@ -558,7 +560,8 @@ public class SyncService extends Service {
             Log.i(TAG, "Pushed " + book.progress + " (" + hash + ") for " + book.path);
             return true;
         }
-        settings.recordSyncError("Push failed: " + KoSyncClient.errorString(result));
+        settings.recordSyncError("Push failed: " + KoSyncClient.errorString(result),
+                SyncProblem.classify(result.error, SyncProblem.wifiHasInternet(this)));
         return false;
     }
 
@@ -623,14 +626,15 @@ public class SyncService extends Service {
 
     private void backOff(KoSyncClient.Result result) {
         // The pause itself is enforced inside KoSyncClient for every caller.
-        settings.recordSyncError(KoSyncClient.errorString(result));
+        settings.recordSyncError(KoSyncClient.errorString(result),
+                SyncProblem.classify(result.error, SyncProblem.wifiHasInternet(this)));
     }
 
     private String documentHash(String path) {
         String hash = SyncActions.documentHash(settings, path);
         if (hash == null) {
             Log.w(TAG, "Could not hash " + path + " (file missing or unreadable?)");
-            settings.recordSyncError("Cannot read book file: " + path);
+            settings.recordSyncError("Cannot read book file: " + path, SyncProblem.Type.OTHER);
         }
         return hash;
     }

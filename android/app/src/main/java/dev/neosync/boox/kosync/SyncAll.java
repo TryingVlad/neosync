@@ -7,6 +7,7 @@ import java.util.List;
 import dev.neosync.boox.contentprovider.OnyxMetadataRepository;
 import dev.neosync.boox.library.RemotePosition;
 import dev.neosync.boox.library.RemotePositionStore;
+import dev.neosync.boox.library.SyncProblem;
 
 /**
  * "Sync all positions": brings every given book up to date in whichever
@@ -92,7 +93,8 @@ public class SyncAll {
             if (stop != null) {
                 summary.stoppedReason = KoSyncClient.errorString(stop);
                 summary.stoppedError = stop.error;
-                settings.recordSyncError(summary.stoppedReason);
+                settings.recordSyncError(summary.stoppedReason,
+                        SyncProblem.classify(stop.error, SyncProblem.wifiHasInternet(context)));
                 break;
             }
         }
