@@ -23,6 +23,8 @@ import dev.neosync.boox.kosync.LibrarySweep;
 import dev.neosync.boox.kosync.SyncActions;
 import dev.neosync.boox.kosync.SyncSettings;
 import dev.neosync.boox.kosync.SyncStateStore;
+import dev.neosync.boox.library.RemotePosition;
+import dev.neosync.boox.library.RemotePositionStore;
 import dev.neosync.boox.transfer.PiccoLibraryStore;
 
 import java.util.HashMap;
@@ -85,6 +87,7 @@ public class SyncService extends Service {
 
     private SyncSettings settings;
     private SyncStateStore stateStore;
+    private RemotePositionStore remoteStore;
     private OnyxMetadataRepository repository;
     private KoSyncClient client;
     private String deviceId;
@@ -133,6 +136,7 @@ public class SyncService extends Service {
             return;
         }
         stateStore = new SyncStateStore(this);
+        remoteStore = new RemotePositionStore(this);
         repository = new OnyxMetadataRepository(this);
         piccoLibrary = new PiccoLibraryStore(this);
         String androidId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
@@ -406,6 +410,7 @@ public class SyncService extends Service {
                 if (deviceId.equals(change.deviceId)) {
                     continue;
                 }
+                remoteStore.recordAll(change.document, change.aliases, RemotePosition.from(change));
                 if (byHash == null) {
                     byHash = hashIndex(books);
                 }
@@ -504,6 +509,7 @@ public class SyncService extends Service {
             settings.clearSyncError();
         }
         if (remote.error == KoSyncClient.Error.OK && remote.progress != null) {
+            remoteStore.recordAll(hash, null, RemotePosition.from(remote.progress));
             long remoteMs = remote.progress.timestampSec * 1000L;
             boolean fromOtherDevice = !deviceId.equals(remote.progress.deviceId);
             if (fromOtherDevice && remoteMs > localBasisMs) {

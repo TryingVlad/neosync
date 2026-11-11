@@ -5,6 +5,8 @@ import android.content.Context;
 import java.util.List;
 
 import dev.neosync.boox.contentprovider.OnyxMetadataRepository;
+import dev.neosync.boox.library.RemotePosition;
+import dev.neosync.boox.library.RemotePositionStore;
 
 /**
  * "Sync all positions": brings every given book up to date in whichever
@@ -64,6 +66,7 @@ public class SyncAll {
     private final SyncSettings settings;
     private final OnyxMetadataRepository repository;
     private final SyncStateStore stateStore;
+    private final RemotePositionStore remoteStore;
     private final KoSyncClient client;
     private final String deviceId;
 
@@ -73,6 +76,7 @@ public class SyncAll {
         this.settings = settings;
         this.repository = repository;
         this.stateStore = stateStore;
+        this.remoteStore = new RemotePositionStore(context);
         this.client = client;
         this.deviceId = deviceId;
     }
@@ -119,6 +123,9 @@ public class SyncAll {
         settings.clearSyncError();
         KoSyncClient.Progress progress =
                 remote.error == KoSyncClient.Error.OK ? remote.progress : null;
+        if (progress != null) {
+            remoteStore.recordAll(hash, null, RemotePosition.from(progress));
+        }
 
         SyncStateStore.BookState state = stateStore.get(book.path);
         boolean localChanged = book.currentPage() > 0 && total > 0

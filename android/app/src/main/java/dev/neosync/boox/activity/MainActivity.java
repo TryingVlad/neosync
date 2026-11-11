@@ -12,6 +12,8 @@ import android.widget.TextView;
 
 import dev.neosync.boox.R;
 import dev.neosync.boox.contentprovider.OnyxMetadataRepository;
+import dev.neosync.boox.library.RemotePosition;
+import dev.neosync.boox.library.RemotePositionStore;
 import dev.neosync.boox.kosync.KoSyncClient;
 import dev.neosync.boox.kosync.SyncActions;
 import dev.neosync.boox.kosync.SyncAll;
@@ -340,6 +342,11 @@ public class MainActivity extends Activity {
             String hash = SyncActions.documentHash(settings, book.path);
             KoSyncClient.Result serverResult = hash != null
                     ? SyncActions.getProgress(buildClient(), book.path, hash) : null;
+            if (serverResult != null && serverResult.error == KoSyncClient.Error.OK
+                    && serverResult.progress != null) {
+                new RemotePositionStore(this).recordAll(hash, null,
+                        RemotePosition.from(serverResult.progress));
+            }
             runOnUiThread(() -> {
                 if (manualBook != book) {
                     return; // A newer load replaced this book meanwhile.
