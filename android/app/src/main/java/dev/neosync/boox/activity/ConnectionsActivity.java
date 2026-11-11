@@ -54,7 +54,7 @@ public class ConnectionsActivity extends Activity {
 
     private SyncSettings settings;
 
-    private View wireWifi;
+    private ArrowView wireWifi;
     private TextView wireWifiText;
     private TextView fileAccessText;
     private Button fileAccessButton;
@@ -313,11 +313,7 @@ public class ConnectionsActivity extends Activity {
         setVisible(hotspotText, WifiHelper.hasLocalNetwork(this)
                 && !SyncProblem.wifiHasInternet(this));
 
-        int wire = connected ? R.drawable.line_solid : R.drawable.line_dashed;
-        if (!Integer.valueOf(wire).equals(wireWifi.getTag())) {
-            wireWifi.setBackgroundResource(wire);
-            wireWifi.setTag(wire);
-        }
+        wireWifi.setDashed(!connected);
         setText(wireWifiText, connected ? getString(R.string.conn_wire_wifi_connected)
                 : pending ? getString(R.string.conn_wire_wifi_checking)
                 : html(R.string.conn_wire_wifi_not_connected));

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Connections (spec 5.3, mockup 3): why there are two links, and how each one is doing. -->
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/white" android:fitsSystemWindows="true">
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/white" android:fitsSystemWindows="true">
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="28dp">
 
 <!-- Header: back arrow + title. -->
@@ -10,7 +10,7 @@
 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="@string/conn_title" style="@style/NeoSync.Title" />
 </LinearLayout>
 
-<!-- Diagram: positions go over the internet, book files over the same Wi-Fi. -->
+<!-- Diagram: reading places go both ways over the internet; books go from the Boox to the Picco over the same Wi-Fi. -->
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:orientation="vertical" style="@style/NeoSync.Card">
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/conn_diagram_header" style="@style/NeoSync.Section" />
 
@@ -22,7 +22,7 @@
 
 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center_horizontal">
 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_positions" style="@style/NeoSync.Small" />
-<View android:layout_width="match_parent" android:layout_height="6dp" android:background="@drawable/line_solid" />
+<dev.neosync.boox.activity.ArrowView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:layout_marginTop="2dp" android:layout_marginBottom="2dp" app:twoWay="true" />
 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_internet" style="@style/NeoSync.Small" />
 </LinearLayout>
 
@@ -33,7 +33,7 @@
 
 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center_horizontal">
 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_positions" style="@style/NeoSync.Small" />
-<View android:layout_width="match_parent" android:layout_height="6dp" android:background="@drawable/line_solid" />
+<dev.neosync.boox.activity.ArrowView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:layout_marginTop="2dp" android:layout_marginBottom="2dp" app:twoWay="true" />
 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_internet" style="@style/NeoSync.Small" />
 </LinearLayout>
 
@@ -43,10 +43,10 @@
 </LinearLayout>
 </LinearLayout>
 
-<!-- The direct Boox-Picco link: dashed while the Picco isn't reachable. -->
+<!-- The direct Boox-to-Picco link: dashed while the Picco isn't reachable. -->
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:layout_marginStart="36dp" android:layout_marginEnd="36dp" android:orientation="vertical" android:gravity="center_horizontal">
 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_files" style="@style/NeoSync.Small" />
-<View android:id="@+id/wire_wifi" android:layout_width="match_parent" android:layout_height="6dp" android:layerType="software" android:background="@drawable/line_dashed" />
+<dev.neosync.boox.activity.ArrowView android:id="@+id/wire_wifi" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:layout_marginBottom="2dp" app:dashed="true" />
 <TextView android:id="@+id/text_wire_wifi" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Small" android:textColor="@color/black" />
 </LinearLayout>
 </LinearLayout>

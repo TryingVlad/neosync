@@ -9,11 +9,11 @@
     <string name="onb_done">Done</string>
 
     <string name="onb1_title">Keep your place on both devices</string>
-    <string name="onb1_body">NeoSync carries your reading position between Neo Reader on this Boox and CrossPoint on your Picco.</string>
-    <string name="onb1_point1">You read here in Neo Reader. NeoSync notices each page turn and saves your position online.</string>
+    <string name="onb1_body">NeoSync carries your reading place between Neo Reader on this Boox and CrossPoint on your Picco.</string>
+    <string name="onb1_point1">You read here in Neo Reader. NeoSync notices each page turn and saves your reading place online.</string>
     <string name="onb1_point2">On the Picco, open the same book and choose Sync Progress. It jumps to where you stopped.</string>
     <string name="onb1_point3">It works the other way too: read on the Picco, and Neo Reader opens at the new place.</string>
-    <string name="onb1_note">Accurate to about a page. Your notes and highlights stay in Neo Reader; only the position is synced.</string>
+    <string name="onb1_note">Accurate to about a page. Your notes and highlights stay in Neo Reader; only the reading place is synced.</string>
 
     <string name="onb2_title">Your Picco needs CrossPoint</string>
     <string name="onb2_body">The firmware the Picco ships with has no progress sync. You first need to install CrossPoint, a free open-source firmware, on the Picco.</string>
@@ -34,13 +34,13 @@
     <string name="onb4_title">Use the same book file</string>
     <string name="onb4_body">NeoSync recognises a book by its file name. Put the same EPUB on both devices, with exactly the same file name.</string>
     <string name="onb4_point1">Copy the file to both devices without renaming it. A renamed copy is treated as a different book.</string>
-    <string name="onb4_point2">Use EPUB files. Positions in EPUBs are matched by chapter and are the most accurate.</string>
-    <string name="onb4_point3">Before fetching a position from the Picco, close the book in Neo Reader. A book that is open on screen can’t be moved.</string>
+    <string name="onb4_point2">Use EPUB files. Reading places in EPUBs are matched by chapter and are the most accurate.</string>
+    <string name="onb4_point3">Before fetching a reading place from the Picco, close the book in Neo Reader. A book that is open on screen can’t be moved.</string>
 
     <string name="onb5_title">Let NeoSync work in the background</string>
     <string name="onb5_body">NeoSync needs two permissions, and Boox needs to be told not to stop it.</string>
     <string name="onb5_files_label">Access to your book files</string>
-    <string name="onb5_files_why">Used to read each book’s chapter list, so positions are exact.</string>
+    <string name="onb5_files_why">Used to read each book’s chapter list, so reading places are exact.</string>
     <string name="onb5_notif_label">Notification</string>
     <string name="onb5_notif_why">A small permanent notification keeps sync running.</string>
     <string name="onb5_grant">Allow</string>
@@ -63,7 +63,7 @@
     <string name="register_taken">That username is already taken. Try Sign in, or pick another name.</string>
     <string name="auth_failed">Wrong username or password.</string>
     <string name="network_failed">Could not reach the sync server. Check Wi-Fi and try again.</string>
-    <string name="signin_privacy">Your password is never stored on this device, only a scrambled form of it. Your reading positions are kept on the sync server below.</string>
+    <string name="signin_privacy">Your password is never stored on this device, only a scrambled form of it. Your reading places are kept on the sync server below.</string>
     <string name="label_server_url">Sync server address</string>
     <string name="hint_server_url">https://sync.crosspointreader.com</string>
     <string name="server_help">Leave empty for CrossPoint’s server. Any KOReader-compatible sync server works; it must be the same on the Picco.</string>
@@ -74,7 +74,7 @@
     <string name="status_never_synced">Nothing synced yet. Read a few pages in Neo Reader.</string>
     <string name="status_running">Sync is running in the background.</string>
     <string name="autosync_label">Automatic sync</string>
-    <string name="autosync_hint">Syncs your position in the background</string>
+    <string name="autosync_hint">Syncs your reading place in the background</string>
     <string name="status_auto_off">Automatic sync is off. Nothing is sent until you turn it on; the buttons below still work.</string>
     <string name="cd_refresh">Refresh</string>
     <string name="cd_settings">Settings</string>
@@ -128,12 +128,12 @@
     <string name="button_send_missing">Send missing books</string>
     <string name="sync_all_none">No books to sync: none of the Picco’s books has been opened on this Boox.</string>
     <string name="sync_all_progress">Syncing positions · %1$d of %2$d · %3$s</string>
-    <string name="sync_all_done">Positions synced: %1$d fetched, %2$d sent, %3$d already up to date.</string>
+    <string name="sync_all_done">Reading places synced: %1$d fetched, %2$d sent, %3$d already up to date.</string>
     <string name="sync_all_failed_part">%1$d could not be synced.</string>
-    <string name="hotspot_hint">It looks like you’re on the Picco’s hotspot, which has no internet. Switch back to your usual Wi-Fi to sync positions. Sending book files works here.</string>
+    <string name="hotspot_hint">It looks like you’re on the Picco’s hotspot, which has no internet. Switch back to your usual Wi-Fi to sync reading places. Sending book files works here.</string>
     <string name="button_wifi_settings">Wi-Fi settings</string>
     <string name="hotspot_hint_short">It looks like you’re on the Picco’s hotspot. Switch back to your usual Wi-Fi to sync positions.</string>
-    <string name="sync_all_no_internet">Can’t reach the sync server: this Wi-Fi has no internet. The Boox is probably on the Picco’s hotspot, which only works for sending book files. Switch back to your usual Wi-Fi to sync positions — or have the Picco join that Wi-Fi (File Transfer → Join a Network) so both work at once.</string>
+    <string name="sync_all_no_internet">Can’t reach the sync server: this Wi-Fi has no internet. The Boox is probably on the Picco’s hotspot, which only works for sending book files. Switch back to your usual Wi-Fi to sync reading places — or have the Picco join that Wi-Fi (File Transfer → Join a Network) so both work at once.</string>
     <string name="sync_all_server_unreachable">Can’t reach the sync server. Check the internet connection, then try again.</string>
     <string name="sync_all_stopped">Stopped after %1$d of %2$d books. %3$s</string>
     <string name="send_missing_checking">Comparing this Boox’s books with the Picco’s…</string>
@@ -154,10 +154,10 @@
     <string name="clean_confirm_boox">%1$d books on this Boox have no cover the Picco can show: %2$s.\n\n%3$d of them get a picture that’s already in the book, %4$d get a picture of their first page. Each original is backed up first.</string>
     <string name="clean_confirm_picco_part">\n\n%1$d of these are on the Picco too. They are replaced there, which resets the Picco’s own position for them: NeoSync first saves every position to the server, so afterwards open each one on the Picco and choose Sync Progress.</string>
     <string name="clean_confirm_picco_only_none_boox">No book on this Boox needs a cover.</string>
-    <string name="clean_picco_only_checkbox">Also fix %1$d books that are only on the Picco (%2$s). Their position on the Picco is reset, and another device that matches books by file contents may stop recognising them.</string>
+    <string name="clean_picco_only_checkbox">Also fix %1$d books that are only on the Picco (%2$s). Their reading place on the Picco is reset, and another device that matches books by file contents may stop recognising them.</string>
     <string name="clean_confirm_ok">Fix covers</string>
     <string name="clean_sync_first">Saving positions to the server first · %1$d of %2$d · %3$s</string>
-    <string name="clean_sync_failed">Couldn’t save positions to the server first, so nothing was changed. %1$s</string>
+    <string name="clean_sync_failed">Couldn’t save reading places to the server first, so nothing was changed. %1$s</string>
     <string name="clean_progress">Adding covers · %1$d of %2$d · %3$s</string>
     <string name="clean_done">Covers added to %1$d books.</string>
     <string name="clean_done_picco">%1$d were replaced on the Picco: open them there and choose Sync Progress to get your place back.</string>
@@ -171,7 +171,7 @@
     <string name="send_missing_done">Sent %1$d of %2$d books to the Picco.</string>
     <string name="send_missing_lost">Lost the Picco after %1$d of %2$d books. Make sure File Transfer is still open, then try again.</string>
     <string name="job_send_missing_title">Sending books to the Picco</string>
-    <string name="job_sync_all_title">Syncing positions</string>
+    <string name="job_sync_all_title">Syncing reading places</string>
     <string name="job_fix_covers_title">Adding covers</string>
     <string name="book_status_synced">Synced · %1$s · %2$s</string>
     <string name="book_status_synced_no_time">Synced · %1$s</string>
@@ -207,14 +207,14 @@
     <!-- Home: the library -->
     <string name="chevron" translatable="false">›</string>
     <string name="dismiss_mark" translatable="false">✕</string>
-    <string name="chip_positions_synced">Positions synced</string>
+    <string name="chip_positions_synced">Reading places synced</string>
     <string name="chip_synced_sub">%1$s · %2$s</string>
     <string name="chip_just_now">just now</string>
     <string name="chip_signed_in">Signed in</string>
     <string name="chip_nothing_synced">nothing synced yet</string>
     <string name="chip_paused">Sync paused</string>
     <string name="chip_paused_sub">automatic sync is off</string>
-    <string name="chip_not_syncing">Positions not syncing</string>
+    <string name="chip_not_syncing">Reading places not syncing</string>
     <string name="chip_not_syncing_sub">since %1$s · tap to fix</string>
     <string name="chip_picco_connected">Picco connected</string>
     <string name="chip_picco_not_connected">Picco not connected</string>
@@ -225,14 +225,14 @@
     <string name="chip_picco_looking">looking…</string>
 
     <string name="sug_no_internet_title">This Wi-Fi has no internet</string>
-    <string name="sug_no_internet_body">You’re probably on the Picco’s hotspot. Positions need your usual Wi-Fi.</string>
+    <string name="sug_no_internet_body">You’re probably on the Picco’s hotspot. Reading places need your usual Wi-Fi.</string>
     <string name="sug_no_internet_button">Wi-Fi</string>
     <string name="sug_auth_title">Wrong username or password</string>
     <string name="sug_auth_body">The sync server doesn’t accept this account any more. Sign in again to keep syncing.</string>
     <string name="sug_server_title">Can’t reach the sync server</string>
     <string name="sug_server_body">Your places are kept here and sent once the server answers again.</string>
     <string name="sug_paused_title">Sync paused</string>
-    <string name="sug_paused_body">Automatic sync is off, so no position is sent or fetched.</string>
+    <string name="sug_paused_body">Automatic sync is off, so no reading place is sent or fetched.</string>
     <string name="sug_paused_button">Turn on</string>
     <string name="sug_setup_title">Connect your Picco</string>
     <string name="sug_setup_body">Open File Transfer on the Picco, then tap Find. You’ll see its books here and can send new ones.</string>
@@ -378,9 +378,9 @@
     <string name="conn_node_server_sub">crosspoint</string>
     <string name="conn_node_picco">Picco</string>
     <string name="conn_node_picco_sub">CrossPoint</string>
-    <string name="conn_wire_positions">positions</string>
+    <string name="conn_wire_positions">reading place</string>
     <string name="conn_wire_internet">internet</string>
-    <string name="conn_wire_files">book files &amp; book list</string>
+    <string name="conn_wire_files">books</string>
     <string name="conn_wire_wifi_connected">same Wi-Fi · connected</string>
     <string name="conn_wire_wifi_not_connected">same Wi-Fi · &lt;b>not connected&lt;/b></string>
     <string name="conn_wire_wifi_checking">same Wi-Fi · checking…</string>
@@ -391,8 +391,8 @@
     <string name="conn_server_working">&lt;b>● Working.&lt;/b> Last sync %1$s (%2$s).</string>
     <string name="conn_server_working_no_book">&lt;b>● Working.&lt;/b> Last sync %1$s.</string>
     <string name="conn_server_signed_in">&lt;b>● Signed in.&lt;/b> Nothing synced yet: read a few pages in Neo Reader.</string>
-    <string name="conn_server_paused">&lt;b>○ Sync paused.&lt;/b> Automatic sync is off, so no position is sent or fetched.</string>
-    <string name="conn_server_no_internet">&lt;b>○ This Wi-Fi has no internet.&lt;/b> Positions need your usual Wi-Fi.</string>
+    <string name="conn_server_paused">&lt;b>○ Sync paused.&lt;/b> Automatic sync is off, so no reading place is sent or fetched.</string>
+    <string name="conn_server_no_internet">&lt;b>○ This Wi-Fi has no internet.&lt;/b> Reading places need your usual Wi-Fi.</string>
     <string name="conn_server_auth">&lt;b>○ Wrong username or password.&lt;/b> The sync server doesn’t accept this account any more.</string>
     <string name="conn_server_unreachable">&lt;b>○ Can’t reach the sync server&lt;/b> since %1$s. Your places are kept here and sent once it answers again.</string>
     <string name="conn_sync_all">Sync all books now</string>
@@ -400,8 +400,8 @@
     <string name="conn_picco_header">Picco · Wi-Fi</string>
     <string name="conn_picco_connected">&lt;b>● Picco connected&lt;/b> at %1$s.</string>
     <string name="conn_picco_checking">&lt;b>Checking the Picco at %1$s…&lt;/b></string>
-    <string name="conn_picco_not_set_up">&lt;b>○ Picco not set up.&lt;/b> Positions still sync; only sending books and seeing the Picco’s list need this.</string>
-    <string name="conn_picco_unreachable">&lt;b>○ Can’t find the Picco.&lt;/b> Positions still sync; only sending books and refreshing the Picco’s list need this.</string>
+    <string name="conn_picco_not_set_up">&lt;b>○ Picco not set up.&lt;/b> Reading places still sync; only sending books and seeing the Picco’s list need this.</string>
+    <string name="conn_picco_unreachable">&lt;b>○ Can’t find the Picco.&lt;/b> Reading places still sync; only sending books and refreshing the Picco’s list need this.</string>
     <string name="conn_picco_not_found">&lt;b>○ No Picco found on this Wi-Fi.&lt;/b> Check the steps below, then look again.</string>
     <string name="conn_step_1">On the Picco, open &lt;b>File Transfer&lt;/b>.</string>
     <string name="conn_step_2">Choose &lt;b>Join a Network&lt;/b> and pick the same Wi-Fi as this Boox.</string>
@@ -482,5 +482,5 @@
 
     <!-- Foreground notification (spec 7.7) -->
     <string name="notification_synced">%1$s synced · %2$s</string>
-    <string name="notification_alarm">Positions not syncing · tap to fix</string>
+    <string name="notification_alarm">Reading places not syncing · tap to fix</string>
 </resources>
