@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="row_bars_width">170dp</dimen>
+    <dimen name="row_bars_margin">14dp</dimen>
+    <dimen name="row_bar_label">50dp</dimen>
+    <dimen name="row_bar_pct">50dp</dimen>
+    <dimen name="sheet_bar_label">100dp</dimen>
+    <dimen name="sheet_bar_pct">56dp</dimen>
+    <dimen name="sheet_when_margin">12dp</dimen>
+    <dimen name="sheet_when">150dp</dimen>
+</resources>

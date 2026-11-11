@@ -71,8 +71,11 @@
 <TextView android:id="@+id/card_notice" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:gravity="center_vertical" android:background="@drawable/card_bg" android:paddingStart="14dp" android:paddingEnd="14dp" android:paddingTop="10dp" android:paddingBottom="10dp" android:text="" style="@style/NeoSync.Body" android:visibility="gone" />
 </FrameLayout>
 
-<!-- Filters and search. -->
+<!-- Filters and search. The chips scroll sideways on narrow screens (R33);
+     search stays fixed at the end. -->
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="6dp">
+<HorizontalScrollView android:id="@+id/filter_scroll" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:scrollbars="none" android:overScrollMode="never" android:fadingEdge="none" android:requiresFadingEdge="none">
+<LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
 <TextView android:id="@+id/filter_all" android:layout_width="wrap_content" android:layout_height="48dp" android:gravity="center" android:paddingStart="16dp" android:paddingEnd="16dp" android:text="" android:textSize="15sp" android:background="@drawable/filter_off" android:textColor="@color/black" />
 
 <TextView android:id="@+id/filter_reading" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="8dp" android:gravity="center" android:paddingStart="16dp" android:paddingEnd="16dp" android:text="@string/filter_reading" android:textSize="15sp" android:background="@drawable/filter_off" android:textColor="@color/black" />
@@ -81,8 +84,9 @@
 
 <TextView android:id="@+id/filter_only_picco" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="8dp" android:gravity="center" android:paddingStart="16dp" android:paddingEnd="16dp" android:text="@string/filter_only_picco" android:textSize="15sp" android:background="@drawable/filter_off" android:textColor="@color/black" />
 
-<View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
-<ImageButton android:id="@+id/button_search" android:layout_width="48dp" android:layout_height="48dp" android:layout_marginEnd="-12dp" android:src="@drawable/ic_search" android:background="@null" android:padding="12dp" android:contentDescription="@string/cd_search" />
+</LinearLayout>
+</HorizontalScrollView>
+<ImageButton android:id="@+id/button_search" android:layout_marginStart="4dp" android:layout_width="48dp" android:layout_height="48dp" android:layout_marginEnd="-12dp" android:src="@drawable/ic_search" android:background="@null" android:padding="12dp" android:contentDescription="@string/cd_search" />
 </LinearLayout>
 
 <EditText android:id="@+id/field_search" android:layout_width="match_parent" android:layout_marginTop="4dp" android:hint="@string/hint_search" android:inputType="text" android:imeOptions="actionSearch" style="@style/NeoSync.Field" android:visibility="gone" />

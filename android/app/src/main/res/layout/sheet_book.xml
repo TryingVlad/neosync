@@ -114,7 +114,7 @@
 
                 <TextView
                     style="@style/NeoSync.Small"
-                    android:layout_width="100dp"
+                    android:layout_width="@dimen/sheet_bar_label"
                     android:layout_height="wrap_content"
                     android:text="@string/sheet_this_boox"
                     android:textColor="@color/black"
@@ -135,7 +135,7 @@
                 <TextView
                     android:id="@+id/sheet_pct_boox"
                     style="@style/NeoSync.Small"
-                    android:layout_width="56dp"
+                    android:layout_width="@dimen/sheet_bar_pct"
                     android:layout_height="wrap_content"
                     android:gravity="end"
                     android:textColor="@color/black"
@@ -144,9 +144,9 @@
                 <TextView
                     android:id="@+id/sheet_when_boox"
                     style="@style/NeoSync.Small"
-                    android:layout_width="150dp"
+                    android:layout_width="@dimen/sheet_when"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
+                    android:layout_marginStart="@dimen/sheet_when_margin"
                     android:singleLine="true"
                     android:ellipsize="end" />
             </LinearLayout>
@@ -163,7 +163,7 @@
                 <TextView
                     android:id="@+id/sheet_label_other"
                     style="@style/NeoSync.Small"
-                    android:layout_width="100dp"
+                    android:layout_width="@dimen/sheet_bar_label"
                     android:layout_height="wrap_content"
                     android:singleLine="true"
                     android:ellipsize="end"
@@ -185,7 +185,7 @@
                 <TextView
                     android:id="@+id/sheet_pct_other"
                     style="@style/NeoSync.Small"
-                    android:layout_width="56dp"
+                    android:layout_width="@dimen/sheet_bar_pct"
                     android:layout_height="wrap_content"
                     android:gravity="end"
                     android:textColor="@color/black"
@@ -194,9 +194,9 @@
                 <TextView
                     android:id="@+id/sheet_when_other"
                     style="@style/NeoSync.Small"
-                    android:layout_width="150dp"
+                    android:layout_width="@dimen/sheet_when"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
+                    android:layout_marginStart="@dimen/sheet_when_margin"
                     android:singleLine="true"
                     android:ellipsize="end" />
             </LinearLayout>
@@ -235,12 +235,12 @@
             android:textSize="16sp"
             android:visibility="gone" />
 
-        <LinearLayout
+        <!-- Link rows wrap onto a second line on narrow screens. -->
+        <dev.neosync.boox.activity.WrapRow
             android:id="@+id/sheet_links_1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:orientation="horizontal">
+            android:layout_marginTop="6dp">
 
             <TextView
                 android:id="@+id/sheet_link_instead"
@@ -256,13 +256,12 @@
                 android:layout_height="wrap_content"
                 android:text="@string/sheet_undo"
                 android:visibility="gone" />
-        </LinearLayout>
+        </dev.neosync.boox.activity.WrapRow>
 
-        <LinearLayout
+        <dev.neosync.boox.activity.WrapRow
             android:id="@+id/sheet_links_2"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:layout_height="wrap_content">
 
             <TextView
                 android:id="@+id/sheet_link_send_again"
@@ -287,6 +286,6 @@
                 android:layout_height="wrap_content"
                 android:text="@string/sheet_open_reader"
                 android:visibility="gone" />
-        </LinearLayout>
+        </dev.neosync.boox.activity.WrapRow>
     </LinearLayout>
 </ScrollView>

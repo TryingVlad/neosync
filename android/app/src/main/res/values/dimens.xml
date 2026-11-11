@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Narrow screens first (360dp, R33); values-w480dp has the roomier sizes. -->
+<resources>
+    <!-- Home row: the bar block next to title / author / status. At 360dp
+         the text column keeps 312 - 34 - 14 - 10 - 110 = 144dp. -->
+    <dimen name="row_bars_width">110dp</dimen>
+    <dimen name="row_bars_margin">10dp</dimen>
+    <dimen name="row_bar_label">40dp</dimen>
+    <dimen name="row_bar_pct">38dp</dimen>
+    <!-- Book sheet comparison rows: 284dp of room at 360dp; the fixed parts
+         take 84 + 48 + 8 + 88 = 228dp, leaving the bar 56dp. -->
+    <dimen name="sheet_bar_label">84dp</dimen>
+    <dimen name="sheet_bar_pct">48dp</dimen>
+    <dimen name="sheet_when_margin">8dp</dimen>
+    <dimen name="sheet_when">88dp</dimen>
+</resources>
