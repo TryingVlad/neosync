@@ -156,7 +156,17 @@ public class OnyxMetadataRepository {
 
     /** NeoReader firmware 4.x: the position is a JSON object stored as a string. */
     private static final java.util.regex.Pattern POSITION_OBJ = java.util.regex.Pattern.compile(
-            "\"(current_page_position_v[23])\":\"\\{.*?\\}\"");
+            "\"(current_page_position_v[23])\":\"(\\{.*?\\})\"");
+
+    /**
+     * The chapter-based position value in extraAttributes (the form
+     * writeChapterPosition takes), or null when there is none.
+     */
+    public static String chapterPositionValue(String extraAttributes) {
+        if (extraAttributes == null) return null;
+        java.util.regex.Matcher m = POSITION_OBJ.matcher(extraAttributes);
+        return m.find() ? m.group(2) : null;
+    }
 
     /** Builds NeoReader's chapter-based position value (inner JSON, quotes escaped). */
     public static String chapterPosition(int chapterIndex, String chapterId,

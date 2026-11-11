@@ -6,6 +6,7 @@ import android.content.Context;
 import dev.neosync.boox.contentprovider.OnyxMetadataRepository;
 
 import dev.neosync.boox.epub.EpubSpine;
+import dev.neosync.boox.library.UndoStore;
 
 import java.io.File;
 
@@ -121,6 +122,10 @@ public final class SyncActions {
                             item.start, item.end, charOffset));
         }
         String written = page + "/" + total;
+        // Keep the place from before the jump (fields read before the write)
+        // so "Undo jump" can put it back (spec §7.5).
+        new UndoStore(context).save(book.path, book.progress, book.lastAccessMs,
+                book.extraAttributes, written, System.currentTimeMillis());
         state.lastWrittenProgress = written;
         state.lastWrittenAccessMs = remoteMs;
         state.lastSyncMs = System.currentTimeMillis();
@@ -141,6 +146,57 @@ public final class SyncActions {
             }
         }
         return written;
+    }
+
+    /**
+     * Puts back the Boox place saved before the latest jump, with lastAccess
+     * = now. lastWrittenProgress is left alone, so the watcher sees this as
+     * reading done here and sends it to the server: the Picco follows
+     * (spec §7.5). Like applyRemote, only a background Neo Reader is stopped;
+     * a book open in the foreground is never touched.
+     *
+     * @return false when nothing was written
+     */
+    public static boolean undoJump(Context context, OnyxMetadataRepository repository,
+                                   UndoStore store, OnyxMetadataRepository.Book book) {
+        UndoStore.Saved saved = store.get(book.path);
+        if (saved == null) {
+            return false;
+        }
+        OnyxMetadataRepository.Book prev = new OnyxMetadataRepository.Book();
+        prev.progress = saved.prevProgress;
+        prev.extraAttributes = saved.prevExtra;
+        int page = prev.currentPage();
+        int total = prev.totalPages();
+        if (page <= 0 || total <= 0) {
+            store.clear(book.path); // nothing usable to put back
+            return false;
+        }
+
+        ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        if (am != null) {
+            am.killBackgroundProcesses(NEOREADER_PACKAGE);
+        }
+
+        if (!repository.writeProgress(book, page, total, System.currentTimeMillis(),
+                prev.positionV2())) {
+            return false;
+        }
+        // Firmware 4.x: put back the chapter-based position, through the
+        // same path applyRemote writes it with.
+        String chapter = OnyxMetadataRepository.chapterPositionValue(saved.prevExtra);
+        if (chapter != null && book.chapterPosition() != null) {
+            repository.writeChapterPosition(book.path, book.extraAttributes, chapter);
+        }
+        store.clear(book.path);
+
+        // The restored place may be one this device already pushed before
+        // the jump; forget that, so the push dedup doesn't skip sending it.
+        SyncStateStore stateStore = new SyncStateStore(context);
+        SyncStateStore.BookState state = stateStore.get(book.path);
+        state.lastPushedProgress = "";
+        stateStore.put(book.path, state);
+        return true;
     }
 
     /** The EPUB's spine table, or null for non-EPUBs and unreadable files. */
