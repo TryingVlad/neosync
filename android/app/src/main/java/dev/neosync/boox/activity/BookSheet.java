@@ -614,7 +614,7 @@ final class BookSheet {
                 plan.piccoPathOf.put(file.getPath(), piccoPath);
             }
             a.runOnUiThread(() -> {
-                if (a.isFinishing() || a.isBusy() || JobSession.running()) {
+                if (MainActivity.gone(a) || a.isBusy() || JobSession.running()) {
                     return;
                 }
                 dialog.dismiss();

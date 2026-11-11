@@ -24,7 +24,8 @@ final class PiccoFolderChooser {
     /** then gets the chosen folder; onStop gets null when the user cancels. */
     static void ask(Activity activity, List<String> folders, Consumer<String> then,
                     Consumer<String> onStop) {
-        if (activity.isFinishing()) {
+        if (MainActivity.gone(activity)) {
+            onStop.accept(null); // rotated or closed while listing: release the caller
             return;
         }
         final List<String> choices = new ArrayList<>();

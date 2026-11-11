@@ -250,7 +250,7 @@ public class SettingsActivity extends Activity {
             final List<String> found = folders;
             runOnUiThread(() -> {
                 row.setEnabled(true);
-                if (isFinishing()) {
+                if (MainActivity.gone(this)) {
                     return;
                 }
                 if (found != null) {

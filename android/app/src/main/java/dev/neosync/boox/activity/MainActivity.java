@@ -430,7 +430,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
 
     /** Opens the sheet for one book (spec 5.2). */
     void openBook(LibraryEntry e) {
-        if (snapshot == null || openSheet != null || isFinishing()) {
+        if (snapshot == null || openSheet != null || gone(this)) {
             return;
         }
         BookSheet.show(this, e);
@@ -465,6 +465,15 @@ public class MainActivity extends Activity implements JobSession.Screen {
     void setBusy(boolean b) {
         busy = b;
         renderSlot();
+    }
+
+    /**
+     * True when a background result must not show a dialog or sheet here:
+     * finishing, or destroyed by a rotation (the window is gone; showing
+     * would throw BadTokenException). Callers release busy when they bail.
+     */
+    static boolean gone(Activity activity) {
+        return activity.isFinishing() || activity.isDestroyed();
     }
 
     boolean piccoConfigured() {
@@ -1575,13 +1584,13 @@ public class MainActivity extends Activity implements JobSession.Screen {
             final String size = android.text.format.Formatter.formatShortFileSize(this, bytes);
             runOnUiThread(() -> {
                 markPicco(address, true);
+                if (gone(this)) {
+                    busy = false; // rotated or closed while checking: no dialog
+                    return;
+                }
                 reload();
                 if (missing.isEmpty()) {
                     callOff(getString(R.string.send_missing_none));
-                    return;
-                }
-                if (isFinishing()) {
-                    busy = false;
                     return;
                 }
                 hideNotice();
@@ -1711,8 +1720,8 @@ public class MainActivity extends Activity implements JobSession.Screen {
     }
 
     private void confirmClean(CleanPlan plan) {
-        if (isFinishing()) {
-            busy = false;
+        if (gone(this)) {
+            busy = false; // rotated or closed while checking: no cover sheet
             return;
         }
         reload();
