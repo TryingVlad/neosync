@@ -63,8 +63,21 @@ public class LibraryScopeActivity extends Activity {
         }
         noTypes.setVisibility(types.isEmpty() ? View.VISIBLE : View.GONE);
 
+        // Reading the whole Onyx library (and checking each file) is slow on
+        // a big library: build the folder list off the UI thread.
         LinearLayout folderList = findViewById(R.id.list_folders);
-        List<String> folders = folders();
+        Context app = getApplicationContext();
+        new Thread(() -> {
+            List<String> folders = folders(app);
+            runOnUiThread(() -> {
+                if (!isDestroyed()) {
+                    showFolders(folderList, folders);
+                }
+            });
+        }, "NeoSync library folders").start();
+    }
+
+    private void showFolders(LinearLayout folderList, List<String> folders) {
         if (folders.isEmpty()) {
             TextView none = new TextView(this);
             none.setText(R.string.library_scope_no_folders);
@@ -87,12 +100,15 @@ public class LibraryScopeActivity extends Activity {
         }
     }
 
-    /** Folders to list: those with books now, plus any hidden one whose books are gone. */
-    private List<String> folders() {
+    /**
+     * Folders to list: those with books now, plus any hidden one whose books
+     * are gone. Off the UI thread.
+     */
+    private static List<String> folders(Context app) {
         List<String> paths = new ArrayList<>();
         try {
             for (OnyxMetadataRepository.Book book : LibraryModel.listable(
-                    new OnyxMetadataRepository(this).queryAllBooks(), b -> b.path,
+                    new OnyxMetadataRepository(app).queryAllBooks(), b -> b.path,
                     path -> new File(path).exists(), Permissions.hasAllFilesAccess())) {
                 paths.add(book.path);
             }
@@ -100,7 +116,7 @@ public class LibraryScopeActivity extends Activity {
             // No library to read: only the saved choices are shown.
         }
         Set<String> all = new HashSet<>(LibraryScope.bookFolders(paths));
-        all.addAll(settings.getHiddenFolders());
+        all.addAll(new SyncSettings(app).getHiddenFolders());
         List<String> sorted = new ArrayList<>(all);
         java.util.Collections.sort(sorted);
         return sorted;
