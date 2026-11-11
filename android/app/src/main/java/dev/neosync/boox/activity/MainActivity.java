@@ -1469,34 +1469,8 @@ public class MainActivity extends Activity implements JobSession.Screen {
                 runOnUiThread(() -> onStop.accept(message));
                 return;
             }
-            runOnUiThread(() -> askPiccoFolder(folders, then, onStop));
+            runOnUiThread(() -> PiccoFolderChooser.ask(this, folders, then, onStop));
         }).start();
-    }
-
-    private void askPiccoFolder(List<String> folders, java.util.function.Consumer<String> then,
-                                java.util.function.Consumer<String> onStop) {
-        if (isFinishing()) {
-            return;
-        }
-        final List<String> choices = new ArrayList<>();
-        choices.add("/");
-        choices.addAll(folders);
-        String[] labels = new String[choices.size()];
-        for (int i = 0; i < choices.size(); i++) {
-            labels[i] = piccoFolderLabel(this, choices.get(i));
-        }
-        final int[] picked = {choices.indexOf(PiccoClient.suggestedFolder(folders))};
-        new android.app.AlertDialog.Builder(this)
-                .setTitle(R.string.picco_folder_title)
-                .setSingleChoiceItems(labels, picked[0], (d, which) -> picked[0] = which)
-                .setPositiveButton(R.string.picco_folder_ok, (d, w) -> {
-                    String folder = choices.get(Math.max(0, picked[0]));
-                    settings.setPiccoFolder(folder);
-                    then.accept(folder);
-                })
-                .setNegativeButton(R.string.send_missing_cancel, (d, w) -> onStop.accept(null))
-                .setOnCancelListener(d -> onStop.accept(null))
-                .show();
     }
 
     /** "Top level of the Picco" for "/", else the folder name ("books"). */

@@ -56,6 +56,15 @@
             android:exported="false" />
 
         <activity
+            android:name=".activity.MatchingActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".activity.ServerActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".activity.OnboardingActivity"
             android:exported="false" />
 

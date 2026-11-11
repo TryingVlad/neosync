@@ -23,11 +23,14 @@ import dev.neosync.boox.kosync.LibrarySweep;
 import dev.neosync.boox.kosync.SyncActions;
 import dev.neosync.boox.kosync.SyncSettings;
 import dev.neosync.boox.kosync.SyncStateStore;
+import dev.neosync.boox.library.BookMetaCache;
 import dev.neosync.boox.library.RemotePosition;
 import dev.neosync.boox.library.RemotePositionStore;
 import dev.neosync.boox.library.SyncProblem;
+import dev.neosync.boox.library.TitleCleaner;
 import dev.neosync.boox.transfer.PiccoLibraryStore;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,6 +118,23 @@ public class SyncService extends Service {
     private volatile boolean wakeCheckPending = false;
     private android.content.BroadcastReceiver screenReceiver;
 
+    /** What the notification says now (null: the default title). Worker thread. */
+    private String shownText;
+    /** "Fictions synced · 88%" for the latest sync done here; null until one. */
+    private String lastSyncedText;
+    private BookMetaCache metaCache;
+    /**
+     * Any sync status change (also from the app's own syncs) may start or
+     * end a problem: the notification follows on the worker thread.
+     */
+    private final android.content.SharedPreferences.OnSharedPreferenceChangeListener
+            statusListener = (prefs, key) -> {
+                Handler handler = worker;
+                if (handler != null) {
+                    handler.post(this::showStatus);
+                }
+            };
+
     private final Runnable scanRunnable = this::scan;
     private final Runnable pollRunnable = new Runnable() {
         @Override
@@ -143,6 +163,7 @@ public class SyncService extends Service {
         String androidId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
         deviceId = androidId != null ? androidId : "boox-companion";
         client = new KoSyncClient(settings, "NeoSync", deviceId);
+        metaCache = new BookMetaCache(this);
 
         startForeground(NOTIFICATION_ID, buildNotification());
 
@@ -176,6 +197,8 @@ public class SyncService extends Service {
         };
         registerReceiver(screenReceiver, new android.content.IntentFilter(Intent.ACTION_SCREEN_ON));
 
+        settings.registerListener(statusListener);
+        worker.post(this::showStatus);
         worker.post(pollRunnable);
         Log.i(TAG, "SyncService started");
     }
@@ -199,6 +222,10 @@ public class SyncService extends Service {
     public void onDestroy() {
         if (observer != null) {
             getContentResolver().unregisterContentObserver(observer);
+        }
+        if (metaCache != null) {
+            // Registered together with the observer, in a full onCreate.
+            settings.unregisterListener(statusListener);
         }
         if (screenReceiver != null) {
             unregisterReceiver(screenReceiver);
@@ -557,6 +584,7 @@ public class SyncService extends Service {
         if (result.error == KoSyncClient.Error.OK) {
             lastPushMs.put(book.path, System.currentTimeMillis());
             settings.recordSyncSuccess(book.name != null ? book.name : book.path);
+            showSynced(book, SyncActions.localPercentage(book));
             Log.i(TAG, "Pushed " + book.progress + " (" + hash + ") for " + book.path);
             return true;
         }
@@ -588,6 +616,7 @@ public class SyncService extends Service {
             snapshot.put(book.path, seen);
 
             settings.recordSyncSuccess(book.name != null ? book.name : book.path);
+            showSynced(book, pct);
             Log.i(TAG, "Pulled " + written + " from " + remote.device + " for " + book.path);
         }
     }
@@ -652,6 +681,46 @@ public class SyncService extends Service {
 
     // --- Notification -------------------------------------------------------
 
+    /** After a sync done here: "<title> synced · 88%" (spec 7.7). Worker thread. */
+    private void showSynced(OnyxMetadataRepository.Book book, double percentage) {
+        String pct = Math.round(Math.max(0.0, Math.min(1.0, percentage)) * 100) + "%";
+        lastSyncedText = getString(R.string.notification_synced, titleOf(book.path), pct);
+        showStatus();
+    }
+
+    /** "Positions not syncing · tap to fix" while the problem is an alarm, else the last sync. */
+    private void showStatus() {
+        boolean alarm = SyncProblem.isAlarm(settings.getFirstFailureMs(),
+                settings.getConsecutiveFailures(), System.currentTimeMillis());
+        updateNotification(alarm ? getString(R.string.notification_alarm) : lastSyncedText);
+    }
+
+    /** The book's title (BookMetaCache), or a cleaned-up file name when it can't be read. */
+    private String titleOf(String path) {
+        File file = new File(path);
+        try {
+            String title = metaCache.get(file).title;
+            if (title != null && !title.isEmpty()) {
+                return title;
+            }
+        } catch (Exception e) {
+            Log.d(TAG, "No title for a book, using its file name", e);
+        }
+        return TitleCleaner.fromFileName(file.getName());
+    }
+
+    /**
+     * Shows text as the notification's line (null: the default title). Only
+     * re-posted when it changes. The notification opens the home screen.
+     */
+    void updateNotification(String text) {
+        if (text == null ? shownText == null : text.equals(shownText)) {
+            return;
+        }
+        shownText = text;
+        getSystemService(NotificationManager.class).notify(NOTIFICATION_ID, buildNotification());
+    }
+
     private Notification buildNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
@@ -667,7 +736,7 @@ public class SyncService extends Service {
                 ? new Notification.Builder(this, CHANNEL_ID)
                 : new Notification.Builder(this).setPriority(Notification.PRIORITY_MIN);
         return builder
-                .setContentTitle(getString(R.string.notification_title))
+                .setContentTitle(shownText != null ? shownText : getString(R.string.notification_title))
                 .setSmallIcon(android.R.drawable.stat_notify_sync_noanim)
                 .setContentIntent(contentIntent)
                 .setOngoing(true)

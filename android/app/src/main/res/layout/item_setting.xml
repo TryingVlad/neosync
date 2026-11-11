@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One Settings row (spec 5.4, mockup 4): title, current value underneath, and at the end
+     a "›" / "Change" label, a switch, or a button. Rows are separated by a thin line. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+
+<LinearLayout android:id="@+id/setting_row" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="8dp" android:paddingBottom="8dp" android:clickable="true" android:focusable="true">
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+<TextView android:id="@+id/setting_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Body" android:textStyle="bold" />
+
+<TextView android:id="@+id/setting_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Small" android:visibility="gone" />
+</LinearLayout>
+
+<TextView android:id="@+id/setting_end" android:layout_width="wrap_content" android:layout_height="48dp" android:minWidth="48dp" android:layout_marginStart="12dp" android:gravity="center_vertical|end" android:text="" style="@style/NeoSync.Body" android:textStyle="bold" android:visibility="gone" />
+
+<Switch android:id="@+id/setting_switch" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="12dp" android:clickable="false" android:focusable="false" android:visibility="gone" />
+
+<Button android:id="@+id/setting_button" android:layout_width="wrap_content" android:layout_height="48dp" android:minWidth="96dp" android:layout_marginStart="12dp" android:text="" style="@style/NeoSync.Button.Secondary" android:visibility="gone" />
+</LinearLayout>
+
+<View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_soft" />
+</LinearLayout>

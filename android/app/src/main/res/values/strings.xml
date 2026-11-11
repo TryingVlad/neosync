@@ -64,7 +64,6 @@
     <string name="auth_failed">Wrong username or password.</string>
     <string name="network_failed">Could not reach the sync server. Check Wi-Fi and try again.</string>
     <string name="signin_privacy">Your password is never stored on this device, only a scrambled form of it. Your reading positions are kept on the sync server below.</string>
-    <string name="signin_advanced_show">Advanced: use another sync server</string>
     <string name="label_server_url">Sync server address</string>
     <string name="hint_server_url">https://sync.crosspointreader.com</string>
     <string name="server_help">Leave empty for CrossPoint’s server. Any KOReader-compatible sync server works; it must be the same on the Picco.</string>
@@ -114,7 +113,6 @@
     <string name="manual_no_book_file">cannot read the book file</string>
     <string name="signin_https_required">The sync server address must start with https:// — your account details would otherwise travel unencrypted.</string>
     <string name="transfer_no_file">Can’t read the book file. Allow book file access via “How it works”.</string>
-    <string name="label_picco_address">Picco address</string>
     <string name="hint_picco_address">192.168.1.50 — shown on the Picco’s File Transfer screen</string>
 
     <string name="picco_library_header">On the Picco</string>
@@ -145,10 +143,6 @@
     <string name="picco_folder_title">Where should books go on the Picco?</string>
     <string name="picco_folder_ok">Use this folder</string>
     <string name="picco_folder_root">Top level of the Picco</string>
-    <string name="label_picco_folder">Folder for books sent to the Picco</string>
-    <string name="picco_folder_unset">Not chosen yet. NeoSync asks the first time it sends a book.</string>
-    <string name="button_picco_folder_change">Choose again</string>
-    <string name="picco_folder_reset">NeoSync will ask again the next time it sends a book.</string>
     <string name="send_missing_confirm_ok">Send</string>
     <string name="send_missing_cancel">Cancel</string>
     <string name="button_clean_library">Fix missing covers</string>
@@ -189,13 +183,8 @@
 
     <string name="settings_header">Settings</string>
     <string name="settings_title">Settings</string>
-    <string name="settings_account_header">Account</string>
-    <string name="settings_connection_header">Connection</string>
-    <string name="settings_books_header">Books</string>
     <string name="settings_about_header">About</string>
-    <string name="version_current">NeoSync %1$s · up to date</string>
     <string name="version_unknown">NeoSync %1$s</string>
-    <string name="version_update">NeoSync %1$s · version %2$s is available</string>
     <string name="button_download_update">Download version %1$s</string>
     <string name="update_banner">NeoSync %1$s is available.</string>
     <string name="button_get_update">Get it</string>
@@ -209,12 +198,10 @@
     <string name="support_blurb">NeoSync is free and made in my spare time. If it saves you some page hunting, you can buy me a coffee. Entirely optional, and thank you either way! (buymeacoffee.com/tryingvlad)</string>
     <string name="button_support">Buy me a coffee</string>
     <string name="support_url" translatable="false">https://buymeacoffee.com/tryingvlad</string>
-    <string name="button_manage_account">Manage account</string>
     <string name="label_match_method">How books are recognised</string>
     <string name="match_filename">By file name (CrossPoint default)</string>
     <string name="match_binary">By file contents (files must be byte-identical)</string>
     <string name="button_account">Account</string>
-    <string name="button_how_it_works">How it works</string>
     <string name="main_footer">NeoSync is open source (MIT). Not affiliated with Onyx Boox or CrossPoint.</string>
 
     <!-- Home: the library -->
@@ -426,4 +413,56 @@
     <string name="conn_address_title">Picco address</string>
     <string name="conn_address_ok">Save</string>
     <string name="conn_address_cancel">Cancel</string>
+
+    <!-- Settings, regrouped (spec 5.4, 5.9) -->
+    <string name="settings_sync_header">Sync</string>
+    <string name="settings_permissions_header">Permissions</string>
+    <string name="settings_picco_header">Picco</string>
+    <string name="settings_help_header">Help</string>
+    <string name="settings_advanced_header">Advanced</string>
+    <string name="settings_account">Account</string>
+    <string name="settings_not_signed_in">Not signed in</string>
+    <string name="settings_file_access">File access</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_allowed">Allowed</string>
+    <string name="settings_not_allowed">Not allowed</string>
+    <string name="settings_picco">Picco</string>
+    <string name="settings_picco_found">Found at %1$s · book list from %2$s</string>
+    <string name="settings_picco_found_no_list">Found at %1$s</string>
+    <string name="settings_picco_not_set_up">Not set up</string>
+    <string name="settings_folder">Folder for new books</string>
+    <string name="settings_folder_unset">Not chosen yet · asked the first time a book is sent</string>
+    <string name="settings_change">Change</string>
+    <string name="settings_folder_offline">Can’t reach the Picco now, so NeoSync will ask for the folder the next time it sends a book.</string>
+    <string name="settings_setup_guide">Setup guide</string>
+    <string name="settings_setup_guide_sub">Picco firmware, permissions, Boox battery settings</string>
+    <string name="settings_report">Report a problem</string>
+    <string name="settings_report_sub">Copies a private report to paste on Reddit or GitHub</string>
+    <string name="settings_close">Close</string>
+    <string name="settings_matching">Book matching</string>
+    <string name="settings_server">Sync server</string>
+    <string name="settings_cover_backups">Cover backups</string>
+    <plurals name="settings_cover_backups_value">
+        <item quantity="one">%1$s · %2$d file</item>
+        <item quantity="other">%1$s · %2$d files</item>
+    </plurals>
+    <string name="settings_version">NeoSync %1$s</string>
+    <string name="settings_version_current">Up to date</string>
+    <string name="settings_version_update">Version %1$s is available</string>
+    <string name="settings_more" translatable="false">›</string>
+
+    <!-- Book matching page -->
+    <string name="matching_title">Book matching</string>
+    <string name="matching_warning">Use the same mode on both devices, or books stop matching.</string>
+
+    <!-- Sync server page -->
+    <string name="server_title">Sync server</string>
+    <string name="server_warning">Use the same server on the Picco. Saving signs in to the new server with your account; if that fails, nothing changes.</string>
+    <string name="server_save">Save</string>
+    <string name="server_saved">Sync server saved.</string>
+    <string name="signin_server_link">Sync server: %1$s · &lt;u>change&lt;/u></string>
+
+    <!-- Foreground notification (spec 7.7) -->
+    <string name="notification_synced">%1$s synced · %2$s</string>
+    <string name="notification_alarm">Positions not syncing · tap to fix</string>
 </resources>

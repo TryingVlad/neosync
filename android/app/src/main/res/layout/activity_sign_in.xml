@@ -24,14 +24,8 @@
 
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="26dp" android:text="@string/signin_privacy" style="@style/NeoSync.Small" android:background="@drawable/card_bg" android:padding="14dp" />
 
-<TextView android:id="@+id/text_advanced_toggle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="@string/signin_advanced_show" style="@style/NeoSync.Body" android:textStyle="bold" />
-<LinearLayout android:id="@+id/group_advanced" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/label_server_url" style="@style/NeoSync.Section" />
-
-<EditText android:id="@+id/edit_server_url" android:layout_width="match_parent" android:layout_marginTop="6dp" android:inputType="textUri" android:hint="@string/hint_server_url" android:importantForAutofill="no" style="@style/NeoSync.Field" />
-
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/server_help" style="@style/NeoSync.Small" />
-
-</LinearLayout>
+<!-- Another sync server is set on its own page (ServerActivity), reached from here
+     before signing in and from Settings → Advanced afterwards. -->
+<TextView android:id="@+id/text_server_link" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:minHeight="48dp" android:gravity="center_vertical" android:text="" style="@style/NeoSync.Small" android:textColor="@color/black" android:clickable="true" android:focusable="true" />
 </LinearLayout>
 </ScrollView>

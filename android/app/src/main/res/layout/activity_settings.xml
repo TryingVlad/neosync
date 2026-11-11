@@ -1,69 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Settings (spec 5.4, mockup 4): a plain list of rows, title + current value, in groups.
+     The rows are filled in by SettingsActivity. -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/white" android:fitsSystemWindows="true">
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="28dp">
 
 <!-- Header: back arrow + title. -->
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-<ImageButton android:id="@+id/button_back" android:layout_width="44dp" android:layout_height="44dp" android:layout_marginStart="-10dp" android:src="@drawable/ic_arrow_back" android:background="@null" android:padding="10dp" android:contentDescription="@string/cd_back" />
+<ImageButton android:id="@+id/button_back" android:layout_width="48dp" android:layout_height="48dp" android:layout_marginStart="-12dp" android:src="@drawable/ic_arrow_back" android:background="@null" android:padding="12dp" android:contentDescription="@string/cd_back" />
 
 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="@string/settings_title" style="@style/NeoSync.Title" />
 </LinearLayout>
 
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:text="@string/settings_account_header" style="@style/NeoSync.Section" />
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:paddingBottom="4dp" android:text="@string/settings_sync_header" style="@style/NeoSync.Section" />
+<include android:id="@+id/row_auto_sync" layout="@layout/item_setting" />
+<include android:id="@+id/row_account" layout="@layout/item_setting" />
 
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="10dp" style="@style/NeoSync.Card">
-<TextView android:id="@+id/text_settings_account" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Body" />
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:paddingBottom="4dp" android:text="@string/settings_permissions_header" style="@style/NeoSync.Section" />
+<include android:id="@+id/row_file_access" layout="@layout/item_setting" />
+<include android:id="@+id/row_notifications" layout="@layout/item_setting" />
 
-<Button android:id="@+id/button_account" android:layout_width="match_parent" android:layout_marginTop="12dp" android:text="@string/button_manage_account" style="@style/NeoSync.Button.Secondary" />
-</LinearLayout>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:paddingBottom="4dp" android:text="@string/settings_picco_header" style="@style/NeoSync.Section" />
+<include android:id="@+id/row_picco" layout="@layout/item_setting" />
+<include android:id="@+id/row_folder" layout="@layout/item_setting" />
 
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:text="@string/settings_connection_header" style="@style/NeoSync.Section" />
+<!-- The Library section (Task 13a) goes here, between Picco and Help. -->
 
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="10dp" style="@style/NeoSync.Card">
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/label_picco_address" style="@style/NeoSync.Body" />
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:paddingBottom="4dp" android:text="@string/settings_help_header" style="@style/NeoSync.Section" />
+<include android:id="@+id/row_setup_guide" layout="@layout/item_setting" />
+<include android:id="@+id/row_report" layout="@layout/item_setting" />
 
-<EditText android:id="@+id/field_picco_address" android:layout_width="match_parent" android:layout_marginTop="4dp" android:hint="@string/hint_picco_address" android:inputType="textUri" style="@style/NeoSync.Field" />
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:paddingBottom="4dp" android:text="@string/settings_advanced_header" style="@style/NeoSync.Section" />
+<include android:id="@+id/row_matching" layout="@layout/item_setting" />
+<include android:id="@+id/row_server" layout="@layout/item_setting" />
+<include android:id="@+id/row_cover_backups" layout="@layout/item_setting" />
 
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:text="@string/label_picco_folder" style="@style/NeoSync.Body" />
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:paddingBottom="4dp" android:text="@string/settings_about_header" style="@style/NeoSync.Section" />
+<include android:id="@+id/row_version" layout="@layout/item_setting" />
 
-<TextView android:id="@+id/text_picco_folder" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="" style="@style/NeoSync.Small" />
+<Button android:id="@+id/button_download_update" android:layout_width="match_parent" android:layout_marginTop="12dp" android:text="" style="@style/NeoSync.Button.Primary" android:visibility="gone" />
 
-<Button android:id="@+id/button_picco_folder" android:layout_width="match_parent" android:layout_marginTop="10dp" android:text="@string/button_picco_folder_change" style="@style/NeoSync.Button.Secondary" />
-</LinearLayout>
+<include android:id="@+id/row_support" layout="@layout/item_setting" />
 
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:text="@string/settings_books_header" style="@style/NeoSync.Section" />
-
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="10dp" style="@style/NeoSync.Card">
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/label_match_method" style="@style/NeoSync.Body" />
-
-<RadioGroup android:id="@+id/group_match_method" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="4dp">
-<RadioButton android:id="@+id/radio_match_filename" android:layout_width="match_parent" android:layout_height="48dp" android:text="@string/match_filename" android:textSize="17sp" android:textColor="@color/black" />
-<RadioButton android:id="@+id/radio_match_binary" android:layout_width="match_parent" android:layout_height="48dp" android:text="@string/match_binary" android:textSize="17sp" android:textColor="@color/black" />
-</RadioGroup>
-</LinearLayout>
-
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:text="@string/settings_about_header" style="@style/NeoSync.Section" />
-
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="10dp" style="@style/NeoSync.Card">
-<TextView android:id="@+id/text_version" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Body" />
-
-<Button android:id="@+id/button_download_update" android:layout_width="match_parent" android:layout_marginTop="10dp" android:text="" style="@style/NeoSync.Button.Primary" android:visibility="gone" />
-
-<Button android:id="@+id/button_how_it_works" android:layout_width="match_parent" android:layout_marginTop="12dp" android:text="@string/button_how_it_works" style="@style/NeoSync.Button.Secondary" />
-
-<Button android:id="@+id/button_report" android:layout_width="match_parent" android:layout_marginTop="10dp" android:text="@string/button_report" style="@style/NeoSync.Button.Secondary" />
-
-<TextView android:id="@+id/text_report_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="@string/report_hint" style="@style/NeoSync.Small" />
-
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/main_footer" style="@style/NeoSync.Small" />
-
-<View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="16dp" android:background="@color/ink_soft" />
-
-<!-- Optional tip jar. -->
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/support_blurb" style="@style/NeoSync.Small" />
-
-<Button android:id="@+id/button_support" android:layout_width="match_parent" android:layout_marginTop="10dp" android:text="@string/button_support" style="@style/NeoSync.Button.Secondary" />
-</LinearLayout>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/main_footer" style="@style/NeoSync.Small" />
 
 </LinearLayout>
 </ScrollView>

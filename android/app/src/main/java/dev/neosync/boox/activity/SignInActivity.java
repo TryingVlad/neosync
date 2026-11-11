@@ -23,7 +23,7 @@ public class SignInActivity extends Activity {
     private SyncSettings settings;
     private EditText usernameField;
     private EditText passwordField;
-    private EditText serverUrlField;
+    private TextView serverLink;
     private TextView resultView;
     private Button signInButton;
     private Button registerButton;
@@ -36,27 +36,31 @@ public class SignInActivity extends Activity {
 
         usernameField = findViewById(R.id.edit_username);
         passwordField = findViewById(R.id.edit_password);
-        serverUrlField = findViewById(R.id.edit_server_url);
+        serverLink = findViewById(R.id.text_server_link);
         resultView = findViewById(R.id.text_auth_result);
         signInButton = findViewById(R.id.button_sign_in);
         registerButton = findViewById(R.id.button_register);
 
         usernameField.setText(settings.getUsername());
-        serverUrlField.setText(settings.getServerUrl());
         if (!settings.getPasswordMd5().isEmpty()) {
             passwordField.setHint(R.string.password_stored_hint);
         }
 
-        View advanced = findViewById(R.id.group_advanced);
-        if (!settings.getServerUrl().isEmpty()) {
-            advanced.setVisibility(View.VISIBLE);
-        }
-        findViewById(R.id.text_advanced_toggle).setOnClickListener(v ->
-                advanced.setVisibility(advanced.getVisibility() == View.VISIBLE
-                        ? View.GONE : View.VISIBLE));
+        // The server field itself lives on its own page (Settings → Advanced).
+        serverLink.setOnClickListener(v ->
+                startActivity(new Intent(this, ServerActivity.class)));
 
         signInButton.setOnClickListener(v -> submit(false));
         registerButton.setOnClickListener(v -> submit(true));
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Refreshed here: the server may have just been changed on its page.
+        serverLink.setText(android.text.Html.fromHtml(getString(R.string.signin_server_link,
+                        android.text.TextUtils.htmlEncode(ServerActivity.serverLabel(settings))),
+                android.text.Html.FROM_HTML_MODE_LEGACY));
     }
 
     private void submit(boolean register) {
@@ -68,12 +72,11 @@ public class SignInActivity extends Activity {
             showResult(getString(R.string.signin_missing));
             return;
         }
-        String serverUrl = serverUrlField.getText().toString();
-        if (SyncSettings.isInsecureServerUrl(serverUrl)) {
+        if (SyncSettings.isInsecureServerUrl(settings.getServerUrl())) {
+            // Set before http servers were refused: change it on the server page.
             showResult(getString(R.string.signin_https_required));
             return;
         }
-        settings.setServerUrl(serverUrl);
         settings.setUsername(username);
         if (!password.isEmpty()) {
             settings.setPassword(password);
@@ -82,6 +85,28 @@ public class SignInActivity extends Activity {
 
         setBusy(true);
         showResult(getString(register ? R.string.register_in_progress : R.string.auth_in_progress));
+        checkAccount(this, settings, register, message -> {
+            setBusy(false);
+            if (message == null) {
+                SyncService.start(this);
+                startActivity(new Intent(this, MainActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP));
+                finish();
+            } else {
+                showResult(message);
+            }
+        });
+    }
+
+    /**
+     * Signs in (after creating the account when register is set) with the
+     * account and server already in settings, off the UI thread. done gets,
+     * on the UI thread, null when the server accepted the account, else the
+     * sentence to show. Shared with ServerActivity, which re-checks the
+     * account against a new server before keeping it.
+     */
+    static void checkAccount(Activity activity, SyncSettings settings, boolean register,
+                             java.util.function.Consumer<String> done) {
         new Thread(() -> {
             KoSyncClient client = new KoSyncClient(settings, "NeoSync", "settings-ui");
             KoSyncClient.Result result = register ? client.register() : null;
@@ -93,21 +118,21 @@ public class SignInActivity extends Activity {
             final KoSyncClient.Result outcome = result;
             final boolean taken = register && !registerOk
                     && (outcome.httpCode == 402 || outcome.httpCode == 409);
-            runOnUiThread(() -> {
-                setBusy(false);
-                if (outcome.error == KoSyncClient.Error.OK) {
-                    SyncService.start(this);
-                    startActivity(new Intent(this, MainActivity.class)
-                            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP));
-                    finish();
-                } else if (taken) {
-                    showResult(getString(R.string.register_taken));
-                } else if (outcome.error == KoSyncClient.Error.AUTH_FAILED) {
-                    showResult(getString(R.string.auth_failed));
-                } else if (outcome.error == KoSyncClient.Error.NETWORK_ERROR) {
-                    showResult(getString(R.string.network_failed));
-                } else {
-                    showResult(KoSyncClient.errorString(outcome));
+            final String message;
+            if (outcome.error == KoSyncClient.Error.OK) {
+                message = null;
+            } else if (taken) {
+                message = activity.getString(R.string.register_taken);
+            } else if (outcome.error == KoSyncClient.Error.AUTH_FAILED) {
+                message = activity.getString(R.string.auth_failed);
+            } else if (outcome.error == KoSyncClient.Error.NETWORK_ERROR) {
+                message = activity.getString(R.string.network_failed);
+            } else {
+                message = KoSyncClient.errorString(outcome);
+            }
+            activity.runOnUiThread(() -> {
+                if (!activity.isDestroyed()) {
+                    done.accept(message);
                 }
             });
         }).start();
