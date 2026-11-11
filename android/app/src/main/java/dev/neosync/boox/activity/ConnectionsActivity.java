@@ -22,7 +22,6 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
-import java.io.File;
 import java.util.List;
 
 import dev.neosync.boox.R;
@@ -31,15 +30,13 @@ import dev.neosync.boox.jobs.SyncAllJob;
 import dev.neosync.boox.kosync.KoSyncClient;
 import dev.neosync.boox.kosync.SyncSettings;
 import dev.neosync.boox.kosync.SyncStateStore;
-import dev.neosync.boox.library.BookMetaCache;
+import dev.neosync.boox.library.LastBookTitle;
 import dev.neosync.boox.library.LibraryModel;
-import dev.neosync.boox.library.OnyxTitle;
 import dev.neosync.boox.library.PiccoCardState;
 import dev.neosync.boox.library.PiccoFinder;
 import dev.neosync.boox.library.SyncProblem;
 import dev.neosync.boox.library.TitleCleaner;
 import dev.neosync.boox.service.SyncService;
-import dev.neosync.boox.transfer.CoverFixer;
 import dev.neosync.boox.transfer.PiccoClient;
 import dev.neosync.boox.transfer.PiccoLibraryStore;
 
@@ -81,9 +78,7 @@ public class ConnectionsActivity extends Activity {
     private boolean looking;
     /** A PiccoFinder thread is running, current or dropped: only one at a time. */
     private boolean finderRunning;
-    /** The last synced book's path, and its looked-up title (null until known). */
-    private String titlePath;
-    private String shownTitle;
+    private LastBookTitle lastBookTitle;
     /** Look was asked for while a dropped search still ran: start it when that one ends. */
     private boolean lookQueued;
     private boolean lookFailed;
@@ -140,6 +135,7 @@ public class ConnectionsActivity extends Activity {
         getWindow().setWindowAnimations(0);
         setContentView(R.layout.activity_connections);
         settings = new SyncSettings(this);
+        lastBookTitle = new LastBookTitle(this);
 
         findViewById(R.id.button_back).setOnClickListener(v -> finish());
         wireWifi = findViewById(R.id.wire_wifi);
@@ -202,50 +198,6 @@ public class ConnectionsActivity extends Activity {
 
     // --- Rendering ----------------------------------------------------------------
 
-    /**
-     * The last synced book's title as home and the notification show it.
-     * Looked up once per book off the UI thread; the cleaned file name
-     * stands in until then.
-     */
-    private String lastBookTitle(String lastBook) {
-        String fallback = TitleCleaner.fromFileName(LibraryModel.keyOf(lastBook));
-        String path = settings.getLastBookPath();
-        if (path.isEmpty()) {
-            return fallback;
-        }
-        if (!path.equals(titlePath)) {
-            titlePath = path;
-            shownTitle = null;
-            Context app = getApplicationContext();
-            new Thread(() -> {
-                String title = shownTitle(app, path);
-                runOnUiThread(() -> {
-                    if (title != null && path.equals(titlePath) && !isDestroyed()) {
-                        shownTitle = title;
-                        render();
-                    }
-                });
-            }, "NeoSync last book title").start();
-        }
-        return shownTitle != null ? shownTitle : fallback;
-    }
-
-    /** An EPUB's own title (BookMetaCache), else Neo Reader's (OnyxTitle); null if unknown. */
-    private static String shownTitle(Context app, String path) {
-        File file = new File(path);
-        try {
-            if (CoverFixer.isEpub(file)) {
-                return new BookMetaCache(app).get(file).title;
-            }
-            OnyxMetadataRepository.Book book = new OnyxMetadataRepository(app).queryBook(path);
-            return book == null ? null : OnyxTitle.choose(book.title, book.authors,
-                    file.getName())[0];
-        } catch (Exception e) {
-            Log.d(TAG, "No title for the last synced book, using its file name", e);
-            return null;
-        }
-    }
-
     private void render() {
         if (isFinishing() || isDestroyed()) {
             return;
@@ -307,7 +259,10 @@ public class ConnectionsActivity extends Activity {
                             DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString();
             String book = settings.getLastBook();
             sentence = book.isEmpty() ? html(R.string.conn_server_working_no_book, ago)
-                    : html(R.string.conn_server_working, ago, lastBookTitle(book));
+                    : html(R.string.conn_server_working, ago,
+                            lastBookTitle.get(settings.getLastBookPath(),
+                                    TitleCleaner.fromFileName(LibraryModel.keyOf(book)),
+                                    this::render));
         } else {
             sentence = html(R.string.conn_server_signed_in);
         }

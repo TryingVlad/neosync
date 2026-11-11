@@ -40,6 +40,7 @@ import dev.neosync.boox.kosync.SyncSettings;
 import dev.neosync.boox.kosync.SyncStateStore;
 import dev.neosync.boox.library.BookMeta;
 import dev.neosync.boox.library.BookMetaCache;
+import dev.neosync.boox.library.LastBookTitle;
 import dev.neosync.boox.library.LibraryEntry;
 import dev.neosync.boox.library.LibraryModel;
 import dev.neosync.boox.library.LibraryPager;
@@ -102,6 +103,8 @@ public class MainActivity extends Activity implements JobSession.Screen {
     SyncStateStore stateStore;
     PiccoLibraryStore piccoLibrary;
     BookMetaCache metaCache;
+    /** The positions chip's book title, from the last synced path. */
+    private LastBookTitle lastBookTitle;
     RemotePositionStore remoteStore;
 
     private View chipPositions;
@@ -256,6 +259,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
         stateStore = new SyncStateStore(this);
         piccoLibrary = new PiccoLibraryStore(this);
         metaCache = new BookMetaCache(this);
+        lastBookTitle = new LastBookTitle(this);
         remoteStore = new RemotePositionStore(this);
 
         findViewById(R.id.button_settings).setOnClickListener(v ->
@@ -740,7 +744,14 @@ public class MainActivity extends Activity implements JobSession.Screen {
                     : DateUtils.getRelativeTimeSpanString(lastSync, now,
                             DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString();
             String book = settings.getLastBook();
-            sub = book.isEmpty() ? ago : getString(R.string.chip_synced_sub, ago, bookTitle(book));
+            // The shown title from the stored path (LastBookTitle), like
+            // Connections; the listed books' title stands in until then.
+            sub = book.isEmpty() ? ago : getString(R.string.chip_synced_sub, ago,
+                    lastBookTitle.get(settings.getLastBookPath(), bookTitle(book), () -> {
+                        if (!gone(this)) {
+                            renderChips();
+                        }
+                    }));
         } else {
             title = getString(R.string.chip_signed_in);
             sub = getString(R.string.chip_nothing_synced);
