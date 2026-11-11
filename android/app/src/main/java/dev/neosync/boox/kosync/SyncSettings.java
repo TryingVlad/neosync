@@ -29,6 +29,8 @@ public class SyncSettings {
     private static final String KEY_FIRST_FAILURE_MS = "first_failure_ms";
     private static final String KEY_CONSECUTIVE_FAILURES = "consecutive_failures";
     private static final String KEY_LAST_BOOK = "last_book";
+    private static final String KEY_LAST_BOOK_PATH = "last_book_path";
+    private static final String KEY_LAST_PERCENT = "last_percent";
     private static final String KEY_ONBOARDED = "onboarded";
     private static final String KEY_AUTO_SYNC = "auto_sync";
     private static final String KEY_PICCO_ADDRESS = "picco_address";
@@ -164,11 +166,6 @@ public class SyncSettings {
     }
 
     /**
-     * Base URL normalized like CrossPoint's KOReaderCredentialStore: default
-     * server when empty, http:// prepended when no scheme, trailing slashes
-     * stripped.
-     */
-    /**
      * True for a plain-HTTP sync server address. Those are refused: the
      * username and password hash would travel unencrypted.
      */
@@ -177,7 +174,20 @@ public class SyncSettings {
     }
 
     public String getBaseUrl() {
-        String url = getServerUrl();
+        return baseUrlOf(getServerUrl());
+    }
+
+    /** The server as people see it: the base URL without its scheme. */
+    public String getServerLabel() {
+        return serverLabel(getServerUrl());
+    }
+
+    /**
+     * Base URL for a stored server address: the default server when empty,
+     * https:// added when there is no scheme, trailing slashes stripped.
+     */
+    public static String baseUrlOf(String serverUrl) {
+        String url = serverUrl == null ? "" : serverUrl.trim();
         if (url.isEmpty()) {
             url = DEFAULT_SERVER_URL;
         } else if (!url.contains("://")) {
@@ -189,6 +199,13 @@ public class SyncSettings {
             url = url.substring(0, url.length() - 1);
         }
         return url;
+    }
+
+    /** "sync.crosspointreader.com" for an empty address; never the scheme. */
+    public static String serverLabel(String serverUrl) {
+        String url = baseUrlOf(serverUrl);
+        int scheme = url.indexOf("://");
+        return scheme >= 0 ? url.substring(scheme + 3) : url;
     }
 
     // --- Change feed -------------------------------------------------------
@@ -231,11 +248,29 @@ public class SyncSettings {
         return prefs.getString(KEY_LAST_BOOK, "");
     }
 
-    public void recordSyncSuccess(String bookName) {
+    /** Path of the last synced book, for the notification; empty when unknown. */
+    public String getLastBookPath() {
+        return prefs.getString(KEY_LAST_BOOK_PATH, "");
+    }
+
+    /** Position (0..1) of the last synced book; negative when unknown. */
+    public double getLastPercent() {
+        return prefs.getFloat(KEY_LAST_PERCENT, -1f);
+    }
+
+    /**
+     * A successful sync of one book (any caller: the service, Sync all, the
+     * book sheet). The notification follows it (spec 7.7).
+     *
+     * @param percentage the position now on both sides, 0..1
+     */
+    public void recordSyncSuccess(String bookName, String path, double percentage) {
         long now = System.currentTimeMillis();
         prefs.edit()
                 .putLong(KEY_LAST_SYNC_MS, now)
                 .putString(KEY_LAST_BOOK, bookName)
+                .putString(KEY_LAST_BOOK_PATH, path)
+                .putFloat(KEY_LAST_PERCENT, (float) percentage)
                 .putString(KEY_LAST_ERROR, "")
                 .putString(KEY_PROBLEM_TYPE, SyncProblem.Type.NONE.name())
                 .putLong(KEY_FIRST_FAILURE_MS, 0)

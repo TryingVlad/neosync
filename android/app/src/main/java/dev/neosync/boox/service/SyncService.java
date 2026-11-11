@@ -24,10 +24,10 @@ import dev.neosync.boox.kosync.SyncActions;
 import dev.neosync.boox.kosync.SyncSettings;
 import dev.neosync.boox.kosync.SyncStateStore;
 import dev.neosync.boox.library.BookMetaCache;
+import dev.neosync.boox.library.NotificationText;
 import dev.neosync.boox.library.RemotePosition;
 import dev.neosync.boox.library.RemotePositionStore;
 import dev.neosync.boox.library.SyncProblem;
-import dev.neosync.boox.library.TitleCleaner;
 import dev.neosync.boox.transfer.PiccoLibraryStore;
 
 import java.io.File;
@@ -120,12 +120,12 @@ public class SyncService extends Service {
 
     /** What the notification says now (null: the default title). Worker thread. */
     private String shownText;
-    /** "Fictions synced · 88%" for the latest sync done here; null until one. */
-    private String lastSyncedText;
     private BookMetaCache metaCache;
+    /** Set in onDestroy: a late status update must not post the notification again. */
+    private volatile boolean destroyed;
     /**
-     * Any sync status change (also from the app's own syncs) may start or
-     * end a problem: the notification follows on the worker thread.
+     * Every sync status change, from the service or the app (Sync all, the
+     * book sheet), updates the notification on the worker thread.
      */
     private final android.content.SharedPreferences.OnSharedPreferenceChangeListener
             statusListener = (prefs, key) -> {
@@ -220,6 +220,7 @@ public class SyncService extends Service {
 
     @Override
     public void onDestroy() {
+        destroyed = true;
         if (observer != null) {
             getContentResolver().unregisterContentObserver(observer);
         }
@@ -229,6 +230,9 @@ public class SyncService extends Service {
         }
         if (screenReceiver != null) {
             unregisterReceiver(screenReceiver);
+        }
+        if (worker != null) {
+            worker.removeCallbacksAndMessages(null);
         }
         if (workerThread != null) {
             workerThread.quitSafely();
@@ -583,8 +587,8 @@ public class SyncService extends Service {
         }
         if (result.error == KoSyncClient.Error.OK) {
             lastPushMs.put(book.path, System.currentTimeMillis());
-            settings.recordSyncSuccess(book.name != null ? book.name : book.path);
-            showSynced(book, SyncActions.localPercentage(book));
+            settings.recordSyncSuccess(book.name != null ? book.name : book.path, book.path,
+                    SyncActions.localPercentage(book));
             Log.i(TAG, "Pushed " + book.progress + " (" + hash + ") for " + book.path);
             return true;
         }
@@ -615,8 +619,8 @@ public class SyncService extends Service {
             seen.lastAccessMs = remoteMs;
             snapshot.put(book.path, seen);
 
-            settings.recordSyncSuccess(book.name != null ? book.name : book.path);
-            showSynced(book, pct);
+            settings.recordSyncSuccess(book.name != null ? book.name : book.path, book.path,
+                    pct);
             Log.i(TAG, "Pulled " + written + " from " + remote.device + " for " + book.path);
         }
     }
@@ -681,32 +685,28 @@ public class SyncService extends Service {
 
     // --- Notification -------------------------------------------------------
 
-    /** After a sync done here: "<title> synced · 88%" (spec 7.7). Worker thread. */
-    private void showSynced(OnyxMetadataRepository.Book book, double percentage) {
-        String pct = Math.round(Math.max(0.0, Math.min(1.0, percentage)) * 100) + "%";
-        lastSyncedText = getString(R.string.notification_synced, titleOf(book.path), pct);
-        showStatus();
-    }
-
-    /** "Positions not syncing · tap to fix" while the problem is an alarm, else the last sync. */
+    /**
+     * "Positions not syncing · tap to fix" while the problem is an alarm, else
+     * "<title> synced · 88%" for the latest successful sync (spec 7.7).
+     */
     private void showStatus() {
         boolean alarm = SyncProblem.isAlarm(settings.getFirstFailureMs(),
                 settings.getConsecutiveFailures(), System.currentTimeMillis());
-        updateNotification(alarm ? getString(R.string.notification_alarm) : lastSyncedText);
+        String path = settings.getLastBookPath();
+        updateNotification(NotificationText.of(alarm, getString(R.string.notification_alarm),
+                getString(R.string.notification_synced),
+                alarm || path.isEmpty() ? null : metaTitle(path), path,
+                settings.getLastPercent()));
     }
 
-    /** The book's title (BookMetaCache), or a cleaned-up file name when it can't be read. */
-    private String titleOf(String path) {
-        File file = new File(path);
+    /** The book's title from BookMetaCache, or null when it can't be read. */
+    private String metaTitle(String path) {
         try {
-            String title = metaCache.get(file).title;
-            if (title != null && !title.isEmpty()) {
-                return title;
-            }
+            return metaCache.get(new File(path)).title;
         } catch (Exception e) {
             Log.d(TAG, "No title for a book, using its file name", e);
+            return null;
         }
-        return TitleCleaner.fromFileName(file.getName());
     }
 
     /**
@@ -714,7 +714,7 @@ public class SyncService extends Service {
      * re-posted when it changes. The notification opens the home screen.
      */
     void updateNotification(String text) {
-        if (text == null ? shownText == null : text.equals(shownText)) {
+        if (destroyed || (text == null ? shownText == null : text.equals(shownText))) {
             return;
         }
         shownText = text;

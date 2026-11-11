@@ -106,13 +106,13 @@
     <string name="transfer_sent">Book sent. It appears in the Picco’s library.</string>
     <string name="transfer_already">Already on the Picco — nothing to send.</string>
     <string name="transfer_missing">Not on the Picco yet.</string>
-    <string name="transfer_unreachable">Can’t reach the Picco at %1$s. Check the address in Settings → Connection and make sure the Picco’s File Transfer screen is open.</string>
+    <string name="transfer_unreachable">Can’t reach the Picco at %1$s. Check the address on the Connections screen (Settings → Picco) and make sure the Picco’s File Transfer screen is open.</string>
     <string name="transfer_server_error">The Picco refused the upload (HTTP %1$d).</string>
     <string name="transfer_unexpected">Something went wrong talking to the Picco: %1$s</string>
     <string name="manual_remote_problem">Online: %1$s</string>
     <string name="manual_no_book_file">cannot read the book file</string>
     <string name="signin_https_required">The sync server address must start with https:// — your account details would otherwise travel unencrypted.</string>
-    <string name="transfer_no_file">Can’t read the book file. Allow book file access via “How it works”.</string>
+    <string name="transfer_no_file">Can’t read the book file. Allow book file access via the Setup guide (Settings → Setup guide).</string>
     <string name="hint_picco_address">192.168.1.50 — shown on the Picco’s File Transfer screen</string>
 
     <string name="picco_library_header">On the Picco</string>
@@ -433,7 +433,10 @@
     <string name="settings_folder">Folder for new books</string>
     <string name="settings_folder_unset">Not chosen yet · asked the first time a book is sent</string>
     <string name="settings_change">Change</string>
-    <string name="settings_folder_offline">Can’t reach the Picco now, so NeoSync will ask for the folder the next time it sends a book.</string>
+    <string name="settings_folder_not_set_up">The Picco isn’t set up yet. Connect it from the Picco row above, then choose its folder here.</string>
+    <string name="settings_folder_unreachable_short">Can’t reach the Picco at %1$s. Open File Transfer on the Picco, then try again.</string>
+    <string name="settings_folder_unreachable">Can’t reach the Picco at %1$s, so its folders can’t be listed now. Open File Transfer on the Picco and try again, or let NeoSync ask for the folder the next time it sends a book.</string>
+    <string name="settings_folder_ask_later">Ask next time</string>
     <string name="settings_setup_guide">Setup guide</string>
     <string name="settings_setup_guide_sub">Picco firmware, permissions, Boox battery settings</string>
     <string name="settings_report">Report a problem</string>

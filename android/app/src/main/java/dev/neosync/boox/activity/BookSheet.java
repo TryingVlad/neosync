@@ -456,7 +456,7 @@ final class BookSheet {
                 return a.getString(R.string.sheet_book_open);
             }
             changed = true;
-            a.settings.recordSyncSuccess(book.name != null ? book.name : book.path);
+            a.settings.recordSyncSuccess(book.name != null ? book.name : book.path, book.path, r.percentage);
             return a.getString(R.string.sheet_jump_done);
         });
     }
@@ -478,7 +478,8 @@ final class BookSheet {
             }
             changed = true;
             placeSent = true;
-            a.settings.recordSyncSuccess(book.name != null ? book.name : book.path);
+            a.settings.recordSyncSuccess(book.name != null ? book.name : book.path, book.path,
+                    SyncActions.localPercentage(book));
             return a.getString(R.string.sheet_place_sent);
         });
     }

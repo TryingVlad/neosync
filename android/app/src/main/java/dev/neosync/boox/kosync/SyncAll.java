@@ -164,7 +164,8 @@ public class SyncAll {
             case FETCH:
                 if (SyncActions.applyRemote(context, repository, stateStore, book, progress) != null) {
                     summary.fetched++;
-                    settings.recordSyncSuccess(book.name != null ? book.name : book.path);
+                    settings.recordSyncSuccess(book.name != null ? book.name : book.path, book.path,
+                            progress.percentage);
                 } else {
                     summary.failed++;
                 }
@@ -177,7 +178,7 @@ public class SyncAll {
                 }
                 if (sent.error == KoSyncClient.Error.OK) {
                     summary.sent++;
-                    settings.recordSyncSuccess(book.name != null ? book.name : book.path);
+                    settings.recordSyncSuccess(book.name != null ? book.name : book.path, book.path, localPct);
                 } else {
                     summary.failed++;
                 }

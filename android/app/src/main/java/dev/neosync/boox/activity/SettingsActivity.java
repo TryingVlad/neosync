@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.text.format.DateFormat;
 import android.text.format.DateUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Switch;
@@ -38,6 +39,8 @@ import dev.neosync.boox.update.UpdateChecker;
  * lead somewhere that can change it.
  */
 public class SettingsActivity extends Activity {
+
+    private static final String TAG = "Settings";
 
     private SyncSettings settings;
     /** The notification prompt was refused here once: Allow opens the system page next. */
@@ -210,22 +213,25 @@ public class SettingsActivity extends Activity {
     }
 
     /**
-     * Lists the Picco's folders and asks again. When the Picco can't be
-     * reached, forgets the choice instead, so the next send asks (as the old
-     * "Choose again" did).
+     * Lists the Picco's folders and asks again. Without a Picco there is
+     * nothing to list, so it only says where to set one up. When the Picco
+     * can't be reached, the saved folder stays unless the user chooses to be
+     * asked at the next send instead (the old "Choose again").
      */
     private void changeFolder() {
         String address = settings.getPiccoAddress();
+        if (address.isEmpty()) {
+            Toast.makeText(this, R.string.settings_folder_not_set_up, Toast.LENGTH_LONG).show();
+            return;
+        }
         View row = findViewById(R.id.row_folder);
         row.setEnabled(false);
         new Thread(() -> {
             List<String> folders = null;
-            if (!address.isEmpty()) {
-                try {
-                    folders = new PiccoClient(address).listFolders();
-                } catch (Exception ignored) {
-                    // unreachable: handled below
-                }
+            try {
+                folders = new PiccoClient(address).listFolders();
+            } catch (Exception e) {
+                Log.i(TAG, "Couldn't list the Picco's folders: " + e);
             }
             final List<String> found = folders;
             runOnUiThread(() -> {
@@ -233,13 +239,22 @@ public class SettingsActivity extends Activity {
                 if (isFinishing()) {
                     return;
                 }
-                if (found == null) {
-                    settings.setPiccoFolder(null);
-                    Toast.makeText(this, R.string.settings_folder_offline, Toast.LENGTH_LONG).show();
-                    render();
-                    return;
+                if (found != null) {
+                    PiccoFolderChooser.ask(this, found, f -> render(), f -> { });
+                } else if (settings.getPiccoFolder() == null) {
+                    // Nothing saved: it will be asked at the next send anyway.
+                    Toast.makeText(this, getString(R.string.settings_folder_unreachable_short,
+                            address), Toast.LENGTH_LONG).show();
+                } else {
+                    new AlertDialog.Builder(this)
+                            .setMessage(getString(R.string.settings_folder_unreachable, address))
+                            .setPositiveButton(R.string.settings_folder_ask_later, (d, w) -> {
+                                settings.setPiccoFolder(null);
+                                render();
+                            })
+                            .setNegativeButton(R.string.send_missing_cancel, null)
+                            .show();
                 }
-                PiccoFolderChooser.ask(this, found, f -> render(), f -> { });
             });
         }).start();
     }

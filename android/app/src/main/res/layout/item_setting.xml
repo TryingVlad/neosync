@@ -12,7 +12,7 @@
 
 <TextView android:id="@+id/setting_end" android:layout_width="wrap_content" android:layout_height="48dp" android:minWidth="48dp" android:layout_marginStart="12dp" android:gravity="center_vertical|end" android:text="" style="@style/NeoSync.Body" android:textStyle="bold" android:visibility="gone" />
 
-<Switch android:id="@+id/setting_switch" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="12dp" android:clickable="false" android:focusable="false" android:visibility="gone" />
+<Switch android:id="@+id/setting_switch" android:layout_width="wrap_content" android:layout_height="48dp" android:track="@drawable/switch_track" android:thumb="@drawable/switch_thumb" android:thumbTint="@null" android:trackTint="@null" android:showText="false" android:layout_marginStart="12dp" android:clickable="false" android:focusable="false" android:visibility="gone" />
 
 <Button android:id="@+id/setting_button" android:layout_width="wrap_content" android:layout_height="48dp" android:minWidth="96dp" android:layout_marginStart="12dp" android:text="" style="@style/NeoSync.Button.Secondary" android:visibility="gone" />
 </LinearLayout>

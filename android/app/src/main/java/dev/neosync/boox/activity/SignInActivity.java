@@ -85,10 +85,16 @@ public class SignInActivity extends Activity {
 
         setBusy(true);
         showResult(getString(register ? R.string.register_in_progress : R.string.auth_in_progress));
+        android.content.Context app = getApplicationContext();
         checkAccount(this, settings, register, message -> {
+            if (message == null) {
+                SyncService.start(app);
+            }
+            if (isDestroyed()) {
+                return;
+            }
             setBusy(false);
             if (message == null) {
-                SyncService.start(this);
                 startActivity(new Intent(this, MainActivity.class)
                         .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP));
                 finish();
@@ -100,13 +106,17 @@ public class SignInActivity extends Activity {
 
     /**
      * Signs in (after creating the account when register is set) with the
-     * account and server already in settings, off the UI thread. done gets,
-     * on the UI thread, null when the server accepted the account, else the
-     * sentence to show. Shared with ServerActivity, which re-checks the
-     * account against a new server before keeping it.
+     * account and server in settings, off the UI thread. done always gets,
+     * on the main thread, null when the server accepted the account, else
+     * the sentence to show — also when the activity is gone by then, so
+     * callers can finish their work; they guard only their own views.
+     * Shared with ServerActivity, which checks a new server this way before
+     * keeping it.
      */
     static void checkAccount(Activity activity, SyncSettings settings, boolean register,
                              java.util.function.Consumer<String> done) {
+        android.content.Context app = activity.getApplicationContext();
+        android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
         new Thread(() -> {
             KoSyncClient client = new KoSyncClient(settings, "NeoSync", "settings-ui");
             KoSyncClient.Result result = register ? client.register() : null;
@@ -122,19 +132,15 @@ public class SignInActivity extends Activity {
             if (outcome.error == KoSyncClient.Error.OK) {
                 message = null;
             } else if (taken) {
-                message = activity.getString(R.string.register_taken);
+                message = app.getString(R.string.register_taken);
             } else if (outcome.error == KoSyncClient.Error.AUTH_FAILED) {
-                message = activity.getString(R.string.auth_failed);
+                message = app.getString(R.string.auth_failed);
             } else if (outcome.error == KoSyncClient.Error.NETWORK_ERROR) {
-                message = activity.getString(R.string.network_failed);
+                message = app.getString(R.string.network_failed);
             } else {
                 message = KoSyncClient.errorString(outcome);
             }
-            activity.runOnUiThread(() -> {
-                if (!activity.isDestroyed()) {
-                    done.accept(message);
-                }
-            });
+            main.post(() -> done.accept(message));
         }).start();
     }
 
