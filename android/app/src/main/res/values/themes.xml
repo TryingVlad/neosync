@@ -12,6 +12,29 @@
         <item name="android:textColorPrimary">@color/black</item>
     </style>
 
+    <!-- Bottom sheets: no slide-in, no dark dim (the scrim is drawn white instead). -->
+    <style name="NeoSync.BottomSheet" parent="Theme.MaterialComponents.Light.BottomSheetDialog">
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="bottomSheetStyle">@style/NeoSync.BottomSheet.Sheet</item>
+    </style>
+
+    <style name="NeoSync.BottomSheet.Sheet" parent="Widget.MaterialComponents.BottomSheet.Modal">
+        <item name="android:background">@drawable/sheet_bg</item>
+        <item name="backgroundTint">@null</item>
+    </style>
+
+    <style name="NeoSync.Link" parent="">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/black</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:layout_marginEnd">28dp</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
     <style name="NeoSync.Title" parent="">
         <item name="android:textSize">28sp</item>
         <item name="android:textStyle">bold</item>

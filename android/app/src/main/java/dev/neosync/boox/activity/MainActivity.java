@@ -98,12 +98,13 @@ public class MainActivity extends Activity implements JobSession.Screen {
     private static final Map<String, String> HASHES = new ConcurrentHashMap<>();
     private static final Map<String, Double> PERCENTAGES = new ConcurrentHashMap<>();
 
-    private SyncSettings settings;
-    private OnyxMetadataRepository repository;
-    private SyncStateStore stateStore;
-    private PiccoLibraryStore piccoLibrary;
-    private BookMetaCache metaCache;
-    private RemotePositionStore remoteStore;
+    // Package-visible for the book and cover sheets.
+    SyncSettings settings;
+    OnyxMetadataRepository repository;
+    SyncStateStore stateStore;
+    PiccoLibraryStore piccoLibrary;
+    BookMetaCache metaCache;
+    RemotePositionStore remoteStore;
 
     private View chipPositions;
     private TextView chipPositionsTitle;
@@ -153,6 +154,10 @@ public class MainActivity extends Activity implements JobSession.Screen {
 
     /** From a Send / Fix tap until its job ends or is called off. */
     private boolean busy;
+    /** The book or cover sheet on screen, or null; closed with this screen. */
+    private android.app.Dialog openSheet;
+    /** The open book sheet, which shows its own single-book send. */
+    private BookSheet bookSheet;
     /** A result sentence or a "checking…" line in the slot, or null. */
     private CharSequence notice;
     private final Runnable hideNotice = this::hideNotice;
@@ -397,6 +402,9 @@ public class MainActivity extends Activity implements JobSession.Screen {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (openSheet != null) {
+            openSheet.dismiss(); // a running job carries on (JobSession)
+        }
         JobSession.detach(this);
         thumbLoader.shutdownNow();
     }
@@ -424,7 +432,58 @@ public class MainActivity extends Activity implements JobSession.Screen {
 
     /** Opens the sheet for one book (spec 5.2). */
     void openBook(LibraryEntry e) {
-        // The book sheet comes with the next step of the redesign.
+        if (snapshot == null || openSheet != null || isFinishing()) {
+            return;
+        }
+        BookSheet.show(this, e);
+    }
+
+    void sheetOpened(android.app.Dialog d) {
+        openSheet = d;
+    }
+
+    void sheetClosed(android.app.Dialog d) {
+        if (openSheet == d) {
+            openSheet = null;
+        }
+    }
+
+    void bookSheetOpened(BookSheet s, android.app.Dialog d) {
+        bookSheet = s;
+        sheetOpened(d);
+    }
+
+    void bookSheetClosed(BookSheet s, android.app.Dialog d) {
+        if (bookSheet == s) {
+            bookSheet = null;
+        }
+        sheetClosed(d);
+    }
+
+    boolean isBusy() {
+        return busy;
+    }
+
+    void setBusy(boolean b) {
+        busy = b;
+        renderSlot();
+    }
+
+    boolean piccoConfigured() {
+        return !settings.getPiccoAddress().isEmpty();
+    }
+
+    /** The book's metadata when its file can be read; null otherwise. */
+    BookMeta readableMeta(LibraryEntry e) {
+        if (snapshot == null || e.booxPath == null || !snapshot.readable.contains(e.key)) {
+            return null;
+        }
+        return snapshot.metaByKey.get(e.key);
+    }
+
+    /** The list's thumbnail for a Boox book, or null. */
+    Bitmap thumbOf(String path) {
+        return thumbs.get(path);
     }
 
     /** Re-reads both libraries and redraws; the work runs off the UI thread. */
@@ -553,7 +612,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
     }
 
     /** The book's document hash, worked out once per file version. */
-    private String documentHash(String path, File file) {
+    String documentHash(String path, File file) {
         String cacheKey = settings.getMatchMethod() + "|" + path + "|" + file.lastModified()
                 + "|" + file.length();
         String hash = HASHES.get(cacheKey);
@@ -1234,6 +1293,9 @@ public class MainActivity extends Activity implements JobSession.Screen {
     @Override
     public void jobProgress() {
         renderSlot();
+        if (bookSheet != null) {
+            bookSheet.jobProgress();
+        }
     }
 
     @Override
@@ -1244,6 +1306,9 @@ public class MainActivity extends Activity implements JobSession.Screen {
     @Override
     public void jobFinished(String resultSentence) {
         busy = false;
+        if (bookSheet != null) {
+            bookSheet.jobFinished(resultSentence);
+        }
         showNotice(resultSentence != null ? resultSentence : getString(R.string.job_stopped), true);
         reload();
     }
@@ -1402,7 +1467,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
      * "books"), then remembers it; Settings can reset the choice. On the UI
      * thread. onStop gets an error message, or null when the user cancelled.
      */
-    private void withPiccoFolder(String address, java.util.function.Consumer<String> then,
+    void withPiccoFolder(String address, java.util.function.Consumer<String> then,
                                  java.util.function.Consumer<String> onStop) {
         String chosen = settings.getPiccoFolder();
         if (chosen != null) {
@@ -1456,7 +1521,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
     }
 
     /** What to tell the user when the Picco could not be reached. */
-    private String piccoErrorMessage(Exception e, String address) {
+    String piccoErrorMessage(Exception e, String address) {
         return !(e instanceof IOException)
                 ? getString(R.string.transfer_unexpected, String.valueOf(e))
                 : hasLocalNetwork()
@@ -1545,8 +1610,9 @@ public class MainActivity extends Activity implements JobSession.Screen {
                                 JobSession.rows.put(LibraryModel.keyOf(file.getPath()), Job.WAITING);
                             }
                             renderPage();
-                            startJob(new SendMissingJob(this, client, address, folder, missing,
-                                    piccoLibrary));
+                            // Application context: the job outlives this screen.
+                            startJob(new SendMissingJob(getApplicationContext(), client,
+                                    address, folder, missing, piccoLibrary));
                         })
                         .setNegativeButton(R.string.send_missing_cancel, (d, w) -> busy = false)
                         .setOnCancelListener(d -> busy = false)
@@ -1562,7 +1628,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
         return meta != null && !meta[0].isEmpty() ? meta[0] : TitleCleaner.fromFileName(file.getName());
     }
 
-    private static String titleList(List<String> titles) {
+    static String titleList(List<String> titles) {
         int shown = Math.min(5, titles.size());
         String list = String.join(", ", titles.subList(0, shown));
         return titles.size() > shown ? list + ", …" : list;
@@ -1581,16 +1647,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
             showNotice(getString(R.string.transfer_no_address), true);
             return;
         }
-        if (!Permissions.hasAllFilesAccess()) {
-            // Without it no book can be read or fixed, and every Picco book
-            // would wrongly look like it isn't on this Boox.
-            new android.app.AlertDialog.Builder(this)
-                    .setTitle(R.string.clean_needs_files_title)
-                    .setMessage(R.string.clean_needs_files_body)
-                    .setPositiveButton(R.string.clean_needs_files_open,
-                            (d, w) -> Permissions.openAllFilesAccessSettings(this))
-                    .setNegativeButton(R.string.send_missing_cancel, null)
-                    .show();
+        if (!ensureFilesAccess()) {
             return;
         }
         busy = true;
@@ -1635,6 +1692,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
                 }
                 plan.booxBooks.add(file);
                 plan.booxTitles.add(coverTitle(file));
+                plan.kindOf.put(file.getPath(), kind);
                 for (String piccoPath : onPicco) {
                     if (fileName(piccoPath).equals(file.getName())) {
                         plan.piccoPathOf.put(file.getPath(), piccoPath);
@@ -1665,11 +1723,11 @@ public class MainActivity extends Activity implements JobSession.Screen {
                     copy.delete();
                 }
             }
-            runOnUiThread(() -> confirmClean(client, plan));
+            runOnUiThread(() -> confirmClean(plan));
         }).start();
     }
 
-    private void confirmClean(PiccoClient client, CleanPlan plan) {
+    private void confirmClean(CleanPlan plan) {
         if (isFinishing()) {
             busy = false;
             return;
@@ -1680,53 +1738,35 @@ public class MainActivity extends Activity implements JobSession.Screen {
             return;
         }
         hideNotice();
-        String message;
-        if (plan.booxBooks.isEmpty()) {
-            message = getString(R.string.clean_confirm_picco_only_none_boox);
-        } else {
-            message = getString(R.string.clean_confirm_boox, plan.booxBooks.size(),
-                    titleList(plan.booxTitles), plan.tagged, plan.pictured);
-            if (!plan.piccoPathOf.isEmpty()) {
-                message += getString(R.string.clean_confirm_picco_part, plan.piccoPathOf.size());
-            }
-        }
-        android.widget.CheckBox piccoOnlyBox = null;
-        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this)
-                .setTitle(R.string.clean_confirm_title)
-                .setMessage(message);
-        if (!plan.piccoOnly.isEmpty()) {
-            piccoOnlyBox = new android.widget.CheckBox(this);
-            piccoOnlyBox.setText(getString(R.string.clean_picco_only_checkbox,
-                    plan.piccoOnly.size(), titleList(plan.piccoOnlyTitles)));
-            piccoOnlyBox.setChecked(false);
-            int pad = dp(20);
-            android.widget.FrameLayout frame = new android.widget.FrameLayout(this);
-            frame.setPadding(pad, dp(8), pad, 0);
-            frame.addView(piccoOnlyBox);
-            builder.setView(frame);
-        }
-        final android.widget.CheckBox box = piccoOnlyBox;
-        builder.setPositiveButton(R.string.clean_confirm_ok, (d, w) -> {
-                    boolean includePiccoOnly = box != null && box.isChecked();
-                    if (plan.booxBooks.isEmpty() && !includePiccoOnly) {
-                        busy = false;
-                        return;
-                    }
-                    startJob(new FixCoversJob(this, settings, repository, stateStore,
-                            buildClient(), deviceId(), client, plan, includePiccoOnly));
-                })
-                .setNegativeButton(R.string.send_missing_cancel, (d, w) -> busy = false)
-                .setOnCancelListener(d -> busy = false)
-                .show();
+        CoverSheet.show(this, plan);
     }
 
     // --- Device and network helpers --------------------------------------------------
 
-    private KoSyncClient buildClient() {
+    /**
+     * True when NeoSync may change book files; otherwise asks for the
+     * permission and returns false. Without it no book can be read or fixed,
+     * and every Picco book would wrongly look like it isn't on this Boox.
+     */
+    boolean ensureFilesAccess() {
+        if (Permissions.hasAllFilesAccess()) {
+            return true;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.clean_needs_files_title)
+                .setMessage(R.string.clean_needs_files_body)
+                .setPositiveButton(R.string.clean_needs_files_open,
+                        (d, w) -> Permissions.openAllFilesAccessSettings(this))
+                .setNegativeButton(R.string.send_missing_cancel, null)
+                .show();
+        return false;
+    }
+
+    KoSyncClient buildClient() {
         return new KoSyncClient(settings, "NeoSync", deviceId());
     }
 
-    private String deviceId() {
+    String deviceId() {
         String androidId = Settings.Secure.getString(getContentResolver(),
                 Settings.Secure.ANDROID_ID);
         return androidId != null ? androidId : "boox-companion";

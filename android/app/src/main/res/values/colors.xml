@@ -5,4 +5,7 @@
     <!-- Dark grey that still renders as solid text on 16-level e-ink. -->
     <color name="ink_soft">#FF444444</color>
     <color name="ink_disabled">#FF9A9A9A</color>
+    <!-- The only grey fills (spec 8): the sheet's scrim and the warning box. -->
+    <color name="scrim">#B8FFFFFF</color>
+    <color name="warn_fill">#FFF3F3F3</color>
 </resources>

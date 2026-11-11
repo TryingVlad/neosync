@@ -2,6 +2,8 @@ package dev.neosync.boox.jobs;
 
 import android.content.Context;
 
+import dev.neosync.boox.epub.EpubCover;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,6 +20,8 @@ public final class CleanPlan {
     public final List<String> piccoOnly = new ArrayList<>();
     public final Map<String, File> downloaded = new HashMap<>();
     public final List<String> booxTitles = new ArrayList<>();
+    /** Boox file path -> what its cover becomes (TAG_IMAGE or NEEDS_SNAPSHOT). */
+    public final Map<String, EpubCover.Kind> kindOf = new HashMap<>();
     public final List<String> piccoOnlyTitles = new ArrayList<>();
     public int tagged;
     public int pictured;

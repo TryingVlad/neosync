@@ -314,6 +314,67 @@
     <string name="row_not_opened">Not opened yet</string>
     <string name="row_boox_only_type">On this Boox only (%1$s)</string>
 
+    <!-- Book sheet (spec 5.2) -->
+    <string name="sheet_on_both">On both devices</string>
+    <string name="sheet_only_here">Only on this Boox</string>
+    <string name="sheet_only_picco">Only on the Picco</string>
+    <string name="sheet_sub_line">%1$s · %2$s · %3$s</string>
+    <string name="sheet_sub_line_no_size">%1$s · %2$s</string>
+    <string name="sheet_this_boox">This Boox</string>
+    <string name="sheet_picco">Picco</string>
+    <string name="sheet_checking">Checking…</string>
+    <string name="sheet_same">Same place.</string>
+    <string name="sheet_other_recent">You read more recently on the %1$s.</string>
+    <string name="sheet_here_recent">You read more recently here.</string>
+    <string name="sheet_nothing_online">Nothing saved online yet.</string>
+    <string name="sheet_not_checked">Couldn\'t check just now.</string>
+    <string name="sheet_jump">Jump to the %1$s\'s place (%2$s)</string>
+    <string name="sheet_send_place">Send this place to the Picco (%1$s)</string>
+    <string name="sheet_send_file">Send to Picco</string>
+    <string name="sheet_jump_hint">Close the book in Neo Reader first; an open book can’t be moved. You can undo this for 24 hours.</string>
+    <string name="sheet_keep_boox">Keep this Boox\'s place instead</string>
+    <string name="sheet_use_picco">Use the Picco\'s place instead</string>
+    <string name="sheet_send_again">Send book file again</string>
+    <string name="sheet_add_cover">Add a cover</string>
+    <string name="sheet_open_reader">Open in Neo Reader</string>
+    <string name="sheet_undo">Undo jump</string>
+    <string name="sheet_working">Working…</string>
+    <string name="sheet_jump_done">Done. Open the book in Neo Reader.</string>
+    <string name="sheet_book_open">Close the book in Neo Reader first, then try again.</string>
+    <string name="sheet_place_sent">Place sent.</string>
+    <string name="sheet_not_opened">Open the book in Neo Reader first.</string>
+    <string name="sheet_send_failed">Couldn’t send the place: %1$s</string>
+    <string name="sheet_undo_sent">Back to %1$s. The Picco goes back too next time you choose Sync Progress there.</string>
+    <string name="sheet_undo_later">Back to %1$s here. Not sent yet — it goes to the Picco when you\'re online.</string>
+    <string name="sheet_undo_failed">Couldn’t put the place back. Close the book in Neo Reader, then try again.</string>
+    <string name="sheet_undo_nothing">Nothing to undo.</string>
+    <string name="sheet_busy">Another job is running. Try again when it’s done.</string>
+    <string name="sheet_no_reader">Neo Reader isn’t installed.</string>
+
+    <!-- Cover sheet (spec 5.6) -->
+    <plurals name="cover_title">
+        <item quantity="one">%1$d book would show a black cover on the Picco</item>
+        <item quantity="other">%1$d books would show a black cover on the Picco</item>
+    </plurals>
+    <string name="cover_lead">NeoSync gives each one a cover. Your notes, highlights and place in Neo Reader stay as they are.</string>
+    <string name="cover_from_book">picture from the book</string>
+    <string name="cover_first_page">its first page</string>
+    <string name="cover_more">+ %1$d more</string>
+    <string name="cover_arrow" translatable="false">→</string>
+    <plurals name="cover_warning_head">
+        <item quantity="one">%1$d of these is on the Picco too.</item>
+        <item quantity="other">%1$d of these are on the Picco too.</item>
+    </plurals>
+    <plurals name="cover_warning_body">
+        <item quantity="one">It’s replaced there, which resets the Picco’s place in it. NeoSync saves every place first; on the Picco, open it and choose Sync Progress.</item>
+        <item quantity="other">They’re replaced there, which resets the Picco’s place in them. NeoSync saves every place first; on the Picco, open each one and choose Sync Progress.</item>
+    </plurals>
+    <plurals name="cover_add">
+        <item quantity="one">Add %1$d cover</item>
+        <item quantity="other">Add %1$d covers</item>
+    </plurals>
+    <string name="cover_backup_note">Originals are kept in Books/.neosync-backup.</string>
+
     <string name="notification_channel_name">Background sync</string>
     <string name="notification_title">Syncing reading progress</string>
 </resources>
