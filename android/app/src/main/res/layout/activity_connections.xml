@@ -22,7 +22,7 @@
 
 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center_horizontal">
 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_positions" style="@style/NeoSync.Small" />
-<dev.neosync.boox.activity.ArrowView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:layout_marginTop="2dp" android:layout_marginBottom="2dp" app:twoWay="true" />
+<dev.neosync.boox.activity.ArrowView android:importantForAccessibility="no" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:layout_marginTop="2dp" android:layout_marginBottom="2dp" app:twoWay="true" />
 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_internet" style="@style/NeoSync.Small" />
 </LinearLayout>
 
@@ -33,7 +33,7 @@
 
 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center_horizontal">
 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_positions" style="@style/NeoSync.Small" />
-<dev.neosync.boox.activity.ArrowView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:layout_marginTop="2dp" android:layout_marginBottom="2dp" app:twoWay="true" />
+<dev.neosync.boox.activity.ArrowView android:importantForAccessibility="no" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:layout_marginTop="2dp" android:layout_marginBottom="2dp" app:twoWay="true" />
 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_internet" style="@style/NeoSync.Small" />
 </LinearLayout>
 
@@ -46,7 +46,7 @@
 <!-- The direct Boox-to-Picco link: dashed while the Picco isn't reachable. -->
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:layout_marginStart="36dp" android:layout_marginEnd="36dp" android:orientation="vertical" android:gravity="center_horizontal">
 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_files" style="@style/NeoSync.Small" />
-<dev.neosync.boox.activity.ArrowView android:id="@+id/wire_wifi" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:layout_marginBottom="2dp" app:dashed="true" />
+<dev.neosync.boox.activity.ArrowView android:importantForAccessibility="no" android:id="@+id/wire_wifi" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:layout_marginBottom="2dp" app:dashed="true" />
 <TextView android:id="@+id/text_wire_wifi" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Small" android:textColor="@color/black" />
 </LinearLayout>
 </LinearLayout>

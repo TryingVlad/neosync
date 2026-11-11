@@ -18,7 +18,8 @@ import dev.neosync.boox.R;
  */
 public class ArrowView extends View {
 
-    private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
+    /** No anti-aliasing on the line: grey fringe pixels show on e-ink. */
+    private final Paint line = new Paint();
     private final Paint head = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
     private final float density;
@@ -34,7 +35,8 @@ public class ArrowView extends View {
         a.recycle();
         line.setColor(Color.BLACK);
         line.setStyle(Paint.Style.STROKE);
-        line.setStrokeWidth(1.5f * density);
+        // A whole number of pixels, at least one.
+        line.setStrokeWidth(Math.max(1, Math.round(1.5f * density)));
         head.setColor(Color.BLACK);
         head.setStyle(Paint.Style.FILL);
     }
@@ -55,16 +57,20 @@ public class ArrowView extends View {
 
     @Override
     protected void onDraw(Canvas canvas) {
-        float y = getPaddingTop() + (getHeight() - getPaddingTop() - getPaddingBottom()) / 2f;
+        float mid = getPaddingTop() + (getHeight() - getPaddingTop() - getPaddingBottom()) / 2f;
+        // Snap the line to the pixel grid: an odd width sits on a pixel
+        // centre, an even one on a pixel edge, so no row is half covered.
+        int stroke = Math.round(line.getStrokeWidth());
+        float y = stroke % 2 == 1 ? (float) Math.floor(mid) + 0.5f : Math.round(mid);
         float left = getPaddingLeft();
         float right = getWidth() - getPaddingRight();
         float headLen = 9 * density;
         float headHalf = 5 * density;
-        float start = twoWay ? left + headLen - density : left;
-        float end = right - headLen + density;
+        float start = Math.round(twoWay ? left + headLen - density : left);
+        float end = Math.round(right - headLen + density);
         if (dashed) {
-            float dash = 6 * density;
-            float gap = 5 * density;
+            float dash = Math.round(6 * density);
+            float gap = Math.round(5 * density);
             for (float x = start; x < end; x += dash + gap) {
                 canvas.drawLine(x, y, Math.min(x + dash, end), y, line);
             }
