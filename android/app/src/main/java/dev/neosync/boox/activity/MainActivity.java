@@ -1256,6 +1256,8 @@ public class MainActivity extends Activity implements JobSession.Screen {
                 Long ms = snapshot.lastSyncMsByKey.get(e.key);
                 return ms != null && ms > 0 ? getString(R.string.row_same_place, clock(ms))
                         : getString(R.string.row_same_place_no_time);
+            case PLACE_SENT:
+                return getString(R.string.row_place_sent);
             case READ_FURTHER_HERE:
                 return getString(R.string.row_read_further);
             case WAITING_TO_SYNC:

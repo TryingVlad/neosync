@@ -4,7 +4,7 @@ import dev.neosync.boox.transfer.BookSyncStatus;
 
 /** What a library row says about where the two devices stand. */
 public enum RowStatus {
-    SAME_PLACE, READ_FURTHER_HERE, WAITING_TO_SYNC, PICCO_AHEAD, NOT_ON_PICCO,
+    SAME_PLACE, PLACE_SENT, READ_FURTHER_HERE, WAITING_TO_SYNC, PICCO_AHEAD, NOT_ON_PICCO,
     ONLY_ON_PICCO, NOT_SYNCED_YET, NOT_OPENED, BOOX_ONLY_TYPE;
 
     /** Positions closer than this are the same place (as in BookComparison). */
@@ -35,7 +35,9 @@ public enum RowStatus {
             return PICCO_AHEAD;
         }
         if (e.syncStatus == BookSyncStatus.SYNCED) {
-            return SAME_PLACE;
+            // Sent; another device's older record elsewhere hasn't caught up.
+            return e.remote != null && e.remote.timestampMs < e.booxLastMs
+                    ? PLACE_SENT : SAME_PLACE;
         }
         if (e.syncStatus == BookSyncStatus.CHANGED_HERE) {
             return syncing ? READ_FURTHER_HERE : WAITING_TO_SYNC;

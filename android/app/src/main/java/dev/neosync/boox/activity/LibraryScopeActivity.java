@@ -33,6 +33,9 @@ public class LibraryScopeActivity extends Activity {
     private SyncSettings settings;
     private LinearLayout typeList;
     private TextView noTypes;
+    private LinearLayout folderList;
+    /** The listable book files, once loaded; null until then. */
+    private List<String> bookPaths;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,25 +62,34 @@ public class LibraryScopeActivity extends Activity {
                 }
                 settings.setLibraryTypes(now);
                 noTypes.setVisibility(now.isEmpty() ? View.VISIBLE : View.GONE);
+                showFolders(); // folders follow the ticked types
             });
         }
         noTypes.setVisibility(types.isEmpty() ? View.VISIBLE : View.GONE);
 
         // Reading the whole Onyx library (and checking each file) is slow on
         // a big library: build the folder list off the UI thread.
-        LinearLayout folderList = findViewById(R.id.list_folders);
+        folderList = findViewById(R.id.list_folders);
         Context app = getApplicationContext();
         new Thread(() -> {
-            List<String> folders = folders(app);
+            List<String> paths = bookPaths(app);
             runOnUiThread(() -> {
                 if (!isDestroyed()) {
-                    showFolders(folderList, folders);
+                    bookPaths = paths;
+                    showFolders();
                 }
             });
         }, "NeoSync library folders").start();
     }
 
-    private void showFolders(LinearLayout folderList, List<String> folders) {
+    /** Rebuilds the folder list for the ticked types; nothing until loaded. */
+    private void showFolders() {
+        if (bookPaths == null) {
+            return;
+        }
+        folderList.removeAllViews();
+        List<String> folders = folders(bookPaths, settings.getLibraryTypes(),
+                settings.getHiddenFolders());
         if (folders.isEmpty()) {
             TextView none = new TextView(this);
             none.setText(R.string.library_scope_no_folders);
@@ -101,10 +113,19 @@ public class LibraryScopeActivity extends Activity {
     }
 
     /**
-     * Folders to list: those with books now, plus any hidden one whose books
-     * are gone. Off the UI thread.
+     * Folders to list: those with books of the ticked types, plus any hidden
+     * one (so it can be ticked again).
      */
-    private static List<String> folders(Context app) {
+    static List<String> folders(List<String> paths, Set<String> types, Set<String> hidden) {
+        Set<String> all = new HashSet<>(LibraryScope.bookFolders(paths, types));
+        all.addAll(hidden);
+        List<String> sorted = new ArrayList<>(all);
+        java.util.Collections.sort(sorted);
+        return sorted;
+    }
+
+    /** The listable book files on this Boox. Off the UI thread. */
+    private static List<String> bookPaths(Context app) {
         List<String> paths = new ArrayList<>();
         try {
             for (OnyxMetadataRepository.Book book : LibraryModel.listable(
@@ -115,11 +136,7 @@ public class LibraryScopeActivity extends Activity {
         } catch (RuntimeException ignored) {
             // No library to read: only the saved choices are shown.
         }
-        Set<String> all = new HashSet<>(LibraryScope.bookFolders(paths));
-        all.addAll(new SyncSettings(app).getHiddenFolders());
-        List<String> sorted = new ArrayList<>(all);
-        java.util.Collections.sort(sorted);
-        return sorted;
+        return paths;
     }
 
     private CheckBox addRow(LinearLayout parent, String label) {

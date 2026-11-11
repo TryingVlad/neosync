@@ -233,6 +233,7 @@
 
     <string name="row_same_place">✓ Same place · %1$s</string>
     <string name="row_same_place_no_time">✓ Same place</string>
+    <string name="row_place_sent">Place sent · Picco catches up on Sync Progress</string>
     <string name="row_read_further">Read further here · syncs soon</string>
     <string name="row_waiting">Read further here · waiting to sync</string>
     <string name="row_picco_ahead">Picco is ahead · tap to jump</string>
@@ -252,6 +253,7 @@
     <string name="sheet_picco">Picco</string>
     <string name="sheet_checking">Checking…</string>
     <string name="sheet_same">Same place.</string>
+    <string name="sheet_sent">This place is sent. The %1$s gets it next time you choose Sync Progress there.</string>
     <string name="sheet_other_recent">You read more recently on the %1$s.</string>
     <string name="sheet_here_recent">You read more recently here.</string>
     <string name="sheet_nothing_online">Nothing saved online yet.</string>
@@ -349,7 +351,7 @@
     <string name="conn_step_3">Come back here: NeoSync finds it by itself.</string>
     <string name="conn_look">Look for the Picco</string>
     <string name="conn_looking">Looking…</string>
-    <string name="conn_last_seen">Last seen at %1$s · &lt;u>enter address by hand&lt;/u></string>
+    <string name="conn_saved_address">Saved address %1$s · &lt;u>enter address by hand&lt;/u></string>
     <string name="conn_enter_by_hand">&lt;u>Enter address by hand&lt;/u></string>
     <string name="conn_address_title">Picco address</string>
     <string name="conn_address_ok">Save</string>
@@ -370,7 +372,7 @@
     <string name="library_scope_types_hint">Only these kinds of books are listed on the home screen. Syncing is not affected.</string>
     <string name="library_scope_folders_header">Folders</string>
     <string name="library_scope_folders_hint">Untick a folder to leave its books out of the list.</string>
-    <string name="library_scope_no_folders">No books found on this Boox yet.</string>
+    <string name="library_scope_no_folders">No books of these types on this Boox.</string>
     <string name="library_scope_types_none">None</string>
     <string name="library_scope_no_types">Nothing ticked: the home list will be empty.</string>
     <string name="library_scope_azw" translatable="false">AZW / AZW3</string>

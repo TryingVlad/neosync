@@ -113,14 +113,14 @@ public class BookComparisonTest {
     }
 
     @Test
-    public void ownNewerRecordAtThisPlaceIsSamePlaceWithPiccoLink() {
+    public void ownNewerRecordAtThisPlaceIsSentWithPiccoLink() {
         // The server's latest is this Boox's place, newer than the Picco's
-        // record: "Same place." as the list says, and the Picco's older
-        // place stays reachable as the "instead" link.
+        // record: the place is sent (not "Same place.": the bars differ),
+        // and the Picco's older place stays reachable as the "instead" link.
         check(BookComparison.of(onBoox(0.6, 30, remote(0.2, 20)), true, true, own(0.6, 31)),
-                Verdict.SAME, Action.NONE, Action.JUMP_TO_REMOTE);
+                Verdict.SENT, Action.NONE, Action.JUMP_TO_REMOTE);
         check(BookComparison.of(onBoox(0.0, 10, remote(0.02, 20)), true, true, own(0.0, 25)),
-                Verdict.SAME, Action.NONE, Action.JUMP_TO_REMOTE);
+                Verdict.SENT, Action.NONE, Action.JUMP_TO_REMOTE);
     }
 
     @Test
@@ -134,7 +134,7 @@ public class BookComparisonTest {
         LibraryEntry e = onBoox(0.6, 30, remote(0.2, 20));
         e.piccoPath = null;
         check(BookComparison.of(e, true, true, own(0.6, 31)),
-                Verdict.SAME, Action.SEND_FILE, Action.NONE);
+                Verdict.SENT, Action.SEND_FILE, Action.NONE);
     }
 
     @Test

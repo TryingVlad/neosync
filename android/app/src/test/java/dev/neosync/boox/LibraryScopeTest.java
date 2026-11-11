@@ -54,6 +54,18 @@ public class LibraryScopeTest {
     }
 
     @Test
+    public void bookFoldersOfTypesSkipFoldersWithOnlyOtherTypes() {
+        List<String> paths = Arrays.asList(BOOKS + "/b/two.EPUB", BOOKS + "/note/a.pdf",
+                BOOKS + "/note/b.pdf", BOOKS + "/mix/c.pdf", BOOKS + "/mix/d.epub");
+        assertEquals(Arrays.asList(BOOKS + "/b", BOOKS + "/mix"),
+                LibraryScope.bookFolders(paths, LibraryScope.DEFAULT_TYPES));
+        assertEquals(Arrays.asList(BOOKS + "/mix", BOOKS + "/note"),
+                LibraryScope.bookFolders(paths, Collections.singleton("pdf")));
+        assertEquals(Collections.emptyList(),
+                LibraryScope.bookFolders(paths, Collections.emptySet()));
+    }
+
+    @Test
     public void nonBookFilesNeverIncluded() {
         LibraryScope scope = new LibraryScope(new HashSet<>(Arrays.asList("epub", "md")),
                 Collections.emptySet());

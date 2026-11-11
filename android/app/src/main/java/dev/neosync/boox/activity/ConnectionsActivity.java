@@ -326,9 +326,10 @@ public class ConnectionsActivity extends Activity {
                 : pending ? getString(R.string.conn_wire_wifi_checking)
                 : html(R.string.conn_wire_wifi_not_connected));
 
-        // "Last seen" only once the saved address is known not to answer.
+        // The saved address only once it is known not to answer (it may never
+        // have: an address typed by hand, so not "last seen").
         setText(addressLink, !address.isEmpty() && !connected && !pending
-                ? html(R.string.conn_last_seen, address)
+                ? html(R.string.conn_saved_address, address)
                 : html(R.string.conn_enter_by_hand));
     }
 

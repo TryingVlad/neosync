@@ -38,9 +38,7 @@ public final class LibraryScope {
         if (!LibraryModel.isBookFile(path)) {
             return false;
         }
-        String name = path.substring(path.lastIndexOf('/') + 1);
-        String ext = name.substring(name.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
-        if (!types.contains(ext)) {
+        if (!types.contains(typeOf(path))) {
             return false;
         }
         String parent = parentOf(path);
@@ -61,6 +59,23 @@ public final class LibraryScope {
             }
         }
         return new ArrayList<>(folders);
+    }
+
+    /** The distinct folders holding book files of the given types, sorted. */
+    public static List<String> bookFolders(Collection<String> paths, Set<String> types) {
+        List<String> ofTypes = new ArrayList<>();
+        for (String path : paths) {
+            if (types.contains(typeOf(path))) {
+                ofTypes.add(path);
+            }
+        }
+        return bookFolders(ofTypes);
+    }
+
+    /** The file's extension, lower case. */
+    private static String typeOf(String path) {
+        String name = path.substring(path.lastIndexOf('/') + 1);
+        return name.substring(name.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
     }
 
     private static String parentOf(String path) {

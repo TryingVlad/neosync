@@ -378,6 +378,8 @@ final class BookSheet {
         switch (v) {
             case SAME:
                 return a.getString(R.string.sheet_same);
+            case SENT:
+                return a.getString(R.string.sheet_sent, labelOther.getText());
             case OTHER_MORE_RECENT:
                 return a.getString(R.string.sheet_other_recent, labelOther.getText());
             case HERE_MORE_RECENT:

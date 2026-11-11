@@ -69,6 +69,18 @@ public class RowStatusTest {
     }
 
     @Test
+    public void syncedButOtherDeviceElsewhereIsPlaceSent() {
+        // This Boox's place is on the server, but the Picco's last record
+        // differs: not "Same place", the Picco hasn't picked it up yet.
+        LibraryEntry e = both(BookSyncStatus.SYNCED);
+        e.booxPct = 0.0;
+        e.remote = new RemotePosition("d", 0.02, "CrossPoint", "id", 500);
+        assertEquals(RowStatus.PLACE_SENT, RowStatus.of(e, true, false));
+        e.remote = null; // no other device's record: nothing to differ from
+        assertEquals(RowStatus.SAME_PLACE, RowStatus.of(e, true, false));
+    }
+
+    @Test
     public void differentAndNewerRemoteIsPiccoAhead() {
         LibraryEntry e = both(BookSyncStatus.NEVER_SYNCED);
         e.booxPct = 0.495; // exactly half a percent apart counts as different
