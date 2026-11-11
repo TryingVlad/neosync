@@ -61,6 +61,8 @@ public class OnyxMetadataRepository {
 
         public String uuid;    // Onyx's docId for this book (stats rows key on it)
         public String hashTag; // Onyx's own file MD5
+        public String title;   // Neo Reader's title for the book, may be null or the file name
+        public String authors; // may be null
 
         /**
          * NeoReader firmware 4.x chapter-based position:
@@ -136,7 +138,7 @@ public class OnyxMetadataRepository {
         try (Cursor cursor = resolver.query(
                 METADATA_URI,
                 new String[]{COL_PATH, COL_NAME, COL_PROGRESS, COL_LAST_ACCESS, COL_READING_STATUS,
-                        COL_EXTRA, "uuid", "hashTag"},
+                        COL_EXTRA, "uuid", "hashTag", "title", "authors"},
                 selection,
                 selectionArgs,
                 COL_LAST_ACCESS + " DESC")) {
@@ -154,6 +156,8 @@ public class OnyxMetadataRepository {
                 book.extraAttributes = cursor.getString(5);
                 book.uuid = cursor.getString(6);
                 book.hashTag = cursor.getString(7);
+                book.title = cursor.getString(8);
+                book.authors = cursor.getString(9);
                 if (book.path != null) {
                     books.add(book);
                 }

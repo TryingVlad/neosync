@@ -44,6 +44,7 @@ import dev.neosync.boox.library.LibraryEntry;
 import dev.neosync.boox.library.LibraryModel;
 import dev.neosync.boox.library.LibraryPager;
 import dev.neosync.boox.library.LibraryScope;
+import dev.neosync.boox.library.OnyxTitle;
 import dev.neosync.boox.library.PiccoFinder;
 import dev.neosync.boox.library.RemotePosition;
 import dev.neosync.boox.library.RemotePositionStore;
@@ -552,6 +553,11 @@ public class MainActivity extends Activity implements JobSession.Screen {
             String key = LibraryModel.keyOf(book.path);
             boolean readable = file.canRead();
             BookMeta meta = metaCache.get(file);
+            if (!CoverFixer.isEpub(file)) {
+                // NeoSync can't read a PDF's title; Neo Reader has one.
+                String[] ta = OnyxTitle.choose(book.title, book.authors, file.getName());
+                meta = new BookMeta(ta[0], ta[1], meta.hasCover, meta.wouldShowBlack);
+            }
             SyncStateStore.BookState state = stateStore.get(book.path);
             BookSyncStatus status = BookSyncStatus.of(true, book.progress, book.currentPage(),
                     state.lastPushedProgress, state.lastWrittenProgress);
