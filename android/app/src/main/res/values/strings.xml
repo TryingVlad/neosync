@@ -70,69 +70,31 @@
 
     <!-- Main -->
     <string name="main_signed_in_as">Signed in as %1$s</string>
-    <string name="status_header">Sync</string>
-    <string name="status_never_synced">Nothing synced yet. Read a few pages in Neo Reader.</string>
-    <string name="status_running">Sync is running in the background.</string>
     <string name="autosync_label">Automatic sync</string>
     <string name="autosync_hint">Syncs your reading place in the background</string>
-    <string name="status_auto_off">Automatic sync is off. Nothing is sent until you turn it on; the buttons below still work.</string>
-    <string name="cd_refresh">Refresh</string>
     <string name="cd_settings">Settings</string>
     <string name="cd_back">Back</string>
-    <string name="status_headline_synced">In sync</string>
-    <string name="status_headline_paused">Sync paused</string>
-    <string name="status_headline_attention">Needs attention</string>
     <string name="button_retry_sync">Try again</string>
     <string name="status_retrying">Trying again…</string>
-    <string name="status_headline_never">Not synced yet</string>
 
-    <string name="manual_sync_header">Latest book</string>
-    <string name="manual_hint">Sync normally happens by itself. Use these buttons to force a direction. Close the book in Neo Reader before using “Fetch from Picco”.</string>
-    <string name="button_manual_check">Compare positions</string>
-    <string name="button_apply_remote">Fetch from Picco</string>
-    <string name="button_upload_local">Send to Picco</string>
-    <string name="manual_checking">Checking…</string>
-    <string name="manual_no_books">No book with a reading position yet. Open one in Neo Reader first.</string>
-    <string name="manual_no_remote">Online: nothing saved for this book yet</string>
-    <string name="manual_apply_done">Position fetched. Open the book in Neo Reader.</string>
-    <string name="manual_upload_done">Position sent.</string>
-
-    <string name="button_send_book">Send book file to Picco</string>
-    <string name="label_book_file">Book file</string>
     <string name="transfer_no_address">Set the Picco address in Settings → Connection first.</string>
     <string name="transfer_no_network">The tablet isn’t connected to the Picco’s network. Connect it to the Picco’s hotspot — or put both devices on the same Wi-Fi — then try again.</string>
     <string name="transfer_checking">Looking for the Picco…</string>
     <string name="transfer_sending">Sending the book…</string>
     <string name="transfer_sent">Book sent. It appears in the Picco’s library.</string>
     <string name="transfer_already">Already on the Picco — nothing to send.</string>
-    <string name="transfer_missing">Not on the Picco yet.</string>
     <string name="transfer_unreachable">Can’t reach the Picco at %1$s. Check the address on the Connections screen (Settings → Picco) and make sure the Picco’s File Transfer screen is open.</string>
     <string name="transfer_server_error">The Picco refused the upload (HTTP %1$d).</string>
     <string name="transfer_unexpected">Something went wrong talking to the Picco: %1$s</string>
-    <string name="manual_remote_problem">Online: %1$s</string>
-    <string name="manual_no_book_file">cannot read the book file</string>
     <string name="signin_https_required">The sync server address must start with https:// — your account details would otherwise travel unencrypted.</string>
     <string name="transfer_no_file">Can’t read the book file. Allow book file access via the Setup guide (Settings → Setup guide).</string>
     <string name="hint_picco_address">192.168.1.50 — shown on the Picco’s File Transfer screen</string>
 
-    <string name="picco_library_header">On the Picco</string>
-    <string name="cd_refresh_picco">Refresh the Picco’s book list</string>
-    <string name="picco_list_no_address">Set the Picco address in Settings to see its books here.</string>
-    <string name="picco_list_loading">Asking the Picco for its library…</string>
-    <string name="picco_list_refreshing">Updating… · last list from %1$s</string>
-    <string name="picco_list_updated">Updated %1$s</string>
-    <string name="picco_list_stale">Picco not reachable · list from %1$s</string>
-    <string name="picco_list_never">Not listed yet. Open File Transfer on the Picco, then tap refresh.</string>
-    <string name="picco_books_empty">No books on the Picco yet.</string>
-    <string name="button_sync_all">Sync all positions</string>
-    <string name="button_send_missing">Send missing books</string>
     <string name="sync_all_none">No books to sync: none of the Picco’s books has been opened on this Boox.</string>
-    <string name="sync_all_progress">Syncing positions · %1$d of %2$d · %3$s</string>
     <string name="sync_all_done">Reading places synced: %1$d fetched, %2$d sent, %3$d already up to date.</string>
     <string name="sync_all_failed_part">%1$d could not be synced.</string>
     <string name="hotspot_hint">It looks like you’re on the Picco’s hotspot, which has no internet. Switch back to your usual Wi-Fi to sync reading places. Sending book files works here.</string>
     <string name="button_wifi_settings">Wi-Fi settings</string>
-    <string name="hotspot_hint_short">It looks like you’re on the Picco’s hotspot. Switch back to your usual Wi-Fi to sync positions.</string>
     <string name="sync_all_no_internet">Can’t reach the sync server: this Wi-Fi has no internet. The Boox is probably on the Picco’s hotspot, which only works for sending book files. Switch back to your usual Wi-Fi to sync reading places — or have the Picco join that Wi-Fi (File Transfer → Join a Network) so both work at once.</string>
     <string name="sync_all_server_unreachable">Can’t reach the sync server. Check the internet connection, then try again.</string>
     <string name="sync_all_stopped">Stopped after %1$d of %2$d books. %3$s</string>
@@ -145,20 +107,11 @@
     <string name="picco_folder_root">Top level of the Picco</string>
     <string name="send_missing_confirm_ok">Send</string>
     <string name="send_missing_cancel">Cancel</string>
-    <string name="button_clean_library">Fix missing covers</string>
-    <string name="clean_library_hint">Gives every book a front cover, so none shows up black on the Picco. A book without a cover gets its first page as the cover. Your notes and reading positions are kept, and the original is backed up first (Books/.neosync-backup).</string>
     <string name="clean_checking_boox">Looking for books without a cover · %1$d of %2$d</string>
     <string name="clean_checking_picco">Checking the Picco’s other books · %1$d of %2$d · %3$s</string>
     <string name="clean_none">Every book already has a cover. Nothing to do.</string>
-    <string name="clean_confirm_title">Fix missing covers?</string>
-    <string name="clean_confirm_boox">%1$d books on this Boox have no cover the Picco can show: %2$s.\n\n%3$d of them get a picture that’s already in the book, %4$d get a picture of their first page. Each original is backed up first.</string>
-    <string name="clean_confirm_picco_part">\n\n%1$d of these are on the Picco too. They are replaced there, which resets the Picco’s own position for them: NeoSync first saves every position to the server, so afterwards open each one on the Picco and choose Sync Progress.</string>
-    <string name="clean_confirm_picco_only_none_boox">No book on this Boox needs a cover.</string>
     <string name="clean_picco_only_checkbox">Also fix %1$d books that are only on the Picco (%2$s). Their reading place on the Picco is reset, and another device that matches books by file contents may stop recognising them.</string>
-    <string name="clean_confirm_ok">Fix covers</string>
-    <string name="clean_sync_first">Saving positions to the server first · %1$d of %2$d · %3$s</string>
     <string name="clean_sync_failed">Couldn’t save reading places to the server first, so nothing was changed. %1$s</string>
-    <string name="clean_progress">Adding covers · %1$d of %2$d · %3$s</string>
     <string name="clean_done">Covers added to %1$d books.</string>
     <string name="clean_done_picco">%1$d were replaced on the Picco: open them there and choose Sync Progress to get your place back.</string>
     <string name="clean_failed_part">%1$d couldn’t be fixed and were left as they were.</string>
@@ -167,26 +120,15 @@
     <string name="clean_needs_files_body">To add covers, NeoSync has to read and change your book files, and it isn’t allowed to yet. Turn on “Allow access to manage all files” for NeoSync, come back, and tap Fix missing covers again.</string>
     <string name="clean_needs_files_open">Open settings</string>
     <string name="transfer_adding_cover">Adding a cover first…</string>
-    <string name="send_missing_progress">Sending · %1$d of %2$d · %3$s</string>
     <string name="send_missing_done">Sent %1$d of %2$d books to the Picco.</string>
     <string name="send_missing_lost">Lost the Picco after %1$d of %2$d books. Make sure File Transfer is still open, then try again.</string>
     <string name="job_send_missing_title">Sending books to the Picco</string>
     <string name="job_sync_all_title">Syncing reading places</string>
     <string name="job_fix_covers_title">Adding covers</string>
-    <string name="book_status_synced">Synced · %1$s · %2$s</string>
-    <string name="book_status_synced_no_time">Synced · %1$s</string>
-    <string name="book_status_changed">Read further here · %1$s · syncs soon</string>
-    <string name="book_status_changed_paused">Read further here · %1$s · auto sync is off</string>
-    <string name="book_status_never">Not synced yet · %1$s here</string>
-    <string name="book_status_not_started">Not started here</string>
-    <string name="book_status_not_here">Not on this Boox</string>
 
-    <string name="settings_header">Settings</string>
     <string name="settings_title">Settings</string>
     <string name="settings_about_header">About</string>
-    <string name="version_unknown">NeoSync %1$s</string>
     <string name="button_download_update">Download version %1$s</string>
-    <string name="update_banner">NeoSync %1$s is available.</string>
     <string name="button_get_update">Get it</string>
     <string name="update_install_hint">Opening the download. Install it over this version: your settings stay.</string>
     <string name="update_no_browser">No browser found. Download it from %1$s</string>
@@ -201,7 +143,6 @@
     <string name="label_match_method">How books are recognised</string>
     <string name="match_filename">By file name (CrossPoint default)</string>
     <string name="match_binary">By file contents (files must be byte-identical)</string>
-    <string name="button_account">Account</string>
     <string name="main_footer">NeoSync is open source (MIT). Not affiliated with Onyx Boox or CrossPoint.</string>
 
     <!-- Home: the library -->

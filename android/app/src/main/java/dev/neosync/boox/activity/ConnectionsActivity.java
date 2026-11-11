@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Paint;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -142,7 +143,9 @@ public class ConnectionsActivity extends Activity {
         serverText = findViewById(R.id.text_server);
         serverFix = findViewById(R.id.button_server_fix);
         syncAllNote = findViewById(R.id.text_sync_all_note);
-        findViewById(R.id.link_sync_all).setOnClickListener(v -> syncAll());
+        TextView syncAllLink = findViewById(R.id.link_sync_all);
+        syncAllLink.setPaintFlags(syncAllLink.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+        syncAllLink.setOnClickListener(v -> syncAll());
         piccoText = findViewById(R.id.text_picco);
         hotspotText = findViewById(R.id.text_hotspot);
         piccoSteps = findViewById(R.id.group_picco_steps);

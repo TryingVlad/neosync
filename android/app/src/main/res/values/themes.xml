@@ -42,12 +42,6 @@
         <item name="android:lineSpacingMultiplier">1.1</item>
     </style>
 
-    <style name="NeoSync.Headline" parent="">
-        <item name="android:textSize">24sp</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:textColor">@color/black</item>
-    </style>
-
     <style name="NeoSync.Section" parent="">
         <item name="android:textSize">14sp</item>
         <item name="android:textStyle">bold</item>

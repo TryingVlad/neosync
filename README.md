@@ -1,11 +1,11 @@
 # NeoSync
 
-Keeps your reading position in sync between **Neo Reader** on an Onyx Boox
+Keeps your reading place in sync between **Neo Reader** on an Onyx Boox
 tablet and **CrossPoint** on a Boox Picco (or any other device that speaks the
 KOReader progress-sync protocol, "kosync").
 
 You stay in Neo Reader, with its pen annotations. NeoSync runs beside it,
-watches where you are, and exchanges that position with a sync server. It can
+watches where you are, and exchanges that place with a sync server. It can
 also copy your books to the Picco over Wi-Fi.
 
 Forked from [eszter007/boox-kosync](https://github.com/eszter007/boox-kosync),
@@ -18,8 +18,8 @@ Grab the APK from the
 (direct link:
 [neosync.apk](https://github.com/TryingVlad/neosync/releases/latest/download/neosync.apk))
 and sideload it on the Boox. Later releases install as updates over it:
-NeoSync checks GitHub once a day and shows a banner when a new version is
-out.
+NeoSync checks GitHub once a day and says so on the home screen when a new
+version is out.
 
 Coming from **7.0.0 or older**: uninstall that version first. Those builds
 were signed with a temporary key, so Android won't accept 7.0.1 as an update
@@ -53,59 +53,101 @@ On the Picco: open the book, press Confirm, choose **Sync Progress**.
 
 ## Using it
 
-The home screen has three parts:
+The home screen is your library: one row per book, on this Boox, on the
+Picco or both, with a bar for where you are on each device and a line saying
+how they compare: *Same place*, *Read further here · syncs soon*, *Picco is
+ahead · tap to jump*, *Not synced yet*, *Only on the Picco*. Filters along
+the top (**All**, **Reading**, **Only here**, **Only on Picco**) and a search
+by title or author narrow it down. The list turns in pages with the arrows at
+the bottom instead of scrolling, so each page is one e-ink refresh. PDFs and
+other files NeoSync can't read itself show the title Neo Reader has for them.
 
-- **Status**: whether sync is working, the last book synced, and an
-  automatic-sync switch. When something goes wrong it says *Needs attention*
-  with a **Try again** button; the message also clears by itself as soon as
-  the server answers again.
-- **Latest book**: your position here and on the server for the book you
-  read last, with buttons to force a direction (**Fetch from Picco** /
-  **Send to Picco**) and to copy the book file to the Picco.
-- **On the Picco**: the books on your Picco (see below).
+Above the list sit two chips. The left one is for reading places: synced
+(with the last book), paused, or *not syncing*. The right one is for the
+Picco: connected, or the age of its last book list. A chip turns black when
+something is wrong; tap either one to open Connections.
 
-Account, Picco address, book matching and the guide are behind the gear icon.
+Under the chips there is at most one suggestion at a time, the most useful
+first: the fix for a known problem (a Wi-Fi without internet, a wrong
+password, sync paused), connecting the Picco, sending the books it doesn't
+have yet, or giving books a cover. **✕** puts a suggestion away. Long jobs
+(sending books, syncing everything, adding covers) show their progress in
+the same place with one **Stop** button, and each row says how it went.
+
+**The book sheet.** Tap a book to see where you are on each device, when you
+read there last, and which is more recent. One button does the obvious
+thing: **Jump to the Picco's place** when the Picco is ahead, **Send this
+place to the Picco** when this Boox is, **Send to Picco** when the Picco
+doesn't have the book. Close the book in Neo Reader before jumping: a book
+that is open on screen can't be moved. A jump can be undone for 24 hours
+(**Undo jump**). Smaller links, when they apply: use the other device's place
+instead, send the book file again, add a cover, open in Neo Reader.
+
+**Connections.** A diagram of the two links: reading places go between this
+Boox, the sync server and the Picco over the internet; books go from this
+Boox to the Picco over the same Wi-Fi. Under it, one card each for this
+Boox (file access), the sync server (working, or what's wrong and the button
+that fixes it, plus **Sync all books now**) and the Picco. When the Picco
+can't be found, its card lists the steps and **Look for the Picco** searches
+the Wi-Fi for it, so you don't need its address. You can still enter one by
+hand.
+
+**Settings** (the gear icon):
+
+- **Sync**: automatic sync on or off, and your account.
+- **Permissions**: book file access and notifications, each with a button to
+  allow it.
+- **Picco**: where it was found, and the folder new books go to.
+- **Library**: which book types (EPUB only by default, since the Picco can't
+  open PDFs) and which folders the home list shows. This only narrows the
+  list; syncing is not affected.
+- **Help**: the setup guide and *Report a problem*.
+- **Advanced**: book matching, the sync server, and the size of the cover
+  backups.
 
 ## The Picco library
 
-Set the Picco's address in *Settings* (CrossPoint shows it on its
-**File Transfer** screen). NeoSync then keeps a list of the books on the
-Picco. It is saved between visits and refreshed quietly in the background
-whenever the Picco's File Transfer screen is open; when the Picco can't be
-reached, the last list stays, with its age shown.
+NeoSync finds the Picco by itself when CrossPoint's **File Transfer** screen
+is open and both devices are on the same Wi-Fi (*Connections → Look for the
+Picco*). It then keeps a list of the books on the Picco. The list is saved
+between visits and refreshed quietly whenever the Picco answers; when it
+can't be reached, the last list stays and the Picco chip shows its age.
 
-Each book shows how it stands on this Boox: *Synced* (with the time), *Read
-further here* (the sync service sends it soon), *Not synced yet*, or *Not on
-this Boox*. This comes from what the Boox already knows, so it costs no
+A book's line comes from what the Boox already knows, so it costs no
 requests to the sync server; reading done on the Picco shows up once the Boox
 has fetched it.
 
-Three buttons work on the whole list:
+Three jobs work on the whole library:
 
-- **Sync all positions**: for every book on both devices, asks the server
-  and keeps the newest position: fetched if the Picco is ahead, sent if this
-  Boox is ahead. Just opening a book in Neo Reader doesn't count as reading,
-  so it never overwrites the Picco's position with a stale one. Requests are
-  spaced out for the server's rate limit; the run stops (and says why) at the
-  first rate limit or network error.
-- **Send missing books**: copies every EPUB on this Boox that the Picco
-  doesn't have yet, after showing how many and their total size.
-- **Fix missing covers**: the Picco shows a black tile for a book without a
-  cover it can read. This finds those books, on this Boox and on the Picco,
-  and gives each one a cover: a picture already in the book when its first
-  page is just that picture (or one is called "cover"), otherwise a picture
-  of the book's first page. Only the book's list of contents changes, never
-  a chapter, so Neo Reader keeps your notes, highlights and position. The
-  original is copied to `Books/.neosync-backup` first. The fixed file
-  replaces the Picco's copy, which resets the Picco's own position for it:
-  positions are saved to the server first, so open the book on the Picco and
-  choose Sync Progress to get your place back. Books that are only on the
-  Picco are fixed only if you tick them. Needs book file access.
+- **Sync all books now** (on Connections): for every book on both devices,
+  asks the server and keeps the newest reading place: fetched if the Picco is
+  ahead, sent if this Boox is ahead. Just opening a book in Neo Reader doesn't
+  count as reading, so it never overwrites the Picco's place with a stale
+  one. Requests are spaced out for the server's rate limit; the job stops
+  (and says why) at the first rate limit or network error.
+- **Send** (the "books aren't on the Picco yet" suggestion): copies every EPUB
+  on this Boox that the Picco doesn't have, after showing how many and their
+  total size.
+- **Fix** (the "black cover" suggestion): the Picco shows a black tile for a
+  book without a cover it can read. This finds those books, on this Boox and
+  on the Picco, and gives each one a cover: a picture already in the book
+  when its first page is just that picture (or one is called "cover"),
+  otherwise a picture of the book's first page. Only the book's list of
+  contents changes, never a chapter, so Neo Reader keeps your notes,
+  highlights and place. The original is copied to `Books/.neosync-backup`
+  first. The fixed file replaces the Picco's copy, which resets the Picco's
+  own place in it: reading places are saved to the server first, so open the
+  book on the Picco and choose Sync Progress to get your place back. Books
+  that are only on the Picco are fixed only if you tick them. Needs book file
+  access. A single book can be fixed from its sheet (**Add a cover**).
+
+NeoSync never sends or fixes the files in hidden folders, such as its own
+cover backups or Onyx's cloud copies.
 
 The first time NeoSync sends a book, it lists the Picco's folders and asks
 where books should go (it suggests `books` when there is one). The choice is
-remembered; *Settings → Connection → Choose again* makes it ask once more. A
-book already anywhere on the Picco, in any folder, is never sent twice.
+remembered; *Settings → Picco → Folder for new books* changes it. A book
+already anywhere on the Picco, in any folder, is never sent twice.
 
 Book files travel straight to CrossPoint's upload endpoint on your local
 network: no sync server involved, so it works while the server is
@@ -113,10 +155,10 @@ rate-limiting.
 
 ### Wi-Fi: hotspot or shared network
 
-Positions go through the sync server on the internet; book files go to the
-Picco on the local network. If the Boox joins the **Picco's own hotspot**,
-book files work but positions can't sync, because that network has no
-internet. NeoSync then shows a hint with a **Wi-Fi settings** button
+Reading places go through the sync server on the internet; book files go to
+the Picco on the local network. If the Boox joins the **Picco's own hotspot**,
+book files work but reading places can't sync, because that network has no
+internet. NeoSync then says so on the home screen, with a **Wi-Fi** button
 (Android doesn't let apps switch networks themselves).
 
 To do both without switching, use **File Transfer → Join a Network** on the
@@ -178,7 +220,7 @@ two different books to the sync server. Keep one copy on both devices.
 
 ## Reporting a problem
 
-*Settings → Copy problem report* copies a short report to the clipboard:
+*Settings → Report a problem* copies a short report to the clipboard:
 your device model, firmware, Android version, a few NeoSync settings and its
 recent log. Book names, file paths, document hashes and your account details
 are removed, and it fits in a Reddit comment. Paste it, with a few words on
@@ -199,8 +241,8 @@ request carries nothing but the app version.
 ## Known limitations
 
 - A fetch cannot move a book that is open on screen; close it first.
-- "Send missing books" only sends EPUBs.
-- "Send missing books" and "Send to Picco" give a coverless EPUB its cover
+- Sending the missing books only sends EPUBs.
+- Sending books, all at once or one by one, gives a coverless EPUB its cover
   (as above) before sending it.
 - Books are matched between the devices by file name, also in the Picco
   list, so both devices need the same file.
