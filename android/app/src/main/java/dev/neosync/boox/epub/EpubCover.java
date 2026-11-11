@@ -58,11 +58,18 @@ public final class EpubCover {
         public final String imageId;
         /** NEEDS_SNAPSHOT: zip entry of the first page in reading order. */
         public final String firstPageEntry;
+        /** HAS_COVER / TAG_IMAGE: zip entry of the cover picture, else null. */
+        public final String coverEntry;
 
         public Check(Kind kind, String imageId, String firstPageEntry) {
+            this(kind, imageId, firstPageEntry, null);
+        }
+
+        public Check(Kind kind, String imageId, String firstPageEntry, String coverEntry) {
             this.kind = kind;
             this.imageId = imageId;
             this.firstPageEntry = firstPageEntry;
+            this.coverEntry = coverEntry;
         }
     }
 
@@ -142,7 +149,7 @@ public final class EpubCover {
                 }
             }
             if (coverEntry != null && decodable(coverEntry) && zip.getEntry(coverEntry) != null) {
-                return new Check(Kind.HAS_COVER, null, null);
+                return new Check(Kind.HAS_COVER, null, null, coverEntry);
             }
 
             // The first page in reading order.
@@ -166,7 +173,7 @@ public final class EpubCover {
                     Item item = ref == null ? null
                             : itemForEntry(manifest, resolve(baseOf(firstPage), ref));
                     if (item != null && usableImage(zip, item)) {
-                        return new Check(Kind.TAG_IMAGE, item.id, null);
+                        return new Check(Kind.TAG_IMAGE, item.id, null, item.entry);
                     }
                 }
             }
@@ -176,7 +183,7 @@ public final class EpubCover {
                 if ((name.toLowerCase(Locale.ROOT).contains("cover")
                         || item.id.toLowerCase(Locale.ROOT).contains("cover"))
                         && usableImage(zip, item)) {
-                    return new Check(Kind.TAG_IMAGE, item.id, null);
+                    return new Check(Kind.TAG_IMAGE, item.id, null, item.entry);
                 }
             }
             return firstPage != null ? new Check(Kind.NEEDS_SNAPSHOT, null, firstPage) : unreadable();
