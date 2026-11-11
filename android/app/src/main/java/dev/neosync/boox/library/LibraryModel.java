@@ -4,12 +4,15 @@ import dev.neosync.boox.transfer.BookSyncStatus;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /** Merges the Boox library and the Picco list into one row per book. */
 public final class LibraryModel {
@@ -36,6 +39,20 @@ public final class LibraryModel {
             this.title = title;
             this.author = author;
         }
+    }
+
+    /** File extensions that are books, on either device. */
+    private static final Set<String> BOOK_EXTENSIONS = new HashSet<>(Arrays.asList(
+            "epub", "pdf", "mobi", "azw", "azw3", "fb2", "cbz", "cbr", "djvu"));
+
+    /**
+     * True for a book file name or path (by extension, any case). Onyx's
+     * library also holds note files (.md) and the like, which aren't books.
+     */
+    public static boolean isBookFile(String name) {
+        String file = name.substring(name.lastIndexOf('/') + 1);
+        int dot = file.lastIndexOf('.');
+        return dot > 0 && BOOK_EXTENSIONS.contains(file.substring(dot + 1).toLowerCase(Locale.ROOT));
     }
 
     /** File name after the last '/', NFC-normalised. */

@@ -17,11 +17,8 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Talks to the CrossPoint file-transfer server that runs on the Picco while
@@ -43,10 +40,6 @@ public class PiccoClient {
     // SD card, which can take a while for a large book.
     private static final int UPLOAD_READ_TIMEOUT_MS = 180_000;
     private static final int MAX_SCAN_DEPTH = 4;
-
-    /** File extensions treated as books when listing the Picco's library. */
-    private static final Set<String> BOOK_EXTENSIONS = new HashSet<>(Arrays.asList(
-            "epub", "pdf", "mobi", "azw", "azw3", "fb2", "cbz", "cbr", "djvu"));
 
     public enum Status { SENT, ALREADY_THERE, SERVER_ERROR }
 
@@ -150,9 +143,7 @@ public class PiccoClient {
     }
 
     private static boolean isBookFile(String name) {
-        int dot = name.lastIndexOf('.');
-        return dot > 0 && BOOK_EXTENSIONS.contains(
-                name.substring(dot + 1).toLowerCase(java.util.Locale.ROOT));
+        return dev.neosync.boox.library.LibraryModel.isBookFile(name);
     }
 
     /**

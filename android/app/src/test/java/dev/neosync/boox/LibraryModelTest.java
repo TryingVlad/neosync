@@ -1,6 +1,8 @@
 package dev.neosync.boox;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import dev.neosync.boox.library.LibraryEntry;
 import dev.neosync.boox.library.LibraryModel;
@@ -158,5 +160,17 @@ public class LibraryModelTest {
             assertEquals(LibraryModel.filter(all, f, "").size(), LibraryModel.count(all, f));
         }
         assertEquals(1, LibraryModel.count(all, Filter.ONLY_ON_PICCO));
+    }
+
+    @Test
+    public void bookFilesAreKnownBookFormatsOnly() {
+        for (String name : Arrays.asList("Dune.epub", "a.PDF", "b.mobi", "c.azw", "d.AZW3",
+                "e.fb2", "f.cbz", "g.cbr", "h.djvu", "Fiction/Le Banquet.epub")) {
+            assertTrue(name, LibraryModel.isBookFile(name));
+        }
+        for (String name : Arrays.asList("0079c1ad5a7840c9b8f93975c4617cf0.md", "notes.txt",
+                "cover.jpg", "epub", ".epub", "book.epub.part", "", "noext")) {
+            assertFalse(name, LibraryModel.isBookFile(name));
+        }
     }
 }

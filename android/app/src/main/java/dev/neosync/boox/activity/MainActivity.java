@@ -35,7 +35,6 @@ import dev.neosync.boox.epub.EpubCover;
 import dev.neosync.boox.jobs.CleanPlan;
 import dev.neosync.boox.jobs.FixCoversJob;
 import dev.neosync.boox.jobs.Job;
-import dev.neosync.boox.jobs.JobRunner;
 import dev.neosync.boox.jobs.SendMissingJob;
 import dev.neosync.boox.kosync.KoReaderDocumentHash;
 import dev.neosync.boox.kosync.KoSyncClient;
@@ -82,7 +81,7 @@ import java.util.concurrent.Executors;
  * merged Boox + Picco book list in fixed pages. First launch is routed
  * through the onboarding guide and the sign-in screen.
  */
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements JobSession.Screen {
 
     private static final String TAG = "MainActivity";
     /** A job's result sentence (or a notice) disappears after this long. */
@@ -152,17 +151,6 @@ public class MainActivity extends Activity {
     /** What the rows on screen show; a redraw with the same content is skipped (e-ink). */
     private String shownPage;
 
-    /** Runs the long jobs one at a time; e-ink friendly progress (every 3 s at most). */
-    private final JobRunner jobs =
-            new JobRunner(this::runOnUiThread, 3000, System::currentTimeMillis);
-    private Job currentJob;
-    private int jobDone;
-    private int jobTotal;
-    private String jobKey;
-    private String jobState;
-    private boolean stopping;
-    /** Row states the running (or just finished) job reported, by library key. */
-    private final Map<String, String> jobRows = new HashMap<>();
     /** From a Send / Fix tap until its job ends or is called off. */
     private boolean busy;
     /** A result sentence or a "checking…" line in the slot, or null. */
@@ -189,7 +177,7 @@ public class MainActivity extends Activity {
         @Override
         public void run() {
             renderChips(); // "2 min ago" moves on
-            if (!busy && currentJob == null) {
+            if (!busy && !JobSession.running()) {
                 refreshPiccoLibrary();
             }
             bookList.postDelayed(this, PICCO_RECHECK_MS);
@@ -294,8 +282,7 @@ public class MainActivity extends Activity {
         progressNow = findViewById(R.id.progress_now);
         progressStop = findViewById(R.id.progress_stop);
         progressStop.setOnClickListener(v -> {
-            stopping = true;
-            jobs.stop();
+            JobSession.stop();
             renderSlot();
         });
         cardNotice = findViewById(R.id.card_notice);
@@ -356,8 +343,16 @@ public class MainActivity extends Activity {
             Permissions.requestNotifications(this);
         }
         SyncService.start(this);
+        // A job started before this screen was (re)created carries on here.
+        JobSession.attach(this);
         renderHeader();
         renderFilters();
+        if (JobSession.resultUnseen) {
+            JobSession.resultUnseen = false;
+            jobFinished(JobSession.unseenResult);
+        } else if (!JobSession.running()) {
+            JobSession.rows.clear(); // its result was already shown
+        }
     }
 
     @Override
@@ -376,7 +371,7 @@ public class MainActivity extends Activity {
         renderHeader();
         reload();
         refreshUpdate();
-        if (!busy && currentJob == null) {
+        if (!busy && !JobSession.running()) {
             refreshPiccoLibrary();
         }
         bookList.removeCallbacks(recheck);
@@ -402,6 +397,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        JobSession.detach(this);
         thumbLoader.shutdownNow();
     }
 
@@ -480,6 +476,9 @@ public class MainActivity extends Activity {
         // Most recently read first, so the first copy of a duplicate name is
         // the one LibraryModel.merge keeps.
         for (OnyxMetadataRepository.Book book : repository.queryAllBooks()) {
+            if (!LibraryModel.isBookFile(book.path)) {
+                continue; // Onyx also lists note files (.md) and the like
+            }
             File file = new File(book.path);
             String key = LibraryModel.keyOf(book.path);
             boolean readable = file.canRead();
@@ -641,11 +640,11 @@ public class MainActivity extends Activity {
         setText(chipPositionsTitle, title);
         setText(chipPositionsSub, sub);
         int ink = getColor(alarm ? R.color.white : R.color.black);
-        chipPositions.setBackgroundResource(alarm ? R.drawable.chip_bg_alarm : R.drawable.chip_bg);
+        setBackground(chipPositions, alarm ? R.drawable.chip_bg_alarm : R.drawable.chip_bg);
         chipPositionsTitle.setTextColor(ink);
         chipPositionsSub.setTextColor(alarm ? ink : getColor(R.color.ink_soft));
         chipPositionsChev.setTextColor(alarm ? ink : getColor(R.color.ink_soft));
-        chipPositionsDot.setBackgroundResource(good ? R.drawable.status_dot_ok
+        setBackground(chipPositionsDot, good ? R.drawable.status_dot_ok
                 : R.drawable.status_dot_idle);
 
         String address = settings.getPiccoAddress();
@@ -669,42 +668,56 @@ public class MainActivity extends Activity {
         }
         setText(chipPiccoTitle, title);
         setText(chipPiccoSub, sub);
-        chipPiccoDot.setBackgroundResource(connected ? R.drawable.status_dot_ok
+        setBackground(chipPiccoDot, connected ? R.drawable.status_dot_ok
                 : R.drawable.status_dot_idle);
     }
 
-    /** The slot shows a running job, else a notice, else the picked suggestion. */
+    /**
+     * The slot shows a running job, else a notice, else the picked
+     * suggestion. Views change only when their content does (this runs on
+     * every network change, and each change is an e-ink redraw).
+     */
     private void renderSlot() {
         if (slot == null) {
             return;
         }
-        cardSuggest.setVisibility(View.GONE);
-        cardProgress.setVisibility(View.GONE);
-        cardNotice.setVisibility(View.GONE);
-        if (currentJob != null) {
+        View shown = null;
+        if (JobSession.running()) {
             renderProgressCard();
-            slot.setVisibility(View.VISIBLE);
-            return;
-        }
-        if (notice != null) {
+            shown = cardProgress;
+        } else if (notice != null) {
             setText(cardNotice, notice);
-            cardNotice.setVisibility(View.VISIBLE);
-            slot.setVisibility(View.VISIBLE);
-            return;
+            shown = cardNotice;
+        } else {
+            Suggestion suggestion = snapshot != null ? SuggestionPicker.pick(pickerInput()) : null;
+            if (suggestion != null && renderSuggestion(suggestion)) {
+                shown = cardSuggest;
+            }
         }
-        Suggestion suggestion = snapshot != null ? SuggestionPicker.pick(pickerInput()) : null;
-        if (suggestion == null) {
-            slot.setVisibility(View.GONE);
-            return;
+        setVisible(cardProgress, shown == cardProgress);
+        setVisible(cardNotice, shown == cardNotice);
+        setVisible(cardSuggest, shown == cardSuggest);
+        setVisible(slot, shown != null);
+    }
+
+    /** Sets a background drawable only when it differs from the last one set here. */
+    private static void setBackground(View view, int drawable) {
+        if (!Integer.valueOf(drawable).equals(view.getTag(R.id.tag_background))) {
+            view.setBackgroundResource(drawable);
+            view.setTag(R.id.tag_background, drawable);
         }
-        renderSuggestion(suggestion);
-        cardSuggest.setVisibility(View.VISIBLE);
-        slot.setVisibility(View.VISIBLE);
+    }
+
+    private static void setVisible(View view, boolean visible) {
+        int wanted = visible ? View.VISIBLE : View.GONE;
+        if (view.getVisibility() != wanted) {
+            view.setVisibility(wanted);
+        }
     }
 
     private SuggestionPicker.Input pickerInput() {
         SuggestionPicker.Input in = new SuggestionPicker.Input();
-        in.jobRunning = currentJob != null;
+        in.jobRunning = JobSession.running();
         in.autoSyncOn = settings.isAutoSyncEnabled();
         in.problem = settings.getProblemType();
         in.problemIsAlarm = isAlarm();
@@ -719,7 +732,8 @@ public class MainActivity extends Activity {
         return in;
     }
 
-    private void renderSuggestion(Suggestion s) {
+    /** Fills the suggestion card; false for a kind it doesn't know. */
+    private boolean renderSuggestion(Suggestion s) {
         String title;
         String body;
         String button;
@@ -798,41 +812,50 @@ public class MainActivity extends Activity {
                 };
                 break;
             default:
-                return;
+                return false;
         }
         // Problems and setup are solid cards with the one black button;
         // suggestions that can wait are dashed.
-        cardSuggest.setBackgroundResource(primary ? R.drawable.card_bg : R.drawable.suggest_bg);
+        setBackground(cardSuggest, primary ? R.drawable.card_bg : R.drawable.suggest_bg);
         setText(suggestTitle, title);
         setText(suggestBody, body);
         Button shown = primary ? suggestPrimary : suggestSecondary;
-        (primary ? suggestSecondary : suggestPrimary).setVisibility(View.GONE);
+        setVisible(primary ? suggestSecondary : suggestPrimary, false);
         setText(shown, button);
-        shown.setEnabled(enabled);
+        if (shown.isEnabled() != enabled) {
+            shown.setEnabled(enabled);
+        }
         shown.setOnClickListener(v -> action.run());
-        shown.setVisibility(View.VISIBLE);
-        suggestDismiss.setVisibility(dismissible ? View.VISIBLE : View.GONE);
+        setVisible(shown, true);
+        setVisible(suggestDismiss, dismissible);
         suggestDismiss.setOnClickListener(v -> {
             settings.addDismissedSuggestion(s.dismissKey());
             renderSlot();
         });
+        return true;
     }
 
     private void renderProgressCard() {
-        setText(progressTitle, currentJob.title(this));
-        setText(progressCount, jobTotal > 0
-                ? getString(R.string.job_count, Math.min(jobTotal, shownIndex(jobDone, jobState)),
-                        jobTotal)
+        Job job = JobSession.job;
+        int total = JobSession.total;
+        setText(progressTitle, job.title(this));
+        setText(progressCount, total > 0
+                ? getString(R.string.job_count,
+                        Math.min(total, shownIndex(JobSession.done, JobSession.state)), total)
                 : "");
-        progressBar.setProgress(jobTotal > 0 ? jobDone * 1000 / jobTotal : 0);
-        boolean talksToPicco = currentJob instanceof SendMissingJob
-                || currentJob instanceof FixCoversJob;
-        setText(progressNow, jobKey == null ? ""
+        int progress = total > 0 ? JobSession.done * 1000 / total : 0;
+        if (progressBar.getProgress() != progress) {
+            progressBar.setProgress(progress);
+        }
+        boolean talksToPicco = job instanceof SendMissingJob || job instanceof FixCoversJob;
+        setText(progressNow, JobSession.key == null ? ""
                 : getString(talksToPicco ? R.string.job_now_picco : R.string.job_now,
-                        titleOf(jobKey)));
-        setText(progressStop, getString(stopping ? R.string.job_stopping : R.string.job_stop));
-        progressStop.setEnabled(!stopping);
-        cardProgress.setVisibility(View.VISIBLE);
+                        titleOf(JobSession.key)));
+        setText(progressStop, getString(JobSession.stopping ? R.string.job_stopping
+                : R.string.job_stop));
+        if (progressStop.isEnabled() == JobSession.stopping) {
+            progressStop.setEnabled(!JobSession.stopping);
+        }
     }
 
     private void renderFilters() {
@@ -987,7 +1010,11 @@ public class MainActivity extends Activity {
 
     private void bindRow(View row, LibraryEntry e) {
         ((TextView) row.findViewById(R.id.book_title)).setText(e.title);
-        ((TextView) row.findViewById(R.id.book_author)).setText(e.author);
+        TextView author = row.findViewById(R.id.book_author);
+        author.setText(e.author);
+        // No blank line for a missing author. Pages are sized for rows with
+        // one, so a page of such rows is under-filled, never clipped.
+        author.setVisibility(e.author.isEmpty() ? View.GONE : View.VISIBLE);
         ((TextView) row.findViewById(R.id.book_status)).setText(statusText(e));
         bindBar(row.findViewById(R.id.book_bar_boox), row.findViewById(R.id.book_pct_boox),
                 e.booxPct);
@@ -1077,7 +1104,7 @@ public class MainActivity extends Activity {
 
     /** The row's status line: the job's state for this book while it has one. */
     private String statusText(LibraryEntry e) {
-        String jobRow = jobRows.get(e.key);
+        String jobRow = JobSession.rows.get(e.key);
         if (jobRow != null) {
             switch (jobRow) {
                 case Job.SENT:
@@ -1178,8 +1205,8 @@ public class MainActivity extends Activity {
     private void hideNotice() {
         bookList.removeCallbacks(hideNotice);
         notice = null;
-        if (currentJob == null && !jobRows.isEmpty()) {
-            jobRows.clear(); // the rows go back to their own status
+        if (!JobSession.running() && !JobSession.rows.isEmpty()) {
+            JobSession.rows.clear(); // the rows go back to their own status
             renderPage();
         }
         renderSlot();
@@ -1187,52 +1214,38 @@ public class MainActivity extends Activity {
 
     /**
      * Runs a long job in the slot's progress card (busy is already set); its
-     * rows show their state, and the result sentence follows. Then after runs.
+     * rows show their state, and the result sentence follows. The job is
+     * process-wide (JobSession), so it carries on if this screen is recreated.
      */
-    boolean startJob(Job job, Runnable after) {
-        boolean started = jobs.start(job, new Job.Listener() {
-            @Override
-            public void progress(int done, int total, String key, String rowState) {
-                jobDone = done;
-                jobTotal = total;
-                jobKey = key;
-                jobState = rowState;
-                renderSlot();
-            }
-
-            @Override
-            public void rowStates(Map<String, String> states) {
-                jobRows.putAll(states);
-                renderPage();
-            }
-
-            @Override
-            public void finished(String resultSentence) {
-                currentJob = null;
-                busy = false;
-                stopping = false;
-                showNotice(resultSentence != null ? resultSentence
-                        : getString(R.string.job_stopped), true);
-                after.run();
-                reload();
-            }
-        });
+    boolean startJob(Job job) {
+        boolean started = JobSession.start(job);
         if (started) {
-            currentJob = job;
-            jobDone = 0;
-            jobTotal = 0;
-            jobKey = null;
-            jobState = null;
-            stopping = false;
             bookList.removeCallbacks(hideNotice);
             notice = null;
-            renderSlot();
         } else {
             busy = false;
-            jobRows.clear();
-            renderSlot();
+            JobSession.rows.clear();
+            renderPage();
         }
+        renderSlot();
         return started;
+    }
+
+    @Override
+    public void jobProgress() {
+        renderSlot();
+    }
+
+    @Override
+    public void jobRows() {
+        renderPage();
+    }
+
+    @Override
+    public void jobFinished(String resultSentence) {
+        busy = false;
+        showNotice(resultSentence != null ? resultSentence : getString(R.string.job_stopped), true);
+        reload();
     }
 
     /** "3 of 10": the book being worked on, or the last one finished. */
@@ -1468,7 +1481,7 @@ public class MainActivity extends Activity {
      * asking. Compares against a fresh listing so nothing is sent twice.
      */
     private void sendMissingBooks() {
-        if (busy || currentJob != null) {
+        if (busy || JobSession.running()) {
             return;
         }
         final String address = settings.getPiccoAddress();
@@ -1529,11 +1542,11 @@ public class MainActivity extends Activity {
                         .setPositiveButton(R.string.send_missing_confirm_ok, (d, w) -> {
                             // Every book waits its turn, so the rows show it.
                             for (File file : missing) {
-                                jobRows.put(LibraryModel.keyOf(file.getPath()), Job.WAITING);
+                                JobSession.rows.put(LibraryModel.keyOf(file.getPath()), Job.WAITING);
                             }
                             renderPage();
                             startJob(new SendMissingJob(this, client, address, folder, missing,
-                                    piccoLibrary), () -> { });
+                                    piccoLibrary));
                         })
                         .setNegativeButton(R.string.send_missing_cancel, (d, w) -> busy = false)
                         .setOnCancelListener(d -> busy = false)
@@ -1560,7 +1573,7 @@ public class MainActivity extends Activity {
      * the Picco's own books), asks, then fixes them. See CoverFixer.
      */
     private void cleanLibrary() {
-        if (busy || currentJob != null) {
+        if (busy || JobSession.running()) {
             return;
         }
         final String address = settings.getPiccoAddress();
@@ -1700,7 +1713,7 @@ public class MainActivity extends Activity {
                         return;
                     }
                     startJob(new FixCoversJob(this, settings, repository, stateStore,
-                            buildClient(), deviceId(), client, plan, includePiccoOnly), () -> { });
+                            buildClient(), deviceId(), client, plan, includePiccoOnly));
                 })
                 .setNegativeButton(R.string.send_missing_cancel, (d, w) -> busy = false)
                 .setOnCancelListener(d -> busy = false)
