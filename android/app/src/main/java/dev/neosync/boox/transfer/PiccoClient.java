@@ -155,6 +155,35 @@ public class PiccoClient {
                 name.substring(dot + 1).toLowerCase(java.util.Locale.ROOT));
     }
 
+    /**
+     * Quick check that a Picco answers at this address: GET /api/files?path=/
+     * with the given connect/read timeout. True only on HTTP 200 with a JSON
+     * array body; any failure is false.
+     */
+    public boolean probe(int timeoutMs) {
+        HttpURLConnection conn = null;
+        try {
+            conn = open("/api/files?path=" + URLEncoder.encode("/", "UTF-8"), "GET");
+            conn.setConnectTimeout(timeoutMs);
+            conn.setReadTimeout(timeoutMs);
+            if (conn.getResponseCode() != 200) {
+                return false;
+            }
+            String body = readBody(conn);
+            if (body == null) {
+                return false;
+            }
+            new JSONArray(body);
+            return true;
+        } catch (Exception e) {
+            return false;
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+    }
+
     /** Raw JSON listing of one directory; throws on any non-200 or bad body. */
     private JSONArray listDir(String path) throws IOException {
         HttpURLConnection conn = open("/api/files?path=" + URLEncoder.encode(path, "UTF-8"), "GET");
