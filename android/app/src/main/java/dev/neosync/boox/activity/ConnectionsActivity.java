@@ -30,6 +30,7 @@ import dev.neosync.boox.kosync.KoSyncClient;
 import dev.neosync.boox.kosync.SyncSettings;
 import dev.neosync.boox.kosync.SyncStateStore;
 import dev.neosync.boox.library.LibraryModel;
+import dev.neosync.boox.library.PiccoCardState;
 import dev.neosync.boox.library.PiccoFinder;
 import dev.neosync.boox.library.SyncProblem;
 import dev.neosync.boox.library.TitleCleaner;
@@ -66,10 +67,17 @@ public class ConnectionsActivity extends Activity {
     private Button lookButton;
     private TextView addressLink;
 
-    /** Which Picco check or search is current; older ones' results are dropped. */
-    private int generation;
+    /** Which probe of the saved address is current; older probes' answers are dropped. */
+    private int probeGen;
+    /** Which search is current; only the latest search started applies its result (R24). */
+    private int searchGen;
     private boolean checking;
+    /** A search the screen is waiting for (shows "Looking…"). */
     private boolean looking;
+    /** A PiccoFinder thread is running, current or dropped: only one at a time. */
+    private boolean finderRunning;
+    /** Look was asked for while a dropped search still ran: start it when that one ends. */
+    private boolean lookQueued;
     private boolean lookFailed;
     private boolean retrying;
     /** The automatic search runs at most once per visit (onResume). */
@@ -99,6 +107,22 @@ public class ConnectionsActivity extends Activity {
                 @Override
                 public void onLost(Network network) {
                     runOnUiThread(ConnectionsActivity.this::render);
+                }
+
+                // Wi-Fi came up after the screen opened: look for the Picco
+                // now, unless it already answered or a check is under way.
+                @Override
+                public void onAvailable(Network network) {
+                    runOnUiThread(() -> {
+                        if (isDestroyed() || checking || looking) {
+                            return;
+                        }
+                        String address = settings.getPiccoAddress();
+                        if (!autoLooked || address.isEmpty()
+                                || !Boolean.TRUE.equals(MainActivity.lastPiccoCheck(address))) {
+                            checkPicco();
+                        }
+                    });
                 }
             };
 
@@ -142,6 +166,7 @@ public class ConnectionsActivity extends Activity {
             Log.w(TAG, "No network callback: " + e);
         }
         autoLooked = false;
+        lookFailed = false;
         syncAllNote.setVisibility(View.GONE);
         render();
         checkPicco();
@@ -182,7 +207,8 @@ public class ConnectionsActivity extends Activity {
     private boolean renderFileAccess() {
         boolean allowed = Permissions.hasAllFilesAccess();
         setText(fileAccessText, allowed ? getString(R.string.conn_file_access_allowed)
-                : html(R.string.conn_file_access_missing));
+                : html(R.string.conn_file_access_missing,
+                        getString(R.string.sug_file_access_body)));
         setVisible(fileAccessButton, !allowed);
         if (!allowed) {
             styleButton(fileAccessButton, true);
@@ -250,24 +276,33 @@ public class ConnectionsActivity extends Activity {
     private void renderPicco(boolean primaryTaken) {
         String address = settings.getPiccoAddress();
         Boolean reachable = address.isEmpty() ? null : MainActivity.lastPiccoCheck(address);
-        boolean connected = !looking && Boolean.TRUE.equals(reachable);
-        boolean pending = !looking && !lookFailed && checking && reachable == null;
+        PiccoCardState.State state = PiccoCardState.of(!address.isEmpty(), reachable, checking,
+                looking, lookFailed);
+        boolean connected = PiccoCardState.isConnected(state);
+        boolean pending = state == PiccoCardState.State.CHECKING;
 
         CharSequence sentence;
-        if (connected) {
-            sentence = html(R.string.conn_picco_connected, address);
-        } else if (pending) {
-            sentence = html(R.string.conn_picco_checking, address);
-        } else if (lookFailed) {
-            sentence = html(R.string.conn_picco_not_found);
-        } else if (address.isEmpty()) {
-            sentence = html(R.string.conn_picco_not_set_up);
-        } else {
-            sentence = html(R.string.conn_picco_unreachable);
+        switch (state) {
+            case CONNECTED:
+                sentence = html(R.string.conn_picco_connected, address);
+                break;
+            case CHECKING:
+                sentence = html(R.string.conn_picco_checking, address);
+                break;
+            case NOT_FOUND:
+                sentence = html(R.string.conn_picco_not_found);
+                break;
+            case UNREACHABLE:
+                sentence = html(R.string.conn_picco_unreachable);
+                break;
+            default: // NOT_SET_UP, or LOOKING with or without an address
+                sentence = html(address.isEmpty() ? R.string.conn_picco_not_set_up
+                        : R.string.conn_picco_unreachable);
+                break;
         }
         setText(piccoText, sentence);
 
-        setVisible(piccoSteps, !connected && !pending);
+        setVisible(piccoSteps, PiccoCardState.showsSteps(state));
         setText(lookButton, getString(looking ? R.string.conn_looking : R.string.conn_look));
         if (lookButton.isEnabled() == looking) {
             lookButton.setEnabled(!looking);
@@ -287,7 +322,8 @@ public class ConnectionsActivity extends Activity {
                 : pending ? getString(R.string.conn_wire_wifi_checking)
                 : html(R.string.conn_wire_wifi_not_connected));
 
-        setText(addressLink, !address.isEmpty() && !connected
+        // "Last seen" only once the saved address is known not to answer.
+        setText(addressLink, !address.isEmpty() && !connected && !pending
                 ? html(R.string.conn_last_seen, address)
                 : html(R.string.conn_enter_by_hand));
     }
@@ -297,20 +333,25 @@ public class ConnectionsActivity extends Activity {
     /**
      * Asks the saved address whether the Picco is there. When it isn't (or
      * none is saved yet), looks for it once per visit, as step 3 promises.
+     * Does nothing while a search runs: its result is authoritative.
      */
     private void checkPicco() {
+        if (looking) {
+            return;
+        }
         final String address = settings.getPiccoAddress();
         if (address.isEmpty()) {
             autoLook();
+            render();
             return;
         }
-        final int run = ++generation;
+        final int run = ++probeGen;
         checking = true;
         render();
         new Thread(() -> {
             boolean ok = new PiccoClient(address).probe(CHECK_TIMEOUT_MS);
             runOnUiThread(() -> {
-                if (run != generation || isDestroyed()) {
+                if (run != probeGen || isDestroyed()) {
                     return;
                 }
                 checking = false;
@@ -335,11 +376,21 @@ public class ConnectionsActivity extends Activity {
         if (looking) {
             return;
         }
-        final int run = ++generation;
+        probeGen++; // a probe still running no longer counts
         checking = false;
         looking = true;
         lookFailed = false;
+        if (finderRunning) {
+            lookQueued = true; // one finder at a time: starts when the dropped one ends
+        } else {
+            startFinder();
+        }
         render();
+    }
+
+    private void startFinder() {
+        final int run = ++searchGen;
+        finderRunning = true;
         final String lastKnown = settings.getPiccoAddress();
         final String[] net = WifiHelper.localNetwork(this);
         new Thread(() -> {
@@ -347,23 +398,35 @@ public class ConnectionsActivity extends Activity {
             String found = PiccoFinder.find(candidates,
                     candidate -> new PiccoClient(candidate).probe(PiccoFinder.PROBE_TIMEOUT_MS),
                     PiccoFinder.THREADS, PiccoFinder.DEADLINE_MS);
-            runOnUiThread(() -> {
-                if (run != generation || isDestroyed()) {
-                    return;
-                }
-                looking = false;
-                if (found != null) {
-                    settings.setPiccoAddress(found);
-                    MainActivity.rememberPiccoCheck(found, true);
-                } else {
-                    lookFailed = true;
-                    if (!lastKnown.isEmpty()) {
-                        MainActivity.rememberPiccoCheck(lastKnown, false);
-                    }
-                }
-                render();
-            });
+            runOnUiThread(() -> searchFinished(run, lastKnown, found));
         }, "NeoSync find Picco").start();
+    }
+
+    /** UI thread. Applies a search's result if it is still the latest one. */
+    private void searchFinished(int run, String lastKnown, String found) {
+        finderRunning = false;
+        if (isDestroyed()) {
+            return;
+        }
+        if (run == searchGen) {
+            looking = false;
+            if (found != null) {
+                settings.setPiccoAddress(found);
+                MainActivity.rememberPiccoCheck(found, true);
+            } else {
+                lookFailed = true;
+                if (!lastKnown.isEmpty()) {
+                    MainActivity.rememberPiccoCheck(lastKnown, false);
+                }
+            }
+        }
+        if (lookQueued) {
+            lookQueued = false;
+            if (looking) {
+                startFinder();
+            }
+        }
+        render();
     }
 
     /** "Enter address by hand": saves the typed address and checks it. */
@@ -382,8 +445,9 @@ public class ConnectionsActivity extends Activity {
                 .setTitle(R.string.conn_address_title)
                 .setView(box)
                 .setPositiveButton(R.string.conn_address_ok, (d, w) -> {
-                    generation++; // a search still running no longer counts
+                    searchGen++; // a search still running no longer counts
                     looking = false;
+                    lookQueued = false;
                     lookFailed = false;
                     settings.setPiccoAddress(field.getText().toString());
                     checkPicco();

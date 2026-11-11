@@ -399,7 +399,7 @@
     <string name="conn_wire_wifi_checking">same Wi-Fi · checking…</string>
     <string name="conn_boox_header">This Boox</string>
     <string name="conn_file_access_allowed">File access: allowed.</string>
-    <string name="conn_file_access_missing">&lt;b>File access: not allowed.&lt;/b> NeoSync needs it to read your books and open them at the right page.</string>
+    <string name="conn_file_access_missing">&lt;b>File access: not allowed.&lt;/b> %1$s</string>
     <string name="conn_server_header">Sync server</string>
     <string name="conn_server_working">&lt;b>● Working.&lt;/b> Last sync %1$s (%2$s).</string>
     <string name="conn_server_working_no_book">&lt;b>● Working.&lt;/b> Last sync %1$s.</string>
