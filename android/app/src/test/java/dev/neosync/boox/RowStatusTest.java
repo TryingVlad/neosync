@@ -55,6 +55,26 @@ public class RowStatusTest {
     }
 
     @Test
+    public void samePercentButNewerRemoteIsSamePlace() {
+        LibraryEntry e = both(BookSyncStatus.NEVER_SYNCED);
+        e.booxPct = 0.503; // within half a percent of the remote 0.5
+        e.remote = remote(2000);
+        assertEquals(RowStatus.SAME_PLACE, RowStatus.of(e, true, true));
+        e.syncStatus = BookSyncStatus.CHANGED_HERE;
+        assertEquals(RowStatus.SAME_PLACE, RowStatus.of(e, true, false));
+    }
+
+    @Test
+    public void differentAndNewerRemoteIsPiccoAhead() {
+        LibraryEntry e = both(BookSyncStatus.NEVER_SYNCED);
+        e.booxPct = 0.495; // exactly half a percent apart counts as different
+        e.remote = remote(2000);
+        assertEquals(RowStatus.PICCO_AHEAD, RowStatus.of(e, true, true));
+        e.remote = remote(500); // different but older: not ahead
+        assertEquals(RowStatus.NOT_SYNCED_YET, RowStatus.of(e, true, true));
+    }
+
+    @Test
     public void piccoAheadNotShownWhenSynced() {
         LibraryEntry e = both(BookSyncStatus.SYNCED);
         e.remote = remote(2000);
