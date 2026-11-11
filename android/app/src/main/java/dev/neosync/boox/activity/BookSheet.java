@@ -24,6 +24,8 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
 
@@ -76,6 +78,7 @@ final class BookSheet {
     private final TextView hint;
     private final TextView result;
     private final TextView linkInstead;
+    private final TextView linkInstead2;
     private final TextView linkUndo;
     private final TextView linkSendAgain;
     private final TextView linkCover;
@@ -123,6 +126,7 @@ final class BookSheet {
         hint = v.findViewById(R.id.sheet_hint);
         result = v.findViewById(R.id.sheet_result);
         linkInstead = link(v, R.id.sheet_link_instead);
+        linkInstead2 = link(v, R.id.sheet_link_instead_2);
         linkUndo = link(v, R.id.sheet_link_undo);
         linkSendAgain = link(v, R.id.sheet_link_send_again);
         linkCover = link(v, R.id.sheet_link_cover);
@@ -307,12 +311,12 @@ final class BookSheet {
 
         BookComparison.Action main = checking && c.primary != BookComparison.Action.SEND_FILE
                 ? BookComparison.Action.NONE : c.primary;
-        BookComparison.Action instead = checking ? BookComparison.Action.NONE : c.secondary;
+        List<BookComparison.Action> instead = new ArrayList<>(checking
+                ? java.util.Collections.<BookComparison.Action>emptyList() : c.links);
         if (placeSent || e.booxPct < 0) {
             // Sent already, or no place here yet (never opened in Neo Reader).
             main = main == BookComparison.Action.SEND_PLACE ? BookComparison.Action.NONE : main;
-            instead = instead == BookComparison.Action.SEND_PLACE
-                    ? BookComparison.Action.NONE : instead;
+            instead.remove(BookComparison.Action.SEND_PLACE);
         }
         boolean enabled = !working && !sendingFile;
         String pctBooxText = pct(e.booxPct);
@@ -338,25 +342,36 @@ final class BookSheet {
         primary.setEnabled(enabled);
         hint.setVisibility(main == BookComparison.Action.JUMP_TO_REMOTE ? View.VISIBLE : View.GONE);
 
-        if (instead == BookComparison.Action.SEND_PLACE && main == BookComparison.Action.NONE) {
-            // No black button (the other device is further along): the send
-            // is a plain link that names the percentage.
-            linkInstead.setText(a.getString(R.string.sheet_send_place, pctBooxText));
-            linkInstead.setOnClickListener(x -> sendPlace());
-        } else if (instead == BookComparison.Action.SEND_PLACE) {
-            linkInstead.setText(R.string.sheet_keep_boox);
-            linkInstead.setOnClickListener(x -> sendPlace());
-        } else if (instead == BookComparison.Action.JUMP_TO_REMOTE) {
-            linkInstead.setText(a.getString(R.string.sheet_use_picco, labelOther.getText()));
-            linkInstead.setOnClickListener(x -> jump());
+        // Up to two "instead" links (R35: send and jump, when neither is the black button).
+        TextView[] slots = {linkInstead, linkInstead2};
+        for (int k = 0; k < slots.length; k++) {
+            BookComparison.Action act = k < instead.size() ? instead.get(k)
+                    : BookComparison.Action.NONE;
+            bindInstead(slots[k], act, main, pctBooxText);
+            showLink(slots[k], act != BookComparison.Action.NONE, enabled);
         }
-        showLink(linkInstead, instead != BookComparison.Action.NONE, enabled);
         showLink(linkUndo, undoAvailable(), enabled);
         boolean local = e.booxPath != null;
         showLink(linkSendAgain, local && e.isEpub && e.piccoPath != null
                 && a.piccoConfigured(), enabled);
         showLink(linkCover, local && e.isEpub && meta != null && meta.wouldShowBlack, enabled);
         showLink(linkOpen, local, true);
+    }
+
+    private void bindInstead(TextView link, BookComparison.Action act,
+                             BookComparison.Action main, String pctBooxText) {
+        if (act == BookComparison.Action.SEND_PLACE && main == BookComparison.Action.NONE) {
+            // No black button (the other device is further along): the send
+            // is a plain link that names the percentage.
+            link.setText(a.getString(R.string.sheet_send_place, pctBooxText));
+            link.setOnClickListener(x -> sendPlace());
+        } else if (act == BookComparison.Action.SEND_PLACE) {
+            link.setText(R.string.sheet_keep_boox);
+            link.setOnClickListener(x -> sendPlace());
+        } else if (act == BookComparison.Action.JUMP_TO_REMOTE) {
+            link.setText(a.getString(R.string.sheet_use_picco, labelOther.getText()));
+            link.setOnClickListener(x -> jump());
+        }
     }
 
     private String verdictText(BookComparison.Verdict v) {

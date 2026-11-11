@@ -250,6 +250,13 @@
                 android:visibility="gone" />
 
             <TextView
+                android:id="@+id/sheet_link_instead_2"
+                style="@style/NeoSync.Link"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/sheet_link_undo"
                 style="@style/NeoSync.Link"
                 android:layout_width="wrap_content"

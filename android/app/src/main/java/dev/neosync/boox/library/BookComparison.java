@@ -1,5 +1,9 @@
 package dev.neosync.boox.library;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 /** Pure rules deciding the book sheet's verdict and which buttons it offers. */
 public final class BookComparison {
     public enum Verdict { SAME, OTHER_MORE_RECENT, HERE_MORE_RECENT, NOTHING_ONLINE, NOT_CHECKED }
@@ -10,13 +14,29 @@ public final class BookComparison {
 
     public final Verdict verdict;
     public final Action primary;
-    /** The "instead" link: SEND_PLACE, JUMP_TO_REMOTE or NONE. */
+    /** The "instead" links in order (SEND_PLACE, JUMP_TO_REMOTE); never NONE. */
+    public final List<Action> links;
+    /** The first link, or NONE. */
     public final Action secondary;
 
-    private BookComparison(Verdict verdict, Action primary, Action secondary) {
+    private BookComparison(Verdict verdict, Action primary, Action... links) {
         this.verdict = verdict;
         this.primary = primary;
-        this.secondary = secondary;
+        List<Action> kept = new ArrayList<>();
+        for (Action a : links) {
+            if (a != Action.NONE) {
+                kept.add(a);
+            }
+        }
+        this.links = Collections.unmodifiableList(kept);
+        this.secondary = kept.isEmpty() ? Action.NONE : kept.get(0);
+    }
+
+    /** The same links without "Send this place" (that place is already sent). */
+    private Action[] linksWithoutSend() {
+        List<Action> out = new ArrayList<>(links);
+        out.remove(Action.SEND_PLACE);
+        return out.toArray(new Action[0]);
     }
 
     public static BookComparison of(LibraryEntry e, boolean liveCheckOk, boolean hasPiccoList) {
@@ -49,7 +69,7 @@ public final class BookComparison {
             } else {
                 c = new BookComparison(e.remote == null ? Verdict.SAME : c.verdict,
                         c.primary == Action.SEND_PLACE ? Action.NONE : c.primary,
-                        c.secondary == Action.SEND_PLACE ? Action.NONE : c.secondary);
+                        c.linksWithoutSend());
             }
         }
         if (sendFile) {
@@ -82,7 +102,9 @@ public final class BookComparison {
         if (r.percentage > e.booxPct) {
             // More recent here only by Neo Reader's last open, while the other
             // device is further along: sending must not be one black tap.
-            return new BookComparison(Verdict.HERE_MORE_RECENT, Action.NONE, Action.SEND_PLACE);
+            // Both stay links (R35): send this place, or take the other's.
+            return new BookComparison(Verdict.HERE_MORE_RECENT, Action.NONE, Action.SEND_PLACE,
+                    Action.JUMP_TO_REMOTE);
         }
         return new BookComparison(Verdict.HERE_MORE_RECENT, Action.SEND_PLACE,
                 Action.JUMP_TO_REMOTE);

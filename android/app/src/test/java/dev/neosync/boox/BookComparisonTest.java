@@ -10,6 +10,9 @@ import dev.neosync.boox.library.RemotePosition;
 
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.Collections;
+
 public class BookComparisonTest {
     private static LibraryEntry onBoox(double pct, long last, RemotePosition remote) {
         LibraryEntry e = new LibraryEntry();
@@ -135,11 +138,22 @@ public class BookComparisonTest {
     }
 
     @Test
-    public void hereMoreRecentButOtherFurtherAlongHasNoPrimary() {
+    public void hereMoreRecentButOtherFurtherAlongHasNoPrimaryAndBothLinks() {
         // Opening the book bumped lastAccess: the Picco's 73% must not be
-        // overwritten with 10% by one tap on the black button.
-        check(BookComparison.of(onBoox(0.10, 30, remote(0.73, 20)), true, true),
-                Verdict.HERE_MORE_RECENT, Action.NONE, Action.SEND_PLACE);
+        // overwritten with 10% by one tap on the black button (R34), and the
+        // jump to 73% stays a link next to the send (R35).
+        BookComparison c = BookComparison.of(onBoox(0.10, 30, remote(0.73, 20)), true, true);
+        assertEquals(Verdict.HERE_MORE_RECENT, c.verdict);
+        assertEquals(Action.NONE, c.primary);
+        assertEquals(Arrays.asList(Action.SEND_PLACE, Action.JUMP_TO_REMOTE), c.links);
+    }
+
+    @Test
+    public void otherCasesHaveAtMostOneLink() {
+        assertEquals(Collections.singletonList(Action.JUMP_TO_REMOTE),
+                BookComparison.of(onBoox(0.73, 30, remote(0.10, 20)), true, true).links);
+        assertEquals(Collections.emptyList(),
+                BookComparison.of(onBoox(0.5, 10, null), true, true).links);
     }
 
     @Test
@@ -149,9 +163,11 @@ public class BookComparisonTest {
     }
 
     @Test
-    public void hereMoreRecentButBehindAlreadySentHasNoActions() {
-        check(BookComparison.of(onBoox(0.10, 30, remote(0.73, 20)), true, true, own(0.10, 15)),
-                Verdict.HERE_MORE_RECENT, Action.NONE, Action.NONE);
+    public void hereMoreRecentButBehindAlreadySentKeepsOnlyTheJump() {
+        BookComparison c = BookComparison.of(onBoox(0.10, 30, remote(0.73, 20)), true, true,
+                own(0.10, 15));
+        check(c, Verdict.HERE_MORE_RECENT, Action.NONE, Action.JUMP_TO_REMOTE);
+        assertEquals(Collections.singletonList(Action.JUMP_TO_REMOTE), c.links);
     }
 
     @Test
