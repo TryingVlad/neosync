@@ -667,7 +667,8 @@ public class SyncService extends Service {
         String hash = SyncActions.documentHash(settings, path);
         if (hash == null) {
             Log.w(TAG, "Could not hash " + path + " (file missing or unreadable?)");
-            settings.recordSyncError("Cannot read book file: " + path, SyncProblem.Type.OTHER);
+            // Not a sync failure: the file-access suggestion covers the usual cause.
+            settings.recordLocalNote("Cannot read book file: " + path);
         }
         return hash;
     }

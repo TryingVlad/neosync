@@ -307,6 +307,15 @@ public class SyncSettings {
                 .apply();
     }
 
+    /**
+     * Keeps a local problem (a book file that can't be read) for the problem
+     * report without counting it as a failed sync: the streak, its type and
+     * the alarm stay as they are, so Connections never blames the server.
+     */
+    public void recordLocalNote(String message) {
+        prefs.edit().putString(KEY_LAST_ERROR, message).apply();
+    }
+
     public void recordSyncError(String error) {
         recordSyncError(error, SyncProblem.Type.OTHER);
     }
