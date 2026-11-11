@@ -9,6 +9,7 @@ import java.io.IOException;
 
 import dev.neosync.boox.epub.EpubCover;
 import dev.neosync.boox.epub.FirstPageSnapshot;
+import dev.neosync.boox.library.LibraryModel;
 
 /**
  * Gives an EPUB a cover the Picco can show. On this Boox the book is fixed in
@@ -45,11 +46,11 @@ public class CoverFixer {
                                                        java.util.Collection<String> booxPaths) {
         java.util.Set<String> booxNames = new java.util.HashSet<>();
         for (String path : booxPaths) {
-            booxNames.add(path.substring(path.lastIndexOf('/') + 1));
+            booxNames.add(LibraryModel.keyOf(path));
         }
         java.util.List<String> out = new java.util.ArrayList<>();
         for (String piccoPath : onPicco) {
-            String name = piccoPath.substring(piccoPath.lastIndexOf('/') + 1);
+            String name = LibraryModel.keyOf(piccoPath);
             if (isEpub(new File(name)) && !booxNames.contains(name)) {
                 out.add(piccoPath);
             }

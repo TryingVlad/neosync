@@ -215,4 +215,16 @@ public class LibraryModelTest {
         assertEquals(Arrays.asList("/storage/emulated/0/Books/a.epub",
                 "/storage/emulated/0/Books/b.epub"), kept);
     }
+
+    @Test
+    public void sameNameMatchesAccentedTwinAcrossNormalForms() {
+        String nfc = Normalizer.normalize("Zarathoustra é.epub", Normalizer.Form.NFC);
+        String nfd = Normalizer.normalize("Zarathoustra é.epub", Normalizer.Form.NFD);
+        List<String> onPicco = Arrays.asList("books/Dune.epub", "books/" + nfd);
+        assertEquals("books/" + nfd,
+                LibraryModel.findSameName(onPicco, "/storage/emulated/0/Books/" + nfc));
+        assertEquals("books/Dune.epub", LibraryModel.findSameName(onPicco, "Dune.epub"));
+        assertEquals(null, LibraryModel.findSameName(onPicco, "/b/Other.epub"));
+        assertEquals(null, LibraryModel.findSameName(onPicco, "/b/dune.epub")); // case counts
+    }
 }

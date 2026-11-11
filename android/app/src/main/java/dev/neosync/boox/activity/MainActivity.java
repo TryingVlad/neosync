@@ -1467,16 +1467,6 @@ public class MainActivity extends Activity implements JobSession.Screen {
         renderChips();
     }
 
-    /** True when any listed path ends in exactly this file name. */
-    private static boolean containsFile(List<String> paths, String fileName) {
-        for (String path : paths) {
-            if (fileName(path).equals(fileName)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private static String fileName(String path) {
         return path == null ? "" : path.substring(path.lastIndexOf('/') + 1);
     }
@@ -1572,10 +1562,11 @@ public class MainActivity extends Activity implements JobSession.Screen {
             long bytes = 0;
             Set<String> seen = new HashSet<>();
             for (OnyxMetadataRepository.Book book : listableBooks()) {
-                String name = fileName(book.path);
+                String name = LibraryModel.keyOf(book.path);
                 File file = new File(book.path);
+                // Same NFC key as the list and its "missing" count.
                 if (!name.toLowerCase(Locale.ROOT).endsWith(".epub") || !seen.add(name)
-                        || containsFile(onPicco, name) || !file.canRead()) {
+                        || LibraryModel.findSameName(onPicco, name) != null || !file.canRead()) {
                     continue;
                 }
                 missing.add(file);
@@ -1687,11 +1678,9 @@ public class MainActivity extends Activity implements JobSession.Screen {
                 plan.booxBooks.add(file);
                 plan.booxTitles.add(coverTitle(file));
                 plan.kindOf.put(file.getPath(), kind);
-                for (String piccoPath : onPicco) {
-                    if (fileName(piccoPath).equals(file.getName())) {
-                        plan.piccoPathOf.put(file.getPath(), piccoPath);
-                        break;
-                    }
+                String piccoPath = LibraryModel.findSameName(onPicco, file.getPath());
+                if (piccoPath != null) {
+                    plan.piccoPathOf.put(file.getPath(), piccoPath);
                 }
             }
             List<String> others = CoverFixer.piccoOnlyEpubs(onPicco, libraryPaths);

@@ -193,12 +193,6 @@ public final class SendMissingJob implements Job {
 
     /** The Picco's path of the same book (by file name), or null. */
     private String piccoCopyOf(File file) throws IOException {
-        String key = LibraryModel.keyOf(file.getPath());
-        for (String path : client.listBooks()) {
-            if (LibraryModel.keyOf(path).equals(key)) {
-                return path;
-            }
-        }
-        return null;
+        return LibraryModel.findSameName(client.listBooks(), file.getPath());
     }
 }

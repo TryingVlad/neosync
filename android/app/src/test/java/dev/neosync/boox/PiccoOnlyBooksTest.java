@@ -34,4 +34,13 @@ public class PiccoOnlyBooksTest {
                 CoverFixer.piccoOnlyEpubs(Arrays.asList("a.epub", "b/c.EPUB", "d.pdf"),
                         Collections.emptyList()));
     }
+
+    @Test
+    public void accentedTwinInOtherNormalFormIsNotPiccoOnly() {
+        String nfc = java.text.Normalizer.normalize("Café.epub", java.text.Normalizer.Form.NFC);
+        String nfd = java.text.Normalizer.normalize("Café.epub", java.text.Normalizer.Form.NFD);
+        assertEquals(Collections.emptyList(), CoverFixer.piccoOnlyEpubs(
+                Collections.singletonList("books/" + nfd),
+                Collections.singletonList("/storage/emulated/0/Books/" + nfc)));
+    }
 }
