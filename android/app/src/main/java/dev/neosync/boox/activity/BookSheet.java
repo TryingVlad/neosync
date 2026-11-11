@@ -507,8 +507,15 @@ final class BookSheet {
                 // Sent already (RESTORED_SENT) or by automatic sync later: no Send button.
                 placeSent = true;
                 OnyxMetadataRepository.Book fresh = a.repository.queryBook(e.booxPath);
-                String back = pct(fresh != null && fresh.totalPages() > 0
-                        ? SyncActions.localPercentage(fresh) : -1);
+                double backPct = fresh != null && fresh.totalPages() > 0
+                        ? SyncActions.localPercentage(fresh) : -1;
+                if (r == SyncActions.UndoResult.RESTORED_SENT && fresh != null && backPct >= 0) {
+                    // The chip, Connections and the notification show the
+                    // place sent, not the jump (R26).
+                    a.settings.recordSyncSuccess(fresh.name != null ? fresh.name : fresh.path,
+                            fresh.path, backPct);
+                }
+                String back = pct(backPct);
                 return a.getString(r == SyncActions.UndoResult.RESTORED_SENT
                         ? R.string.sheet_undo_sent : R.string.sheet_undo_later, back);
             }
