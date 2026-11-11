@@ -13,7 +13,9 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -24,7 +26,7 @@ public class JobRunnerTest {
     private static final Executor DIRECT = Runnable::run;
 
     /** Records what reaches the "UI" and lets the test wait for the end. */
-    private static final class Recorder implements Job.Listener {
+    private static class Recorder implements Job.Listener {
         final List<String> calls = Collections.synchronizedList(new ArrayList<>());
         final CountDownLatch finished = new CountDownLatch(1);
 
@@ -117,6 +119,62 @@ public class JobRunnerTest {
         assertEquals(List.of(
                 "progress 0/2 a.epub sending",
                 "progress 1/2 a.epub sent",
+                "finished done"), ui.calls);
+    }
+
+    /** Also records each batch of row states, in delivery order. */
+    private static final class RowRecorder extends Recorder {
+        final List<Map<String, String>> batches =
+                Collections.synchronizedList(new ArrayList<>());
+
+        @Override
+        public void rowStates(Map<String, String> states) {
+            batches.add(new LinkedHashMap<>(states));
+            calls.add("rows " + states);
+        }
+    }
+
+    @Test
+    public void heldBackRowStatesAreAllDelivered() throws Exception {
+        AtomicLong now = new AtomicLong(0);
+        JobRunner runner = new JobRunner(DIRECT, 3000, now::get);
+        RowRecorder ui = new RowRecorder();
+        runner.start(job(l -> {
+            l.progress(0, 3, "a.epub", "sending"); // delivered at once
+            now.addAndGet(100);
+            l.progress(1, 3, "a.epub", "sent");    // held back
+            l.progress(1, 3, "b.epub", "sending"); // held back
+            l.progress(2, 3, "b.epub", "sent");    // held back: newest for b
+            l.progress(2, 3, "c.epub", null);      // no row change
+            now.addAndGet(3000);
+            l.progress(2, 3, "c.epub", "sending"); // past the interval
+            l.finished("done");
+        }), ui);
+        ui.await();
+        assertEquals(List.of(
+                "rows {a.epub=sending}",
+                "progress 0/3 a.epub sending",
+                "rows {a.epub=sent, b.epub=sent, c.epub=sending}",
+                "progress 2/3 c.epub sending",
+                "finished done"), ui.calls);
+    }
+
+    @Test
+    public void rowStatesHeldBackAtTheEndArriveBeforeFinished() throws Exception {
+        JobRunner runner = new JobRunner(DIRECT, 3000, () -> 0);
+        RowRecorder ui = new RowRecorder();
+        runner.start(job(l -> {
+            l.progress(0, 2, "a.epub", "sending");
+            l.progress(1, 2, "a.epub", "sent");
+            l.progress(2, 2, "b.epub", "sent");
+            l.finished("done");
+        }), ui);
+        ui.await();
+        assertEquals(List.of(
+                "rows {a.epub=sending}",
+                "progress 0/2 a.epub sending",
+                "rows {a.epub=sent, b.epub=sent}",
+                "progress 2/2 b.epub sent",
                 "finished done"), ui.calls);
     }
 

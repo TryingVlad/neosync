@@ -52,6 +52,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".activity.ConnectionsActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".activity.OnboardingActivity"
             android:exported="false" />
 

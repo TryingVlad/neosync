@@ -17,9 +17,9 @@ import java.util.concurrent.TimeoutException;
  */
 public final class PiccoFinder {
 
-    static final int THREADS = 32;
-    static final int PROBE_TIMEOUT_MS = 600;
-    static final long DEADLINE_MS = 10_000;
+    public static final int THREADS = 32;
+    public static final int PROBE_TIMEOUT_MS = 600;
+    public static final long DEADLINE_MS = 10_000;
 
     public interface Prober {
         boolean isPicco(String address);

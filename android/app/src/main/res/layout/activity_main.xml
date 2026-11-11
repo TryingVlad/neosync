@@ -1,110 +1,103 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/white" android:fitsSystemWindows="true">
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="28dp">
+<!-- Home: the two-device library. No scrolling: the book rows are paged to
+     fill the space between the filters and the page buttons. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/white" android:fitsSystemWindows="true" android:paddingStart="24dp" android:paddingEnd="24dp" android:paddingTop="12dp">
 
-<!-- App header: name on the left, settings shortcut on the right. -->
+<!-- Header: name, and the gear to Settings. -->
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
 <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/app_name" style="@style/NeoSync.Title" />
 
-<ImageButton android:id="@+id/button_settings" android:layout_width="44dp" android:layout_height="44dp" android:layout_marginEnd="-10dp" android:src="@drawable/ic_settings" android:background="@null" android:padding="10dp" android:contentDescription="@string/cd_settings" />
+<ImageButton android:id="@+id/button_settings" android:layout_width="48dp" android:layout_height="48dp" android:layout_marginEnd="-12dp" android:src="@drawable/ic_settings" android:background="@null" android:padding="12dp" android:contentDescription="@string/cd_settings" />
 </LinearLayout>
 
-<!-- Shown only when a newer release is on GitHub. -->
-<LinearLayout android:id="@+id/group_update_banner" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="16dp" android:visibility="gone" style="@style/NeoSync.Card">
-<TextView android:id="@+id/text_update_banner" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="" style="@style/NeoSync.Body" android:textStyle="bold" />
-
-<Button android:id="@+id/button_update_banner" android:layout_width="wrap_content" android:layout_marginStart="12dp" android:layout_marginTop="0dp" android:paddingStart="18dp" android:paddingEnd="18dp" android:text="@string/button_get_update" style="@style/NeoSync.Button.Primary" />
-</LinearLayout>
-
-<!-- Status hero: the answer to "is sync working?" at a glance. -->
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="20dp" style="@style/NeoSync.Card">
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-<View android:id="@+id/status_dot" android:layout_width="14dp" android:layout_height="14dp" android:background="@drawable/status_dot_idle" />
-
-<TextView android:id="@+id/text_status_headline" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:text="" style="@style/NeoSync.Headline" />
-</LinearLayout>
-<TextView android:id="@+id/text_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="" style="@style/NeoSync.Small" />
-
-<!-- Shown only while sync needs attention. -->
-<Button android:id="@+id/button_retry_sync" android:layout_width="match_parent" android:layout_marginTop="12dp" android:text="@string/button_retry_sync" style="@style/NeoSync.Button.Secondary" android:visibility="gone" />
-
-<View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="14dp" android:background="@color/ink_soft" />
-
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="14dp">
-<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:orientation="vertical" android:layout_weight="1">
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/autosync_label" android:textSize="17sp" android:textStyle="bold" android:textColor="@color/black" />
-
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="@string/autosync_hint" style="@style/NeoSync.Small" />
-</LinearLayout>
-<Switch android:id="@+id/switch_auto_sync" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp" />
-</LinearLayout>
-</LinearLayout>
-
-<!-- Latest book: the manual "force a direction" panel. -->
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:text="@string/manual_sync_header" style="@style/NeoSync.Section" />
-
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="10dp" style="@style/NeoSync.Card">
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-<TextView android:id="@+id/text_manual_book" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="" style="@style/NeoSync.Body" android:textStyle="bold" />
-
-<ImageButton android:id="@+id/button_refresh_book" android:layout_width="44dp" android:layout_height="44dp" android:layout_marginStart="8dp" android:src="@drawable/ic_refresh" android:background="@null" android:padding="10dp" android:contentDescription="@string/cd_refresh" />
-</LinearLayout>
-<TextView android:id="@+id/text_manual_local" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="" style="@style/NeoSync.Body" />
-
-<TextView android:id="@+id/text_manual_remote" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="" style="@style/NeoSync.Body" />
-
-<Button android:id="@+id/button_manual_check" android:layout_width="match_parent" android:layout_marginTop="14dp" android:text="@string/button_manual_check" style="@style/NeoSync.Button.Primary" />
-
+<!-- Two status chips: positions (sync server) and the Picco (local Wi-Fi). -->
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="10dp">
-<Button android:id="@+id/button_apply_remote" android:layout_width="0dp" android:layout_marginTop="0dp" android:text="@string/button_apply_remote" style="@style/NeoSync.Button.Secondary" android:layout_weight="1" android:enabled="false" />
+<LinearLayout android:id="@+id/chip_positions" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:minHeight="64dp" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/chip_bg" android:paddingStart="14dp" android:paddingEnd="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:clickable="true" android:focusable="true">
+<View android:id="@+id/chip_positions_dot" android:layout_width="12dp" android:layout_height="12dp" android:background="@drawable/status_dot_idle" />
+
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="10dp" android:orientation="vertical">
+<TextView android:id="@+id/chip_positions_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" android:textSize="17sp" android:textStyle="bold" android:textColor="@color/black" android:singleLine="true" android:ellipsize="end" />
+
+<TextView android:id="@+id/chip_positions_sub" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Small" android:singleLine="true" android:ellipsize="end" />
+</LinearLayout>
+<TextView android:id="@+id/chip_positions_chev" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:text="@string/chevron" android:textSize="22sp" android:textColor="@color/ink_soft" />
+</LinearLayout>
 
 <View android:layout_width="10dp" android:layout_height="1dp" />
-<Button android:id="@+id/button_upload_local" android:layout_width="0dp" android:layout_marginTop="0dp" android:text="@string/button_upload_local" style="@style/NeoSync.Button.Secondary" android:layout_weight="1" android:enabled="false" />
+<LinearLayout android:id="@+id/chip_picco" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:minHeight="64dp" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/chip_bg" android:paddingStart="14dp" android:paddingEnd="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:clickable="true" android:focusable="true">
+<View android:id="@+id/chip_picco_dot" android:layout_width="12dp" android:layout_height="12dp" android:background="@drawable/status_dot_idle" />
+
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="10dp" android:orientation="vertical">
+<TextView android:id="@+id/chip_picco_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" android:textSize="17sp" android:textStyle="bold" android:textColor="@color/black" android:singleLine="true" android:ellipsize="end" />
+
+<TextView android:id="@+id/chip_picco_sub" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Small" android:singleLine="true" android:ellipsize="end" />
 </LinearLayout>
-<View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="16dp" android:background="@color/ink_soft" />
-
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/label_book_file" android:textSize="15sp" android:textStyle="bold" android:textColor="@color/black" />
-
-<Button android:id="@+id/button_send_book" android:layout_width="match_parent" android:layout_marginTop="8dp" android:text="@string/button_send_book" style="@style/NeoSync.Button.Secondary" android:enabled="false" />
-
-<TextView android:id="@+id/text_transfer_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="" style="@style/NeoSync.Small" />
-
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/manual_hint" style="@style/NeoSync.Small" />
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:text="@string/chevron" android:textSize="22sp" android:textColor="@color/ink_soft" />
 </LinearLayout>
-
-<!-- Picco library: the last known list of books on the Picco, kept between
-     visits and refreshed quietly, each with its sync status on this tablet. -->
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:orientation="horizontal" android:gravity="center_vertical">
-<TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/picco_library_header" style="@style/NeoSync.Section" />
-
-<ImageButton android:id="@+id/button_refresh_picco" android:layout_width="44dp" android:layout_height="44dp" android:layout_marginEnd="-10dp" android:src="@drawable/ic_refresh" android:background="@null" android:padding="10dp" android:contentDescription="@string/cd_refresh_picco" />
 </LinearLayout>
 
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="4dp" style="@style/NeoSync.Card">
-<TextView android:id="@+id/text_picco_updated" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Small" />
+<!-- Suggestion slot: at most one card, or a running job's progress card,
+     or a job's result sentence. -->
+<FrameLayout android:id="@+id/slot" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:visibility="gone">
 
-<!-- Shown while the Boox is on a Wi-Fi without internet (the Picco's hotspot). -->
-<LinearLayout android:id="@+id/group_wifi_hint" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/hotspot_hint" style="@style/NeoSync.Body" android:textStyle="bold" />
+<LinearLayout android:id="@+id/card_suggest" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/suggest_bg" android:paddingStart="14dp" android:paddingEnd="4dp" android:paddingTop="10dp" android:paddingBottom="10dp" android:visibility="gone">
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+<TextView android:id="@+id/suggest_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" android:textSize="17sp" android:textStyle="bold" android:textColor="@color/black" />
 
-<Button android:id="@+id/button_wifi_settings" android:layout_width="match_parent" android:layout_marginTop="8dp" android:text="@string/button_wifi_settings" style="@style/NeoSync.Button.Secondary" />
+<TextView android:id="@+id/suggest_body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="" style="@style/NeoSync.Small" />
+</LinearLayout>
+<Button android:id="@+id/suggest_primary" android:layout_width="wrap_content" android:layout_marginStart="12dp" android:layout_marginEnd="10dp" android:layout_height="48dp" android:minWidth="96dp" android:text="" style="@style/NeoSync.Button.Primary" android:visibility="gone" />
+
+<Button android:id="@+id/suggest_secondary" android:layout_width="wrap_content" android:layout_marginStart="12dp" android:layout_height="48dp" android:minWidth="96dp" android:text="" style="@style/NeoSync.Button.Secondary" android:visibility="gone" />
+
+<TextView android:id="@+id/suggest_dismiss" android:layout_width="48dp" android:layout_height="48dp" android:gravity="center" android:text="@string/dismiss_mark" android:textSize="20sp" android:textColor="@color/ink_soft" android:contentDescription="@string/cd_dismiss" android:clickable="true" android:focusable="true" android:visibility="gone" />
 </LinearLayout>
 
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="12dp">
-<Button android:id="@+id/button_sync_all" android:layout_width="0dp" android:layout_marginTop="0dp" android:text="@string/button_sync_all" style="@style/NeoSync.Button.Primary" android:layout_weight="1" />
+<LinearLayout android:id="@+id/card_progress" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_bg" android:paddingStart="14dp" android:paddingEnd="14dp" android:paddingTop="10dp" android:paddingBottom="10dp" android:visibility="gone">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+<TextView android:id="@+id/progress_title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="" android:textSize="17sp" android:textStyle="bold" android:textColor="@color/black" />
 
-<View android:layout_width="10dp" android:layout_height="1dp" />
-<Button android:id="@+id/button_send_missing" android:layout_width="0dp" android:layout_marginTop="0dp" android:text="@string/button_send_missing" style="@style/NeoSync.Button.Secondary" android:layout_weight="1" />
+<TextView android:id="@+id/progress_count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:text="" android:textSize="17sp" android:textColor="@color/black" />
+</LinearLayout>
+<ProgressBar android:id="@+id/progress_bar" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="12dp" android:layout_marginTop="8dp" android:minHeight="12dp" android:maxHeight="12dp" android:max="1000" android:indeterminate="false" android:progressDrawable="@drawable/track_bg" />
+
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="4dp">
+<TextView android:id="@+id/progress_now" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="" style="@style/NeoSync.Small" />
+
+<Button android:id="@+id/progress_stop" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="12dp" android:minWidth="96dp" android:text="@string/job_stop" style="@style/NeoSync.Button.Secondary" />
+</LinearLayout>
 </LinearLayout>
 
-<Button android:id="@+id/button_clean_library" android:layout_width="match_parent" android:layout_marginTop="10dp" android:text="@string/button_clean_library" style="@style/NeoSync.Button.Secondary" />
+<TextView android:id="@+id/card_notice" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:gravity="center_vertical" android:background="@drawable/card_bg" android:paddingStart="14dp" android:paddingEnd="14dp" android:paddingTop="10dp" android:paddingBottom="10dp" android:text="" style="@style/NeoSync.Body" android:visibility="gone" />
+</FrameLayout>
 
-<TextView android:id="@+id/text_clean_library_hint" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="@string/clean_library_hint" style="@style/NeoSync.Small" />
+<!-- Filters and search. -->
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="6dp">
+<TextView android:id="@+id/filter_all" android:layout_width="wrap_content" android:layout_height="48dp" android:gravity="center" android:paddingStart="16dp" android:paddingEnd="16dp" android:text="" android:textSize="15sp" android:background="@drawable/filter_off" android:textColor="@color/black" />
 
-<TextView android:id="@+id/text_bulk_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="" style="@style/NeoSync.Small" android:visibility="gone" />
+<TextView android:id="@+id/filter_reading" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="8dp" android:gravity="center" android:paddingStart="16dp" android:paddingEnd="16dp" android:text="@string/filter_reading" android:textSize="15sp" android:background="@drawable/filter_off" android:textColor="@color/black" />
 
-<LinearLayout android:id="@+id/list_picco_books" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+<TextView android:id="@+id/filter_only_here" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="8dp" android:gravity="center" android:paddingStart="16dp" android:paddingEnd="16dp" android:text="@string/filter_only_here" android:textSize="15sp" android:background="@drawable/filter_off" android:textColor="@color/black" />
+
+<TextView android:id="@+id/filter_only_picco" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="8dp" android:gravity="center" android:paddingStart="16dp" android:paddingEnd="16dp" android:text="@string/filter_only_picco" android:textSize="15sp" android:background="@drawable/filter_off" android:textColor="@color/black" />
+
+<View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+<ImageButton android:id="@+id/button_search" android:layout_width="48dp" android:layout_height="48dp" android:layout_marginEnd="-12dp" android:src="@drawable/ic_search" android:background="@null" android:padding="12dp" android:contentDescription="@string/cd_search" />
 </LinearLayout>
 
+<EditText android:id="@+id/field_search" android:layout_width="match_parent" android:layout_marginTop="4dp" android:hint="@string/hint_search" android:inputType="text" android:imeOptions="actionSearch" style="@style/NeoSync.Field" android:visibility="gone" />
+
+<!-- Book rows; MainActivity fills exactly one page. -->
+<LinearLayout android:id="@+id/list_books" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="2dp" android:orientation="vertical" />
+
+<TextView android:id="@+id/text_empty" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="" style="@style/NeoSync.Small" android:visibility="gone" />
+
+<!-- Page buttons, where a thumb reaches. -->
+<LinearLayout android:id="@+id/group_pager" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center" android:paddingTop="6dp" android:paddingBottom="10dp">
+<Button android:id="@+id/button_page_prev" android:layout_width="72dp" android:layout_height="48dp" android:text="@string/page_prev" android:contentDescription="@string/cd_page_prev" style="@style/NeoSync.Button.Secondary" android:paddingStart="0dp" android:paddingEnd="0dp" android:textSize="22sp" />
+
+<TextView android:id="@+id/text_page" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="24dp" android:layout_marginEnd="24dp" android:text="" style="@style/NeoSync.Body" />
+
+<Button android:id="@+id/button_page_next" android:layout_width="72dp" android:layout_height="48dp" android:text="@string/page_next" android:contentDescription="@string/cd_page_next" style="@style/NeoSync.Button.Secondary" android:paddingStart="0dp" android:paddingEnd="0dp" android:textSize="22sp" />
 </LinearLayout>
-</ScrollView>
+</LinearLayout>

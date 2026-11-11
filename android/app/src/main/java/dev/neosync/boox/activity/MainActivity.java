@@ -2,31 +2,59 @@ package dev.neosync.boox.activity;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.net.ConnectivityManager;
+import android.net.LinkAddress;
+import android.net.LinkProperties;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.RouteInfo;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.text.format.DateFormat;
+import android.text.format.DateUtils;
+import android.util.Log;
+import android.util.LruCache;
+import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.Switch;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import dev.neosync.boox.R;
 import dev.neosync.boox.contentprovider.OnyxMetadataRepository;
-import dev.neosync.boox.library.RemotePosition;
-import dev.neosync.boox.library.RemotePositionStore;
-import dev.neosync.boox.kosync.KoSyncClient;
-import dev.neosync.boox.kosync.SyncActions;
-import dev.neosync.boox.kosync.SyncSettings;
-import dev.neosync.boox.kosync.SyncStateStore;
-import dev.neosync.boox.service.SyncService;
 import dev.neosync.boox.epub.EpubCover;
 import dev.neosync.boox.jobs.CleanPlan;
 import dev.neosync.boox.jobs.FixCoversJob;
 import dev.neosync.boox.jobs.Job;
 import dev.neosync.boox.jobs.JobRunner;
 import dev.neosync.boox.jobs.SendMissingJob;
-import dev.neosync.boox.jobs.SyncAllJob;
+import dev.neosync.boox.kosync.KoReaderDocumentHash;
+import dev.neosync.boox.kosync.KoSyncClient;
+import dev.neosync.boox.kosync.SyncActions;
+import dev.neosync.boox.kosync.SyncSettings;
+import dev.neosync.boox.kosync.SyncStateStore;
+import dev.neosync.boox.library.BookMeta;
+import dev.neosync.boox.library.BookMetaCache;
+import dev.neosync.boox.library.LibraryEntry;
 import dev.neosync.boox.library.LibraryModel;
+import dev.neosync.boox.library.LibraryPager;
+import dev.neosync.boox.library.PiccoFinder;
+import dev.neosync.boox.library.RemotePosition;
+import dev.neosync.boox.library.RemotePositionStore;
+import dev.neosync.boox.library.Suggestion;
+import dev.neosync.boox.library.SuggestionPicker;
+import dev.neosync.boox.library.SyncProblem;
+import dev.neosync.boox.library.TitleCleaner;
+import dev.neosync.boox.service.SyncService;
 import dev.neosync.boox.transfer.BookSyncStatus;
 import dev.neosync.boox.transfer.CoverFixer;
 import dev.neosync.boox.transfer.PiccoClient;
@@ -35,85 +63,185 @@ import dev.neosync.boox.update.UpdateChecker;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.DateFormat;
-import java.util.Date;
+import java.net.Inet4Address;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
- * Home screen: the sync status at a glance and a manual "force a direction"
- * panel for the most recently read book. Configuration lives on the settings
- * screen behind the gear icon. First launch is routed through the onboarding
- * guide and the sign-in screen.
+ * Home: the two-device library (spec 5.1). Two status chips, one suggestion
+ * slot (or a running job's progress card), filters and search, and the
+ * merged Boox + Picco book list in fixed pages. First launch is routed
+ * through the onboarding guide and the sign-in screen.
  */
 public class MainActivity extends Activity {
+
+    private static final String TAG = "MainActivity";
+    /** A job's result sentence (or a notice) disappears after this long. */
+    private static final long NOTICE_SHOWN_MS = 10_000;
+    /** The Picco list refreshes by itself this often while home is open. */
+    private static final long PICCO_RECHECK_MS = 60_000;
+
+    // The last Picco check, kept across visits so the chip doesn't flash
+    // "looking…" every time home opens. UI thread only.
+    private static String checkedPiccoAddress;
+    private static Boolean checkedPiccoReachable;
+    // Document hash and Boox percentage per book version: both read the
+    // book file, so they are worked out once per path + modified time.
+    private static final Map<String, String> HASHES = new ConcurrentHashMap<>();
+    private static final Map<String, Double> PERCENTAGES = new ConcurrentHashMap<>();
 
     private SyncSettings settings;
     private OnyxMetadataRepository repository;
     private SyncStateStore stateStore;
-    private TextView statusHeadlineView;
-    private Button retryButton;
-    private boolean retrying;
-    // Refreshes the status card whenever the sync service records an outcome.
-    private final android.content.SharedPreferences.OnSharedPreferenceChangeListener
-            statusListener = (prefs, key) -> runOnUiThread(() -> {
-                if (SyncSettings.KEY_LAST_ATTEMPT_MS.equals(key)) {
-                    retrying = false;
-                }
-                refreshStatus();
-                renderPiccoLibrary();
-            });
-    private TextView statusView;
-    private View statusDot;
-    private TextView manualBookView;
-    private TextView manualLocalView;
-    private TextView manualRemoteView;
-    private Button applyRemoteButton;
-    private Button uploadLocalButton;
-    private Button sendBookButton;
-    private TextView transferStatusView;
     private PiccoLibraryStore piccoLibrary;
-    private Button syncAllButton;
-    private Button sendMissingButton;
-    private Button cleanLibraryButton;
-    private TextView bulkStatusView;
-    private View wifiHintView;
-    // Keeps the hotspot hint current as the Boox switches networks.
-    private final android.net.ConnectivityManager.NetworkCallback networkCallback =
-            new android.net.ConnectivityManager.NetworkCallback() {
-                @Override
-                public void onCapabilitiesChanged(android.net.Network network,
-                                                  android.net.NetworkCapabilities caps) {
-                    runOnUiThread(MainActivity.this::refreshNetworkHints);
-                }
+    private BookMetaCache metaCache;
+    private RemotePositionStore remoteStore;
 
-                @Override
-                public void onLost(android.net.Network network) {
-                    runOnUiThread(MainActivity.this::refreshNetworkHints);
-                }
-            };
-    private boolean bulkRunning; // a bulk action or a book send, from first check to result
+    private View chipPositions;
+    private TextView chipPositionsTitle;
+    private TextView chipPositionsSub;
+    private TextView chipPositionsChev;
+    private View chipPositionsDot;
+    private TextView chipPiccoTitle;
+    private TextView chipPiccoSub;
+    private View chipPiccoDot;
+    private View slot;
+    private View cardSuggest;
+    private TextView suggestTitle;
+    private TextView suggestBody;
+    private Button suggestPrimary;
+    private Button suggestSecondary;
+    private View suggestDismiss;
+    private View cardProgress;
+    private TextView progressTitle;
+    private TextView progressCount;
+    private ProgressBar progressBar;
+    private TextView progressNow;
+    private Button progressStop;
+    private TextView cardNotice;
+    private TextView filterAll;
+    private TextView filterReading;
+    private TextView filterOnlyHere;
+    private TextView filterOnlyPicco;
+    private EditText searchField;
+    private LinearLayout bookList;
+    private TextView emptyView;
+    private View pagerGroup;
+    private Button pagePrev;
+    private Button pageNext;
+    private TextView pageText;
+
+    /** What the last reload found; null until the first one is done. */
+    private Snapshot snapshot;
+    private boolean reloadRunning;
+    private boolean reloadAgain;
+    private LibraryModel.Filter filter = LibraryModel.Filter.ALL;
+    private String query = "";
+    private int page;
+    private int pageSize = 1;
+    private int rowHeightPx;
+    /** What the rows on screen show; a redraw with the same content is skipped (e-ink). */
+    private String shownPage;
+
     /** Runs the long jobs one at a time; e-ink friendly progress (every 3 s at most). */
     private final JobRunner jobs =
             new JobRunner(this::runOnUiThread, 3000, System::currentTimeMillis);
-    private TextView piccoUpdatedView;
-    private LinearLayout piccoBookList;
-    // Picco list refresh state: whether one is running, and whether the last
-    // one failed (then the saved list is shown as possibly out of date).
-    private boolean piccoRefreshing;
-    private String piccoRefreshError;
+    private Job currentJob;
+    private int jobDone;
+    private int jobTotal;
+    private String jobKey;
+    private String jobState;
+    private boolean stopping;
+    /** Row states the running (or just finished) job reported, by library key. */
+    private final Map<String, String> jobRows = new HashMap<>();
+    /** From a Send / Fix tap until its job ends or is called off. */
+    private boolean busy;
+    /** A result sentence or a "checking…" line in the slot, or null. */
+    private CharSequence notice;
+    private final Runnable hideNotice = this::hideNotice;
 
-    // Latest book + remote progress from the last "Compare positions" run.
-    private OnyxMetadataRepository.Book manualBook;
-    private KoSyncClient.Progress manualRemote;
-    // Picco presence check bookkeeping: which run is current, and which
+    private boolean retrying;
+    private boolean finding;
+    private boolean findFailed;
+    private UpdateChecker.Update update;
+
+    // Picco list refresh bookkeeping: which run is current, and which
     // address it used (to re-check after the address changes in Settings).
     private int piccoCheckGeneration;
-    private String piccoAddressChecked;
+    private boolean piccoRefreshing;
+
+    private final LruCache<String, Bitmap> thumbs = new LruCache<>(80);
+    /** Books whose cover couldn't be made into a thumbnail; not tried again this visit. */
+    private final Set<String> noThumb = new HashSet<>();
+    private boolean thumbsLoading;
+    private final ExecutorService thumbLoader = Executors.newSingleThreadExecutor();
+
+    private final Runnable recheck = new Runnable() {
+        @Override
+        public void run() {
+            renderChips(); // "2 min ago" moves on
+            if (!busy && currentJob == null) {
+                refreshPiccoLibrary();
+            }
+            bookList.postDelayed(this, PICCO_RECHECK_MS);
+        }
+    };
+
+    // Redraws the chips and the slot whenever the sync service records an
+    // outcome, and reloads the rows (their status depends on it).
+    private final SharedPreferences.OnSharedPreferenceChangeListener statusListener =
+            (prefs, key) -> runOnUiThread(() -> {
+                if (SyncSettings.KEY_LIBRARY_FILTER.equals(key)
+                        || SyncSettings.KEY_DISMISSED_SUGGESTIONS.equals(key)) {
+                    return; // changed here, already drawn
+                }
+                if (SyncSettings.KEY_LAST_ATTEMPT_MS.equals(key)) {
+                    retrying = false;
+                }
+                renderChips();
+                renderSlot();
+                reload();
+            });
+
+    // Keeps the chips and the problem card current as the Boox switches networks.
+    private final ConnectivityManager.NetworkCallback networkCallback =
+            new ConnectivityManager.NetworkCallback() {
+                @Override
+                public void onCapabilitiesChanged(Network network, NetworkCapabilities caps) {
+                    runOnUiThread(MainActivity.this::renderHeader);
+                }
+
+                @Override
+                public void onLost(Network network) {
+                    runOnUiThread(MainActivity.this::renderHeader);
+                }
+            };
+
+    /** Everything one reload found, built off the UI thread. */
+    private static final class Snapshot {
+        List<LibraryEntry> entries = new ArrayList<>();
+        Map<String, BookMeta> metaByKey = new HashMap<>();
+        /** Keys of Boox books whose file NeoSync can read. */
+        Set<String> readable = new HashSet<>();
+        Map<String, Long> lastSyncMsByKey = new HashMap<>();
+        boolean piccoConfigured;
+        boolean hasPiccoList;
+        long piccoListMs;
+        int missingCount;
+        String missingNames;
+        long missingBytes;
+        int blackCovers;
+        boolean anyPosition;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -133,329 +261,1112 @@ public class MainActivity extends Activity {
         }
 
         setContentView(R.layout.activity_main);
-        statusHeadlineView = findViewById(R.id.text_status_headline);
-        statusDot = findViewById(R.id.status_dot);
-        statusView = findViewById(R.id.text_status);
-        retryButton = findViewById(R.id.button_retry_sync);
-        retryButton.setOnClickListener(v -> retrySync());
-        findViewById(R.id.button_settings).setOnClickListener(v ->
-                startActivity(new Intent(this, SettingsActivity.class)));
-
-        Switch autoSyncSwitch = findViewById(R.id.switch_auto_sync);
-        autoSyncSwitch.setChecked(settings.isAutoSyncEnabled());
-        autoSyncSwitch.setOnCheckedChangeListener((button, checked) -> {
-            settings.setAutoSyncEnabled(checked);
-            if (checked) {
-                SyncService.start(this);
-            } else {
-                SyncService.stop(this);
-            }
-            refreshStatus();
-        });
-
         repository = new OnyxMetadataRepository(this);
         stateStore = new SyncStateStore(this);
-        manualBookView = findViewById(R.id.text_manual_book);
-        manualLocalView = findViewById(R.id.text_manual_local);
-        manualRemoteView = findViewById(R.id.text_manual_remote);
-        applyRemoteButton = findViewById(R.id.button_apply_remote);
-        uploadLocalButton = findViewById(R.id.button_upload_local);
-        sendBookButton = findViewById(R.id.button_send_book);
-        transferStatusView = findViewById(R.id.text_transfer_status);
         piccoLibrary = new PiccoLibraryStore(this);
-        piccoUpdatedView = findViewById(R.id.text_picco_updated);
-        piccoBookList = findViewById(R.id.list_picco_books);
-        findViewById(R.id.button_refresh_picco).setOnClickListener(v -> refreshPiccoLibrary());
-        syncAllButton = findViewById(R.id.button_sync_all);
-        sendMissingButton = findViewById(R.id.button_send_missing);
-        bulkStatusView = findViewById(R.id.text_bulk_status);
-        wifiHintView = findViewById(R.id.group_wifi_hint);
-        findViewById(R.id.button_wifi_settings).setOnClickListener(v -> openWifiPicker());
-        syncAllButton.setOnClickListener(v -> syncAllPositions());
-        sendMissingButton.setOnClickListener(v -> sendMissingBooks());
-        cleanLibraryButton = findViewById(R.id.button_clean_library);
-        cleanLibraryButton.setOnClickListener(v -> cleanLibrary());
-        findViewById(R.id.button_manual_check).setOnClickListener(v -> manualCheck());
-        applyRemoteButton.setOnClickListener(v -> manualApplyRemote());
-        uploadLocalButton.setOnClickListener(v -> manualUploadLocal());
-        sendBookButton.setOnClickListener(v -> sendBookToPicco());
-        findViewById(R.id.button_refresh_book).setOnClickListener(v -> refreshLocalBook());
+        metaCache = new BookMetaCache(this);
+        remoteStore = new RemotePositionStore(this);
+
+        findViewById(R.id.button_settings).setOnClickListener(v ->
+                startActivity(new Intent(this, SettingsActivity.class)));
+        chipPositions = findViewById(R.id.chip_positions);
+        chipPositionsTitle = findViewById(R.id.chip_positions_title);
+        chipPositionsSub = findViewById(R.id.chip_positions_sub);
+        chipPositionsChev = findViewById(R.id.chip_positions_chev);
+        chipPositionsDot = findViewById(R.id.chip_positions_dot);
+        chipPiccoTitle = findViewById(R.id.chip_picco_title);
+        chipPiccoSub = findViewById(R.id.chip_picco_sub);
+        chipPiccoDot = findViewById(R.id.chip_picco_dot);
+        chipPositions.setOnClickListener(v -> openConnections());
+        findViewById(R.id.chip_picco).setOnClickListener(v -> openConnections());
+
+        slot = findViewById(R.id.slot);
+        cardSuggest = findViewById(R.id.card_suggest);
+        suggestTitle = findViewById(R.id.suggest_title);
+        suggestBody = findViewById(R.id.suggest_body);
+        suggestPrimary = findViewById(R.id.suggest_primary);
+        suggestSecondary = findViewById(R.id.suggest_secondary);
+        suggestDismiss = findViewById(R.id.suggest_dismiss);
+        cardProgress = findViewById(R.id.card_progress);
+        progressTitle = findViewById(R.id.progress_title);
+        progressCount = findViewById(R.id.progress_count);
+        progressBar = findViewById(R.id.progress_bar);
+        progressNow = findViewById(R.id.progress_now);
+        progressStop = findViewById(R.id.progress_stop);
+        progressStop.setOnClickListener(v -> {
+            stopping = true;
+            jobs.stop();
+            renderSlot();
+        });
+        cardNotice = findViewById(R.id.card_notice);
+        cardNotice.setOnClickListener(v -> hideNotice());
+
+        filterAll = findViewById(R.id.filter_all);
+        filterReading = findViewById(R.id.filter_reading);
+        filterOnlyHere = findViewById(R.id.filter_only_here);
+        filterOnlyPicco = findViewById(R.id.filter_only_picco);
+        filterAll.setOnClickListener(v -> chooseFilter(LibraryModel.Filter.ALL));
+        filterReading.setOnClickListener(v -> chooseFilter(LibraryModel.Filter.READING));
+        filterOnlyHere.setOnClickListener(v -> chooseFilter(LibraryModel.Filter.ONLY_HERE));
+        filterOnlyPicco.setOnClickListener(v -> chooseFilter(LibraryModel.Filter.ONLY_ON_PICCO));
+        try {
+            String saved = settings.getLibraryFilter();
+            if (saved != null) {
+                filter = LibraryModel.Filter.valueOf(saved);
+            }
+        } catch (IllegalArgumentException ignored) {
+            // An older or unknown value: keep All.
+        }
+        searchField = findViewById(R.id.field_search);
+        findViewById(R.id.button_search).setOnClickListener(v -> toggleSearch());
+        searchField.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                query = s.toString();
+                page = 0;
+                renderPage();
+            }
+        });
+
+        bookList = findViewById(R.id.list_books);
+        emptyView = findViewById(R.id.text_empty);
+        pagerGroup = findViewById(R.id.group_pager);
+        pagePrev = findViewById(R.id.button_page_prev);
+        pageNext = findViewById(R.id.button_page_next);
+        pageText = findViewById(R.id.text_page);
+        pagePrev.setOnClickListener(v -> turnPage(-1));
+        pageNext.setOnClickListener(v -> turnPage(1));
+        // The page size follows the space the list gets: it changes when the
+        // suggestion card or the search field comes and goes, or on rotation.
+        bookList.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (b - t != ob - ot || r - l != or - ol) {
+                v.post(this::onListSizeChanged);
+            }
+        });
 
         if (!Permissions.hasNotifications(this)) {
             Permissions.requestNotifications(this);
         }
         SyncService.start(this);
-        manualCheck();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (statusView != null) {
-            settings.unregisterListener(statusListener);
-            try {
-                ((android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE))
-                        .unregisterNetworkCallback(networkCallback);
-            } catch (Exception ignored) {
-                // Not registered (e.g. registration failed in onResume).
-            }
-        }
+        renderHeader();
+        renderFilters();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (statusView != null) {
-            settings.registerListener(statusListener);
-            try {
-                ((android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE))
-                        .registerDefaultNetworkCallback(networkCallback);
-            } catch (Exception e) {
-                android.util.Log.w("MainActivity", "No network callback: " + e);
+        if (bookList == null) {
+            return; // finishing: routed to onboarding or sign-in
+        }
+        settings.registerListener(statusListener);
+        try {
+            ((ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE))
+                    .registerDefaultNetworkCallback(networkCallback);
+        } catch (Exception e) {
+            Log.w(TAG, "No network callback: " + e);
+        }
+        renderHeader();
+        reload();
+        refreshUpdate();
+        if (!busy && currentJob == null) {
+            refreshPiccoLibrary();
+        }
+        bookList.removeCallbacks(recheck);
+        bookList.postDelayed(recheck, PICCO_RECHECK_MS);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (bookList == null) {
+            return;
+        }
+        bookList.removeCallbacks(recheck);
+        settings.unregisterListener(statusListener);
+        try {
+            ((ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE))
+                    .unregisterNetworkCallback(networkCallback);
+        } catch (Exception ignored) {
+            // Not registered (e.g. registration failed in onResume).
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        thumbLoader.shutdownNow();
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (bookList != null) {
+            switch (keyCode) {
+                case KeyEvent.KEYCODE_PAGE_DOWN:
+                case KeyEvent.KEYCODE_VOLUME_DOWN:
+                    turnPage(1);
+                    return true;
+                case KeyEvent.KEYCODE_PAGE_UP:
+                case KeyEvent.KEYCODE_VOLUME_UP:
+                    turnPage(-1);
+                    return true;
+                default:
+                    break;
             }
-            refreshStatus();
-            renderPiccoLibrary();
-            refreshUpdateBanner();
-            // The Picco address may have been changed on the settings screen.
-            if (piccoAddressChecked != null
-                    && !settings.getPiccoAddress().equals(piccoAddressChecked)) {
-                refreshPiccoLibrary();
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    // --- Hooks for the book sheet ------------------------------------------------
+
+    /** Opens the sheet for one book (spec 5.2). */
+    void openBook(LibraryEntry e) {
+        // The book sheet comes with the next step of the redesign.
+    }
+
+    /** Re-reads both libraries and redraws; the work runs off the UI thread. */
+    void reload() {
+        if (reloadRunning) {
+            reloadAgain = true;
+            return;
+        }
+        reloadRunning = true;
+        final String address = settings.getPiccoAddress();
+        final boolean syncing = isSyncing();
+        new Thread(() -> {
+            Snapshot s;
+            try {
+                s = buildSnapshot(address, syncing);
+            } catch (Exception e) {
+                Log.e(TAG, "Library reload failed", e);
+                s = null;
+            }
+            final Snapshot result = s;
+            runOnUiThread(() -> {
+                reloadRunning = false;
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (result != null) {
+                    snapshot = result;
+                    render();
+                }
+                if (reloadAgain) {
+                    reloadAgain = false;
+                    reload();
+                }
+            });
+        }, "NeoSync library").start();
+    }
+
+    private void openConnections() {
+        startActivity(new Intent(this, ConnectionsActivity.class));
+    }
+
+    // --- Building the library ----------------------------------------------------
+
+    private Snapshot buildSnapshot(String address, boolean syncing) {
+        Snapshot s = new Snapshot();
+        boolean filenameMode = SyncSettings.MATCH_FILENAME.equals(settings.getMatchMethod());
+        List<LibraryModel.BooxBook> boox = new ArrayList<>();
+        Map<String, RemotePosition> remoteByKey = new HashMap<>();
+        // Most recently read first, so the first copy of a duplicate name is
+        // the one LibraryModel.merge keeps.
+        for (OnyxMetadataRepository.Book book : repository.queryAllBooks()) {
+            File file = new File(book.path);
+            String key = LibraryModel.keyOf(book.path);
+            boolean readable = file.canRead();
+            BookMeta meta = metaCache.get(file);
+            SyncStateStore.BookState state = stateStore.get(book.path);
+            BookSyncStatus status = BookSyncStatus.of(true, book.progress, book.currentPage(),
+                    state.lastPushedProgress, state.lastWrittenProgress);
+            double pct = book.progress != null && book.totalPages() > 0
+                    ? percentage(book, file) : -1;
+            boox.add(new LibraryModel.BooxBook(book.path, pct, book.lastAccessMs, status,
+                    meta.title, meta.author));
+            if (s.metaByKey.containsKey(key)) {
+                continue;
+            }
+            s.metaByKey.put(key, meta);
+            s.lastSyncMsByKey.put(key, state.lastSyncMs);
+            if (readable) {
+                s.readable.add(key);
+            }
+            String hash = documentHash(book.path, file);
+            RemotePosition remote = hash != null ? remoteStore.get(hash) : null;
+            if (remote != null) {
+                remoteByKey.put(key, remote);
+            }
+        }
+        s.piccoConfigured = !address.isEmpty();
+        s.hasPiccoList = s.piccoConfigured && piccoLibrary.hasList(address);
+        s.piccoListMs = piccoLibrary.getUpdatedMs();
+        List<String> onPicco = s.piccoConfigured ? piccoLibrary.getBooks(address)
+                : new ArrayList<>();
+        if (filenameMode) {
+            // Books only on the Picco: their record is found by the file
+            // name's hash. In binary mode there is no file to hash.
+            for (String path : onPicco) {
+                String key = LibraryModel.keyOf(path);
+                if (!s.metaByKey.containsKey(key) && !remoteByKey.containsKey(key)) {
+                    String hash = KoReaderDocumentHash.fromFilename(path);
+                    RemotePosition remote = hash != null ? remoteStore.get(hash) : null;
+                    if (remote != null) {
+                        remoteByKey.put(key, remote);
+                    }
+                }
+            }
+        }
+        s.entries = LibraryModel.merge(boox, onPicco, remoteByKey, s.piccoConfigured, syncing);
+
+        List<String> missingTitles = new ArrayList<>();
+        for (LibraryEntry e : s.entries) {
+            if (e.booxPct > 0 || e.piccoPct > 0 || e.remote != null) {
+                s.anyPosition = true;
+            }
+            if (e.booxPath == null || !e.isEpub || !s.readable.contains(e.key)) {
+                continue;
+            }
+            BookMeta meta = s.metaByKey.get(e.key);
+            if (meta != null && meta.wouldShowBlack) {
+                s.blackCovers++;
+            }
+            if (s.hasPiccoList && e.piccoPath == null) {
+                s.missingCount++;
+                s.missingBytes += new File(e.booxPath).length();
+                missingTitles.add(e.title);
+            }
+        }
+        if (!missingTitles.isEmpty()) {
+            s.missingNames = missingTitles.size() <= 2 ? String.join(", ", missingTitles)
+                    : getString(R.string.sug_names_more,
+                            String.join(", ", missingTitles.subList(0, 2)),
+                            missingTitles.size() - 2);
+        }
+        return s;
+    }
+
+    /** The book's document hash, worked out once per file version. */
+    private String documentHash(String path, File file) {
+        String cacheKey = settings.getMatchMethod() + "|" + path + "|" + file.lastModified()
+                + "|" + file.length();
+        String hash = HASHES.get(cacheKey);
+        if (hash == null) {
+            hash = SyncActions.documentHash(settings, path);
+            if (hash != null) {
+                HASHES.put(cacheKey, hash);
+            }
+        }
+        return hash;
+    }
+
+    /** SyncActions.localPercentage, once per file version and position. */
+    private static double percentage(OnyxMetadataRepository.Book book, File file) {
+        String cacheKey = book.path + "|" + file.lastModified() + "|" + file.length() + "|"
+                + book.progress + "|" + Arrays.toString(book.chapterPosition());
+        Double pct = PERCENTAGES.get(cacheKey);
+        if (pct == null) {
+            pct = SyncActions.localPercentage(book);
+            PERCENTAGES.put(cacheKey, pct);
+        }
+        return pct;
+    }
+
+    private boolean isAlarm() {
+        return SyncProblem.isAlarm(settings.getFirstFailureMs(),
+                settings.getConsecutiveFailures(), System.currentTimeMillis());
+    }
+
+    /** Positions are flowing: sync is on and no problem has lasted. */
+    private boolean isSyncing() {
+        return settings.isAutoSyncEnabled() && !isAlarm();
+    }
+
+    /** The last check's answer for the current address; null when unknown. */
+    private Boolean piccoReachable() {
+        return settings.getPiccoAddress().equals(checkedPiccoAddress)
+                ? checkedPiccoReachable : null;
+    }
+
+    // --- Rendering ----------------------------------------------------------------
+
+    private void render() {
+        renderHeader();
+        renderFilters();
+        renderPage();
+    }
+
+    private void renderHeader() {
+        if (bookList == null || isFinishing()) {
+            return;
+        }
+        renderChips();
+        renderSlot();
+    }
+
+    private void renderChips() {
+        long now = System.currentTimeMillis();
+        boolean alarm = false;
+        boolean good = false;
+        String title;
+        String sub;
+        long lastSync = settings.getLastSyncMs();
+        if (!settings.isAutoSyncEnabled()) {
+            title = getString(R.string.chip_paused);
+            sub = getString(R.string.chip_paused_sub);
+        } else if (isAlarm()) {
+            alarm = true;
+            title = getString(R.string.chip_not_syncing);
+            sub = getString(R.string.chip_not_syncing_sub, clock(settings.getFirstFailureMs()));
+        } else if (lastSync > 0) {
+            good = true;
+            title = getString(R.string.chip_positions_synced);
+            String ago = now - lastSync < DateUtils.MINUTE_IN_MILLIS
+                    ? getString(R.string.chip_just_now)
+                    : DateUtils.getRelativeTimeSpanString(lastSync, now,
+                            DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString();
+            String book = settings.getLastBook();
+            sub = book.isEmpty() ? ago : getString(R.string.chip_synced_sub, ago, bookTitle(book));
+        } else {
+            title = getString(R.string.chip_signed_in);
+            sub = getString(R.string.chip_nothing_synced);
+        }
+        setText(chipPositionsTitle, title);
+        setText(chipPositionsSub, sub);
+        int ink = getColor(alarm ? R.color.white : R.color.black);
+        chipPositions.setBackgroundResource(alarm ? R.drawable.chip_bg_alarm : R.drawable.chip_bg);
+        chipPositionsTitle.setTextColor(ink);
+        chipPositionsSub.setTextColor(alarm ? ink : getColor(R.color.ink_soft));
+        chipPositionsChev.setTextColor(alarm ? ink : getColor(R.color.ink_soft));
+        chipPositionsDot.setBackgroundResource(good ? R.drawable.status_dot_ok
+                : R.drawable.status_dot_idle);
+
+        String address = settings.getPiccoAddress();
+        Boolean reachable = piccoReachable();
+        boolean connected = false;
+        if (address.isEmpty()) {
+            title = getString(R.string.chip_picco);
+            sub = getString(R.string.chip_picco_not_set_up);
+        } else if (Boolean.TRUE.equals(reachable)) {
+            connected = true;
+            title = getString(R.string.chip_picco_connected);
+            sub = address;
+        } else if (reachable == null && piccoRefreshing) {
+            title = getString(R.string.chip_picco);
+            sub = getString(R.string.chip_picco_looking);
+        } else {
+            title = getString(R.string.chip_picco_not_connected);
+            sub = piccoLibrary.hasList(address)
+                    ? getString(R.string.chip_picco_list_from, clock(piccoLibrary.getUpdatedMs()))
+                    : getString(R.string.chip_picco_no_list);
+        }
+        setText(chipPiccoTitle, title);
+        setText(chipPiccoSub, sub);
+        chipPiccoDot.setBackgroundResource(connected ? R.drawable.status_dot_ok
+                : R.drawable.status_dot_idle);
+    }
+
+    /** The slot shows a running job, else a notice, else the picked suggestion. */
+    private void renderSlot() {
+        if (slot == null) {
+            return;
+        }
+        cardSuggest.setVisibility(View.GONE);
+        cardProgress.setVisibility(View.GONE);
+        cardNotice.setVisibility(View.GONE);
+        if (currentJob != null) {
+            renderProgressCard();
+            slot.setVisibility(View.VISIBLE);
+            return;
+        }
+        if (notice != null) {
+            setText(cardNotice, notice);
+            cardNotice.setVisibility(View.VISIBLE);
+            slot.setVisibility(View.VISIBLE);
+            return;
+        }
+        Suggestion suggestion = snapshot != null ? SuggestionPicker.pick(pickerInput()) : null;
+        if (suggestion == null) {
+            slot.setVisibility(View.GONE);
+            return;
+        }
+        renderSuggestion(suggestion);
+        cardSuggest.setVisibility(View.VISIBLE);
+        slot.setVisibility(View.VISIBLE);
+    }
+
+    private SuggestionPicker.Input pickerInput() {
+        SuggestionPicker.Input in = new SuggestionPicker.Input();
+        in.jobRunning = currentJob != null;
+        in.autoSyncOn = settings.isAutoSyncEnabled();
+        in.problem = settings.getProblemType();
+        in.problemIsAlarm = isAlarm();
+        in.piccoConfigured = !settings.getPiccoAddress().isEmpty();
+        in.piccoReachable = Boolean.TRUE.equals(piccoReachable());
+        in.missingOnPicco = snapshot.missingCount;
+        in.missingNames = snapshot.missingNames;
+        in.missingBytes = snapshot.missingBytes;
+        in.blackCovers = snapshot.blackCovers;
+        in.updateVersion = update != null ? update.version : null;
+        in.dismissed = settings.getDismissedSuggestions();
+        return in;
+    }
+
+    private void renderSuggestion(Suggestion s) {
+        String title;
+        String body;
+        String button;
+        boolean primary;
+        boolean dismissible = true;
+        boolean enabled = true;
+        Runnable action;
+        switch (s.kind) {
+            case PROBLEM_NO_INTERNET:
+                title = getString(R.string.sug_no_internet_title);
+                body = getString(R.string.sug_no_internet_body);
+                button = getString(R.string.sug_no_internet_button);
+                primary = true;
+                dismissible = false;
+                action = this::openWifiPicker;
+                break;
+            case PROBLEM_AUTH:
+                title = getString(R.string.sug_auth_title);
+                body = getString(R.string.sug_auth_body);
+                button = getString(R.string.button_sign_in);
+                primary = true;
+                dismissible = false;
+                action = () -> startActivity(new Intent(this, SignInActivity.class));
+                break;
+            case PROBLEM_SERVER:
+                title = getString(R.string.sug_server_title);
+                body = getString(R.string.sug_server_body);
+                button = getString(retrying ? R.string.status_retrying : R.string.button_retry_sync);
+                primary = true;
+                dismissible = false;
+                enabled = !retrying;
+                action = this::retrySync;
+                break;
+            case PROBLEM_PAUSED:
+                title = getString(R.string.sug_paused_title);
+                body = getString(R.string.sug_paused_body);
+                button = getString(R.string.sug_paused_button);
+                primary = true;
+                dismissible = false;
+                action = this::turnSyncOn;
+                break;
+            case SETUP_PICCO:
+                title = getString(R.string.sug_setup_title);
+                body = getString(findFailed ? R.string.sug_setup_not_found : R.string.sug_setup_body);
+                button = getString(finding ? R.string.sug_setup_looking : R.string.sug_setup_button);
+                primary = true;
+                enabled = !finding;
+                action = this::findPicco;
+                break;
+            case SEND_MISSING:
+                title = getResources().getQuantityString(R.plurals.sug_send_title, s.count, s.count);
+                body = getString(R.string.sug_send_body, s.detail,
+                        android.text.format.Formatter.formatShortFileSize(this, s.bytes));
+                button = getString(R.string.sug_send_button);
+                primary = false;
+                enabled = !busy;
+                action = this::sendMissingBooks;
+                break;
+            case FIX_COVERS:
+                title = getResources().getQuantityString(R.plurals.sug_fix_title, s.count, s.count);
+                body = getString(R.string.sug_fix_body);
+                button = getString(R.string.sug_fix_button);
+                primary = false;
+                enabled = !busy;
+                action = this::cleanLibrary;
+                break;
+            case UPDATE:
+                title = getString(R.string.sug_update_title, s.detail);
+                body = getString(R.string.sug_update_body);
+                button = getString(R.string.button_get_update);
+                primary = false;
+                action = () -> {
+                    if (update != null) {
+                        SettingsActivity.openDownload(this, update);
+                    }
+                };
+                break;
+            default:
+                return;
+        }
+        // Problems and setup are solid cards with the one black button;
+        // suggestions that can wait are dashed.
+        cardSuggest.setBackgroundResource(primary ? R.drawable.card_bg : R.drawable.suggest_bg);
+        setText(suggestTitle, title);
+        setText(suggestBody, body);
+        Button shown = primary ? suggestPrimary : suggestSecondary;
+        (primary ? suggestSecondary : suggestPrimary).setVisibility(View.GONE);
+        setText(shown, button);
+        shown.setEnabled(enabled);
+        shown.setOnClickListener(v -> action.run());
+        shown.setVisibility(View.VISIBLE);
+        suggestDismiss.setVisibility(dismissible ? View.VISIBLE : View.GONE);
+        suggestDismiss.setOnClickListener(v -> {
+            settings.addDismissedSuggestion(s.dismissKey());
+            renderSlot();
+        });
+    }
+
+    private void renderProgressCard() {
+        setText(progressTitle, currentJob.title(this));
+        setText(progressCount, jobTotal > 0
+                ? getString(R.string.job_count, Math.min(jobTotal, shownIndex(jobDone, jobState)),
+                        jobTotal)
+                : "");
+        progressBar.setProgress(jobTotal > 0 ? jobDone * 1000 / jobTotal : 0);
+        boolean talksToPicco = currentJob instanceof SendMissingJob
+                || currentJob instanceof FixCoversJob;
+        setText(progressNow, jobKey == null ? ""
+                : getString(talksToPicco ? R.string.job_now_picco : R.string.job_now,
+                        titleOf(jobKey)));
+        setText(progressStop, getString(stopping ? R.string.job_stopping : R.string.job_stop));
+        progressStop.setEnabled(!stopping);
+        cardProgress.setVisibility(View.VISIBLE);
+    }
+
+    private void renderFilters() {
+        if (filterAll == null) {
+            return;
+        }
+        boolean piccoConfigured = !settings.getPiccoAddress().isEmpty();
+        if (!piccoConfigured && filter == LibraryModel.Filter.ONLY_ON_PICCO) {
+            filter = LibraryModel.Filter.ALL;
+        }
+        int all = snapshot != null
+                ? LibraryModel.count(snapshot.entries, LibraryModel.Filter.ALL) : 0;
+        setText(filterAll, getString(R.string.filter_all, all));
+        filterOnlyPicco.setVisibility(piccoConfigured ? View.VISIBLE : View.GONE);
+        styleFilter(filterAll, filter == LibraryModel.Filter.ALL);
+        styleFilter(filterReading, filter == LibraryModel.Filter.READING);
+        styleFilter(filterOnlyHere, filter == LibraryModel.Filter.ONLY_HERE);
+        styleFilter(filterOnlyPicco, filter == LibraryModel.Filter.ONLY_ON_PICCO);
+    }
+
+    private void styleFilter(TextView view, boolean on) {
+        view.setBackgroundResource(on ? R.drawable.filter_on : R.drawable.filter_off);
+        view.setTextColor(getColor(on ? R.color.white : R.color.black));
+    }
+
+    private void chooseFilter(LibraryModel.Filter f) {
+        if (f == filter) {
+            return;
+        }
+        filter = f;
+        settings.setLibraryFilter(f.name());
+        page = 0;
+        renderFilters();
+        renderPage();
+    }
+
+    private void toggleSearch() {
+        InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (searchField.getVisibility() == View.VISIBLE) {
+            searchField.setText("");
+            searchField.setVisibility(View.GONE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(searchField.getWindowToken(), 0);
+            }
+        } else {
+            searchField.setVisibility(View.VISIBLE);
+            searchField.requestFocus();
+            if (imm != null) {
+                imm.showSoftInput(searchField, InputMethodManager.SHOW_IMPLICIT);
             }
         }
     }
 
-    private void refreshStatus() {
-        boolean autoOn = settings.isAutoSyncEnabled();
-        String error = settings.getLastError();
-        long lastSync = settings.getLastSyncMs();
-        int headline;
-        if (!autoOn) {
-            headline = R.string.status_headline_paused;
-        } else if (!error.isEmpty()) {
-            headline = R.string.status_headline_attention;
-        } else if (lastSync > 0) {
-            headline = R.string.status_headline_synced;
-        } else {
-            headline = R.string.status_headline_never;
+    private void turnPage(int delta) {
+        if (snapshot == null) {
+            return;
         }
-        statusHeadlineView.setText(headline);
-        statusDot.setBackgroundResource(headline == R.string.status_headline_synced
-                ? R.drawable.status_dot_ok : R.drawable.status_dot_idle);
-        retryButton.setVisibility(headline == R.string.status_headline_attention
-                ? View.VISIBLE : View.GONE);
-        retryButton.setEnabled(!retrying);
-        retryButton.setText(retrying ? R.string.status_retrying : R.string.button_retry_sync);
+        LibraryPager pager = new LibraryPager(visibleEntries().size(), pageSize);
+        int next = pager.clamp(page + delta);
+        if (next != page) {
+            page = next;
+            renderPage();
+        }
+    }
 
-        StringBuilder sb = new StringBuilder();
-        if (lastSync > 0) {
-            sb.append("Last sync: ")
-                    .append(DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-                            .format(new Date(lastSync)));
-            if (!settings.getLastBook().isEmpty()) {
-                sb.append("\n").append(settings.getLastBook());
-            }
+    private List<LibraryEntry> visibleEntries() {
+        return snapshot == null ? new ArrayList<>()
+                : LibraryModel.filter(snapshot.entries, filter, query);
+    }
+
+    /** Rows that fit the list's height; re-run whenever that height changes. */
+    private void onListSizeChanged() {
+        if (isFinishing() || bookList.getHeight() <= 0) {
+            return;
+        }
+        int size = Math.max(1, bookList.getHeight() / rowHeight());
+        if (size != pageSize) {
+            pageSize = size;
+            renderPage();
+        }
+    }
+
+    /** One row's height, measured once from item_book at the list's width. */
+    private int rowHeight() {
+        if (rowHeightPx <= 0) {
+            View row = LayoutInflater.from(this).inflate(R.layout.item_book, bookList, false);
+            ((TextView) row.findViewById(R.id.book_title)).setText("Ag");
+            ((TextView) row.findViewById(R.id.book_author)).setText("Ag");
+            ((TextView) row.findViewById(R.id.book_status)).setText("Ag");
+            ((TextView) row.findViewById(R.id.book_pct_boox)).setText("88%");
+            ((TextView) row.findViewById(R.id.book_pct_picco)).setText("88%");
+            row.measure(View.MeasureSpec.makeMeasureSpec(Math.max(1, bookList.getWidth()),
+                            View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            rowHeightPx = Math.max(1, row.getMeasuredHeight());
+        }
+        return rowHeightPx;
+    }
+
+    private void renderPage() {
+        if (bookList == null || snapshot == null) {
+            return;
+        }
+        List<LibraryEntry> visible = visibleEntries();
+        LibraryPager pager = new LibraryPager(visible.size(), pageSize);
+        page = pager.clamp(page);
+        List<LibraryEntry> rows = visible.subList(pager.from(page), pager.to(page));
+
+        if (snapshot.entries.isEmpty()) {
+            emptyView.setText(R.string.library_none);
+            emptyView.setVisibility(View.VISIBLE);
+        } else if (visible.isEmpty()) {
+            emptyView.setText(R.string.library_no_match);
+            emptyView.setVisibility(View.VISIBLE);
+        } else if (!snapshot.anyPosition) {
+            emptyView.setText(getText(R.string.library_empty_state));
+            emptyView.setVisibility(View.VISIBLE);
         } else {
-            sb.append(getString(R.string.status_never_synced));
+            emptyView.setVisibility(View.GONE);
         }
-        if (!error.isEmpty()) {
-            sb.append("\nLast problem: ").append(error);
-            if (onWifiWithoutInternet()) {
-                sb.append("\n").append(getString(R.string.hotspot_hint_short));
+        int pages = pager.pageCount();
+        pagerGroup.setVisibility(pages > 1 ? View.VISIBLE : View.GONE);
+        setText(pageText, getString(R.string.page_of, page + 1, pages));
+        pagePrev.setEnabled(page > 0);
+        pageNext.setEnabled(page < pages - 1);
+
+        // Skip the redraw when nothing on the page changed (e-ink).
+        StringBuilder sig = new StringBuilder();
+        List<String> needThumbs = new ArrayList<>();
+        for (LibraryEntry e : rows) {
+            sig.append(e.key).append('|').append(e.title).append('|').append(e.author)
+                    .append('|').append(statusText(e)).append('|').append(pct(e.booxPct))
+                    .append('|').append(pct(e.piccoPct)).append('|').append(coverState(e))
+                    .append('\n');
+            if (wantsThumb(e) && thumbs.get(e.booxPath) == null) {
+                needThumbs.add(e.booxPath);
             }
         }
-        if (!Permissions.hasAllFilesAccess()) {
-            sb.append("\nBook file access is off, so positions are less accurate. ")
-                    .append("Open Settings → How it works to allow it.");
+        String signature = sig.toString();
+        if (!signature.equals(shownPage)) {
+            shownPage = signature;
+            bookList.removeAllViews();
+            LayoutInflater inflater = LayoutInflater.from(this);
+            for (LibraryEntry e : rows) {
+                View row = inflater.inflate(R.layout.item_book, bookList, false);
+                bindRow(row, e);
+                bookList.addView(row);
+            }
         }
-        statusView.setText(sb.toString());
+        loadThumbs(needThumbs);
+    }
+
+    private void bindRow(View row, LibraryEntry e) {
+        ((TextView) row.findViewById(R.id.book_title)).setText(e.title);
+        ((TextView) row.findViewById(R.id.book_author)).setText(e.author);
+        ((TextView) row.findViewById(R.id.book_status)).setText(statusText(e));
+        bindBar(row.findViewById(R.id.book_bar_boox), row.findViewById(R.id.book_pct_boox),
+                e.booxPct);
+        bindBar(row.findViewById(R.id.book_bar_picco), row.findViewById(R.id.book_pct_picco),
+                e.piccoPct);
+        View cover = row.findViewById(R.id.book_cover);
+        TextView coverText = row.findViewById(R.id.book_cover_text);
+        ImageView coverImage = row.findViewById(R.id.book_cover_image);
+        String state = coverState(e);
+        if ("black".equals(state)) {
+            // How the Picco itself would show it.
+            cover.setBackgroundColor(getColor(R.color.black));
+            coverText.setText("");
+        } else if ("thumb".equals(state)) {
+            coverImage.setImageBitmap(thumbs.get(e.booxPath));
+            coverImage.setVisibility(View.VISIBLE);
+            coverText.setText("");
+        } else {
+            coverText.setText(e.title);
+        }
+        row.setOnClickListener(v -> openBook(e));
+    }
+
+    private void bindBar(ProgressBar bar, TextView label, double pct) {
+        if (pct < 0) {
+            bar.setVisibility(View.INVISIBLE);
+            label.setText(R.string.bar_none);
+        } else {
+            bar.setVisibility(View.VISIBLE);
+            bar.setProgress((int) Math.round(Math.min(1, pct) * 1000));
+            label.setText(pct(pct));
+        }
+    }
+
+    private String pct(double pct) {
+        return pct < 0 ? "-" : getString(R.string.pct, (int) Math.round(Math.min(1, pct) * 100));
+    }
+
+    /** "black", "thumb" or "title": what the cover tile shows. */
+    private String coverState(LibraryEntry e) {
+        BookMeta meta = e.booxPath != null ? snapshot.metaByKey.get(e.key) : null;
+        if (meta == null || !snapshot.readable.contains(e.key)) {
+            return "title";
+        }
+        if (e.isEpub && meta.wouldShowBlack) {
+            return "black";
+        }
+        return thumbs.get(e.booxPath) != null ? "thumb" : "title";
+    }
+
+    private boolean wantsThumb(LibraryEntry e) {
+        BookMeta meta = e.booxPath != null ? snapshot.metaByKey.get(e.key) : null;
+        // Only books with a cover picture: BookMetaCache keeps no "no
+        // thumbnail" answer, so asking for others would re-open them each time.
+        return meta != null && meta.hasCover && !meta.wouldShowBlack
+                && snapshot.readable.contains(e.key) && !noThumb.contains(e.booxPath);
+    }
+
+    /** Makes the page's missing thumbnails in one go, then redraws once. */
+    private void loadThumbs(List<String> paths) {
+        if (paths.isEmpty() || thumbsLoading) {
+            return;
+        }
+        thumbsLoading = true;
+        final int w = dp(34);
+        final int h = dp(48);
+        thumbLoader.execute(() -> {
+            Map<String, Bitmap> made = new HashMap<>();
+            for (String path : paths) {
+                made.put(path, metaCache.thumbnail(new File(path), w, h));
+            }
+            runOnUiThread(() -> {
+                thumbsLoading = false;
+                for (Map.Entry<String, Bitmap> en : made.entrySet()) {
+                    if (en.getValue() != null) {
+                        thumbs.put(en.getKey(), en.getValue());
+                    } else {
+                        noThumb.add(en.getKey());
+                    }
+                }
+                if (!isFinishing()) {
+                    renderPage();
+                }
+            });
+        });
+    }
+
+    /** The row's status line: the job's state for this book while it has one. */
+    private String statusText(LibraryEntry e) {
+        String jobRow = jobRows.get(e.key);
+        if (jobRow != null) {
+            switch (jobRow) {
+                case Job.SENT:
+                    return getString(R.string.row_job_sent);
+                case Job.SENDING:
+                    return getString(R.string.row_job_sending);
+                case Job.WAITING:
+                    return getString(R.string.row_job_waiting);
+                case Job.FETCHED:
+                    return getString(R.string.row_job_fetched);
+                case Job.SENT_PLACE:
+                    return getString(R.string.row_job_sent_place);
+                case Job.FAILED:
+                    return getString(R.string.row_job_failed);
+                default:
+                    break;
+            }
+        }
+        switch (e.status) {
+            case SAME_PLACE:
+                Long ms = snapshot.lastSyncMsByKey.get(e.key);
+                return ms != null && ms > 0 ? getString(R.string.row_same_place, clock(ms))
+                        : getString(R.string.row_same_place_no_time);
+            case READ_FURTHER_HERE:
+                return getString(R.string.row_read_further);
+            case WAITING_TO_SYNC:
+                return getString(R.string.row_waiting);
+            case PICCO_AHEAD:
+                return getString(R.string.row_picco_ahead);
+            case NOT_ON_PICCO:
+                return getString(R.string.row_not_on_picco);
+            case ONLY_ON_PICCO:
+                return getString(R.string.row_only_on_picco);
+            case NOT_SYNCED_YET:
+                return getString(R.string.row_not_synced);
+            case BOOX_ONLY_TYPE:
+                return getString(R.string.row_boox_only_type, fileType(e.booxPath));
+            default:
+                return getString(R.string.row_not_opened);
+        }
+    }
+
+    private static String fileType(String path) {
+        String name = fileName(path);
+        int dot = name.lastIndexOf('.');
+        return dot > 0 ? name.substring(dot + 1).toUpperCase(Locale.ROOT) : name;
+    }
+
+    /** The library title for a key, else a cleaned file name. */
+    private String titleOf(String key) {
+        if (snapshot != null) {
+            for (LibraryEntry e : snapshot.entries) {
+                if (e.key.equals(key)) {
+                    return e.title;
+                }
+            }
+        }
+        return TitleCleaner.fromFileName(key);
+    }
+
+    /** settings.getLastBook() (an Onyx name or path) as a title. */
+    private String bookTitle(String nameOrPath) {
+        return titleOf(LibraryModel.keyOf(nameOrPath));
+    }
+
+    /** "13:37" today, else a short date and time. */
+    private String clock(long ms) {
+        if (DateUtils.isToday(ms)) {
+            return DateFormat.getTimeFormat(this).format(new java.util.Date(ms));
+        }
+        return DateUtils.formatDateTime(this, ms, DateUtils.FORMAT_SHOW_DATE
+                | DateUtils.FORMAT_ABBREV_MONTH | DateUtils.FORMAT_SHOW_TIME);
+    }
+
+    /** Sets text only when it differs, so an unchanged view isn't redrawn (e-ink). */
+    private static void setText(TextView view, CharSequence text) {
+        if (!android.text.TextUtils.equals(view.getText(), text)) {
+            view.setText(text);
+        }
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    // --- Notices and jobs in the slot -------------------------------------------
+
+    /** Shows a line in the slot; autoHide for results (gone after 10 s or a tap). */
+    private void showNotice(CharSequence text, boolean autoHide) {
+        notice = text;
+        bookList.removeCallbacks(hideNotice);
+        if (autoHide) {
+            bookList.postDelayed(hideNotice, NOTICE_SHOWN_MS);
+        }
+        renderSlot();
+    }
+
+    private void hideNotice() {
+        bookList.removeCallbacks(hideNotice);
+        notice = null;
+        if (currentJob == null && !jobRows.isEmpty()) {
+            jobRows.clear(); // the rows go back to their own status
+            renderPage();
+        }
+        renderSlot();
     }
 
     /**
-     * Asks the sync service to try again now. The status card updates through
+     * Runs a long job in the slot's progress card (busy is already set); its
+     * rows show their state, and the result sentence follows. Then after runs.
+     */
+    boolean startJob(Job job, Runnable after) {
+        boolean started = jobs.start(job, new Job.Listener() {
+            @Override
+            public void progress(int done, int total, String key, String rowState) {
+                jobDone = done;
+                jobTotal = total;
+                jobKey = key;
+                jobState = rowState;
+                renderSlot();
+            }
+
+            @Override
+            public void rowStates(Map<String, String> states) {
+                jobRows.putAll(states);
+                renderPage();
+            }
+
+            @Override
+            public void finished(String resultSentence) {
+                currentJob = null;
+                busy = false;
+                stopping = false;
+                showNotice(resultSentence != null ? resultSentence
+                        : getString(R.string.job_stopped), true);
+                after.run();
+                reload();
+            }
+        });
+        if (started) {
+            currentJob = job;
+            jobDone = 0;
+            jobTotal = 0;
+            jobKey = null;
+            jobState = null;
+            stopping = false;
+            bookList.removeCallbacks(hideNotice);
+            notice = null;
+            renderSlot();
+        } else {
+            busy = false;
+            jobRows.clear();
+            renderSlot();
+        }
+        return started;
+    }
+
+    /** "3 of 10": the book being worked on, or the last one finished. */
+    private static int shownIndex(int done, String rowState) {
+        return rowState == null || Job.SENDING.equals(rowState) || Job.WAITING.equals(rowState)
+                ? done + 1 : done;
+    }
+
+    // --- Suggestion actions --------------------------------------------------------
+
+    /**
+     * Asks the sync service to try again now. The card updates through
      * statusListener once the attempt is recorded; the timeout only guards
      * against an attempt that never reports back (service killed meanwhile).
      */
     private void retrySync() {
         retrying = true;
-        refreshStatus();
+        renderSlot();
         SyncService.syncNow(this);
-        retryButton.postDelayed(() -> {
+        bookList.postDelayed(() -> {
             if (retrying) {
                 retrying = false;
-                refreshStatus();
+                renderSlot();
             }
         }, 60_000);
     }
 
-    // --- Manual sync ---------------------------------------------------------
-
-    private KoSyncClient buildClient() {
-        return new KoSyncClient(settings, "NeoSync", deviceId());
+    private void turnSyncOn() {
+        settings.setAutoSyncEnabled(true);
+        SyncService.start(this);
+        renderHeader();
+        reload();
     }
 
-    private static String time(long ms) {
-        return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
-                .format(new Date(ms));
-    }
-
-    /**
-     * Fetches the most recently read book and its server-side progress, and
-     * arms the direction buttons. Both deliberately skip the automatic
-     * newest-timestamp rule — here the user decides.
-     */
-    private void manualCheck() {
-        loadLatestBook(true);
-    }
-
-    /** Re-reads the local position only; the server is not contacted. */
-    private void refreshLocalBook() {
-        loadLatestBook(false);
-    }
-
-    private void loadLatestBook(boolean checkServer) {
-        if (checkServer) {
-            manualBookView.setText(R.string.manual_checking);
-            manualLocalView.setText("");
-            manualRemoteView.setText("");
-            applyRemoteButton.setEnabled(false);
-            uploadLocalButton.setEnabled(false);
+    /** Looks for the Picco on this network (PiccoFinder), then lists its books. */
+    private void findPicco() {
+        if (finding) {
+            return;
         }
+        finding = true;
+        findFailed = false;
+        renderSlot();
+        final String lastKnown = settings.getPiccoAddress();
+        final String[] net = localNetwork();
         new Thread(() -> {
-            List<OnyxMetadataRepository.Book> books = repository.queryBooksWithProgress();
-            if (books.isEmpty()) {
-                runOnUiThread(() -> {
-                    manualBookView.setText(R.string.manual_no_books);
-                    refreshPiccoLibrary(); // The Picco list doesn't need a local book.
-                });
-                return;
-            }
-            OnyxMetadataRepository.Book book = books.get(0);
-            double localPct = SyncActions.localPercentage(book);
-            // Show the local position right away, then the server's, and let
-            // the Picco check run on its own: a Picco that is switched off
-            // must not hold up the rest of the screen.
+            List<String> candidates = PiccoFinder.candidates(lastKnown, net[0], net[1]);
+            String found = PiccoFinder.find(candidates,
+                    address -> new PiccoClient(address).probe(PiccoFinder.PROBE_TIMEOUT_MS),
+                    PiccoFinder.THREADS, PiccoFinder.DEADLINE_MS);
             runOnUiThread(() -> {
-                manualBook = book;
-                manualBookView.setText(displayName(book));
-                String local = String.format(Locale.US, "Here: %.1f%% (page %d of %d)",
-                        localPct * 100, book.currentPage(), book.totalPages());
-                if (book.lastAccessMs > 0) {
-                    local += " · " + time(book.lastAccessMs);
-                }
-                manualLocalView.setText(local);
-                checkPiccoPresence(book);
-            });
-            if (!checkServer) {
-                return;
-            }
-            String hash = SyncActions.documentHash(settings, book.path);
-            KoSyncClient.Result serverResult = hash != null
-                    ? SyncActions.getProgress(buildClient(), book.path, hash) : null;
-            if (serverResult != null && serverResult.error == KoSyncClient.Error.OK
-                    && serverResult.progress != null) {
-                new RemotePositionStore(this).recordFromOthers(hash, null,
-                        RemotePosition.from(serverResult.progress), deviceId());
-            }
-            runOnUiThread(() -> {
-                if (manualBook != book) {
-                    return; // A newer load replaced this book meanwhile.
-                }
-                manualRemote = (serverResult != null && serverResult.error == KoSyncClient.Error.OK)
-                        ? serverResult.progress : null;
-                if (manualRemote != null) {
-                    manualRemoteView.setText(String.format(Locale.US, "Online: %.1f%% · from %s · %s",
-                            manualRemote.percentage * 100,
-                            manualRemote.device.isEmpty() ? "another device" : manualRemote.device,
-                            time(manualRemote.timestampSec * 1000L)));
-                } else if (serverResult != null && serverResult.error == KoSyncClient.Error.NOT_FOUND) {
-                    manualRemoteView.setText(R.string.manual_no_remote);
+                finding = false;
+                if (found != null) {
+                    settings.setPiccoAddress(found);
+                    refreshPiccoLibrary();
                 } else {
-                    manualRemoteView.setText(getString(R.string.manual_remote_problem,
-                            serverResult != null ? KoSyncClient.errorString(serverResult)
-                                    : getString(R.string.manual_no_book_file)));
+                    findFailed = true;
                 }
-                applyRemoteButton.setEnabled(manualRemote != null && book.totalPages() > 0);
-                uploadLocalButton.setEnabled(hash != null
-                        && book.currentPage() > 0 && book.totalPages() > 0);
+                render();
             });
-        }).start();
+        }, "NeoSync find Picco").start();
     }
 
-    /**
-     * Whether the Picco already has this book decides whether the send button
-     * lights up. Answered by refreshing the Picco's book list, which keeps the
-     * library section current with the same single walk over the Picco.
-     */
-    private void checkPiccoPresence(OnyxMetadataRepository.Book book) {
-        refreshPiccoLibrary();
+    /** {gateway, own IPv4 address} of the current network; either may be null. */
+    private String[] localNetwork() {
+        String[] out = new String[2];
+        try {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            Network network = cm != null ? cm.getActiveNetwork() : null;
+            LinkProperties lp = network != null ? cm.getLinkProperties(network) : null;
+            if (lp == null) {
+                return out;
+            }
+            for (RouteInfo route : lp.getRoutes()) {
+                if (route.isDefaultRoute() && route.getGateway() instanceof Inet4Address) {
+                    out[0] = route.getGateway().getHostAddress();
+                    break;
+                }
+            }
+            for (LinkAddress address : lp.getLinkAddresses()) {
+                if (address.getAddress() instanceof Inet4Address) {
+                    out[1] = address.getAddress().getHostAddress();
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "No network details: " + e);
+        }
+        return out;
     }
+
+    // --- The Picco's book list -----------------------------------------------------
 
     /**
      * Fetches the Picco's book list in the background and saves it. The saved
-     * list stays on screen meanwhile and when the Picco can't be reached.
-     * Also settles the send button for the current book. A newer refresh
-     * (another address, a transfer) makes an older one's result irrelevant.
+     * list stays on screen meanwhile and when the Picco can't be reached. A
+     * newer refresh (another address) makes an older one's result irrelevant.
      */
     private void refreshPiccoLibrary() {
         final int generation = ++piccoCheckGeneration;
         final String address = settings.getPiccoAddress();
-        piccoAddressChecked = address;
         if (address.isEmpty()) {
             piccoRefreshing = false;
-            piccoRefreshError = null;
-            // Clicking explains that the address is missing.
-            sendBookButton.setEnabled(manualBook != null);
-            transferStatusView.setText("");
-            renderPiccoLibrary();
+            renderChips();
             return;
         }
         piccoRefreshing = true;
-        piccoRefreshError = null;
-        if (manualBook != null) {
-            sendBookButton.setEnabled(false);
-            transferStatusView.setText(R.string.transfer_checking);
-        }
-        renderPiccoLibrary();
+        renderChips();
         new Thread(() -> {
-            List<String> books = null;
-            String error = null;
+            boolean listed = false;
             try {
-                books = new PiccoClient(address).listBooks();
-                piccoLibrary.save(address, books);
+                piccoLibrary.save(address, new PiccoClient(address).listBooks());
+                listed = true;
             } catch (IOException e) {
-                android.util.Log.d("MainActivity", "Picco listing failed: " + e);
-                error = hasLocalNetwork()
-                        ? getString(R.string.transfer_unreachable, address)
-                        : getString(R.string.transfer_no_network);
+                Log.d(TAG, "Picco listing failed: " + e);
             } catch (Exception e) {
-                android.util.Log.e("MainActivity", "Picco listing error", e);
-                error = getString(R.string.transfer_unexpected, String.valueOf(e));
+                Log.e(TAG, "Picco listing error", e);
             }
-            final List<String> listed = books;
-            final String failure = error;
+            final boolean ok = listed;
             runOnUiThread(() -> {
                 if (generation != piccoCheckGeneration) {
                     return;
                 }
                 piccoRefreshing = false;
-                piccoRefreshError = failure;
-                OnyxMetadataRepository.Book book = manualBook;
-                if (book != null) {
-                    if (listed == null) {
-                        // Unknown: offer the upload and let it report problems.
-                        sendBookButton.setEnabled(true);
-                        transferStatusView.setText("");
-                    } else if (containsFile(listed, fileName(book.path))) {
-                        sendBookButton.setEnabled(false);
-                        transferStatusView.setText(R.string.transfer_already);
-                    } else {
-                        sendBookButton.setEnabled(true);
-                        transferStatusView.setText(R.string.transfer_missing);
-                    }
-                }
-                renderPiccoLibrary();
+                markPicco(address, ok);
+                reload();
             });
-        }).start();
+        }, "NeoSync Picco list").start();
+    }
+
+    /** Records whether the Picco at this address just answered. UI thread. */
+    private void markPicco(String address, boolean reachable) {
+        checkedPiccoAddress = address;
+        checkedPiccoReachable = reachable;
+        renderChips();
     }
 
     /** True when any listed path ends in exactly this file name. */
@@ -470,276 +1381,6 @@ public class MainActivity extends Activity {
 
     private static String fileName(String path) {
         return path == null ? "" : path.substring(path.lastIndexOf('/') + 1);
-    }
-
-    /** One row of the Picco list, prepared off the UI thread. */
-    private static class PiccoRow {
-        String title;
-        String status;
-        long lastAccessMs;
-    }
-
-    /**
-     * Redraws the Picco list from the saved copy, with each book's status on
-     * this tablet. Reads the Onyx library on a background thread; never talks
-     * to the Picco or the sync server.
-     */
-    private void renderPiccoLibrary() {
-        if (piccoBookList == null) {
-            return;
-        }
-        final String address = settings.getPiccoAddress();
-        final boolean autoSync = settings.isAutoSyncEnabled();
-        new Thread(() -> {
-            List<String> books = piccoLibrary.getBooks(address);
-            final boolean hasList = piccoLibrary.hasList(address);
-            final long updatedMs = piccoLibrary.getUpdatedMs();
-            Map<String, OnyxMetadataRepository.Book> localByName = new HashMap<>();
-            if (!books.isEmpty()) {
-                for (OnyxMetadataRepository.Book local : repository.queryBooksWithProgress()) {
-                    if (local.path != null) {
-                        localByName.put(fileName(local.path), local);
-                    }
-                }
-            }
-            final List<PiccoRow> rows = new ArrayList<>();
-            for (String path : books) {
-                OnyxMetadataRepository.Book local = localByName.get(fileName(path));
-                PiccoRow row = new PiccoRow();
-                row.title = displayTitle(path);
-                row.status = statusLine(path, local, autoSync);
-                row.lastAccessMs = local != null ? local.lastAccessMs : 0;
-                rows.add(row);
-            }
-            // Most recently read here first; books not read here after, A–Z
-            // (the listing order, kept by the stable sort).
-            Collections.sort(rows, (x, y) -> Long.compare(y.lastAccessMs, x.lastAccessMs));
-            runOnUiThread(() -> showPiccoRows(address, hasList, updatedMs, rows));
-        }).start();
-    }
-
-    private void showPiccoRows(String address, boolean hasList, long updatedMs,
-                               List<PiccoRow> rows) {
-        String updated = hasList ? time(updatedMs) : null;
-        if (address.isEmpty()) {
-            piccoUpdatedView.setText(R.string.picco_list_no_address);
-        } else if (piccoRefreshing) {
-            piccoUpdatedView.setText(hasList
-                    ? getString(R.string.picco_list_refreshing, updated)
-                    : getString(R.string.picco_list_loading));
-        } else if (piccoRefreshError != null) {
-            piccoUpdatedView.setText(hasList
-                    ? getString(R.string.picco_list_stale, updated) + "\n" + piccoRefreshError
-                    : piccoRefreshError);
-        } else if (hasList) {
-            piccoUpdatedView.setText(getString(R.string.picco_list_updated, updated));
-        } else {
-            piccoUpdatedView.setText(R.string.picco_list_never);
-        }
-
-        piccoBookList.removeAllViews();
-        if (hasList && rows.isEmpty()) {
-            piccoBookList.addView(rowText(getString(R.string.picco_books_empty),
-                    R.style.NeoSync_Small, 12));
-            return;
-        }
-        for (int i = 0; i < rows.size(); i++) {
-            PiccoRow row = rows.get(i);
-            if (i > 0) {
-                View divider = new View(this);
-                divider.setBackgroundResource(R.color.ink_soft);
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, 1);
-                lp.topMargin = dp(10);
-                divider.setLayoutParams(lp);
-                piccoBookList.addView(divider);
-            }
-            TextView title = rowText(row.title, R.style.NeoSync_Body, 10);
-            title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
-            piccoBookList.addView(title);
-            piccoBookList.addView(rowText(row.status, R.style.NeoSync_Small, 2));
-        }
-    }
-
-    private TextView rowText(String text, int style, int marginTopDp) {
-        TextView view = new TextView(this);
-        view.setTextAppearance(style);
-        view.setText(text);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = dp(marginTopDp);
-        view.setLayoutParams(lp);
-        return view;
-    }
-
-    private int dp(int value) {
-        return Math.round(value * getResources().getDisplayMetrics().density);
-    }
-
-    /** "Fiction/Dune.epub" -> "Dune". */
-    private static String displayTitle(String path) {
-        String name = fileName(path);
-        int dot = name.lastIndexOf('.');
-        return dot > 0 ? name.substring(0, dot) : name;
-    }
-
-    /** The grey line under a book: its folder on the Picco, then its status here. */
-    private String statusLine(String piccoPath, OnyxMetadataRepository.Book local,
-                              boolean autoSync) {
-        String status;
-        if (local == null) {
-            status = getString(R.string.book_status_not_here);
-        } else {
-            SyncStateStore.BookState state = stateStore.get(local.path);
-            String pct = String.format(Locale.US, "%.0f%%",
-                    SyncActions.localPercentage(local) * 100);
-            switch (BookSyncStatus.of(true, local.progress, local.currentPage(),
-                    state.lastPushedProgress, state.lastWrittenProgress)) {
-                case SYNCED:
-                    status = state.lastSyncMs > 0
-                            ? getString(R.string.book_status_synced, pct, time(state.lastSyncMs))
-                            : getString(R.string.book_status_synced_no_time, pct);
-                    break;
-                case CHANGED_HERE:
-                    status = getString(autoSync ? R.string.book_status_changed
-                            : R.string.book_status_changed_paused, pct);
-                    break;
-                case NEVER_SYNCED:
-                    status = getString(R.string.book_status_never, pct);
-                    break;
-                default:
-                    status = getString(R.string.book_status_not_started);
-            }
-        }
-        int slash = piccoPath.lastIndexOf('/');
-        return slash > 0 ? piccoPath.substring(0, slash) + " · " + status : status;
-    }
-
-    /** Book title for display: file name without path or extension. */
-    private static String displayName(OnyxMetadataRepository.Book book) {
-        String name = book.name != null ? book.name : book.path;
-        int slash = name.lastIndexOf('/');
-        if (slash >= 0) {
-            name = name.substring(slash + 1);
-        }
-        int dot = name.lastIndexOf('.');
-        if (dot > 0) {
-            name = name.substring(0, dot);
-        }
-        return name;
-    }
-
-    private void manualApplyRemote() {
-        final OnyxMetadataRepository.Book book = manualBook;
-        final KoSyncClient.Progress remote = manualRemote;
-        if (book == null || remote == null) {
-            return;
-        }
-        applyRemoteButton.setEnabled(false);
-        uploadLocalButton.setEnabled(false);
-        new Thread(() -> {
-            String written = SyncActions.applyRemote(this, repository, stateStore, book, remote);
-            runOnUiThread(() -> {
-                if (written != null) {
-                    settings.recordSyncSuccess(book.name != null ? book.name : book.path);
-                }
-                refreshStatus();
-                manualRemoteView.setText(written != null
-                        ? getString(R.string.manual_apply_done)
-                        : "Could not fetch: book not found in the Boox library.");
-            });
-        }).start();
-    }
-
-    private void manualUploadLocal() {
-        final OnyxMetadataRepository.Book book = manualBook;
-        if (book == null) {
-            return;
-        }
-        applyRemoteButton.setEnabled(false);
-        uploadLocalButton.setEnabled(false);
-        new Thread(() -> {
-            String hash = SyncActions.documentHash(settings, book.path);
-            KoSyncClient.Result result = hash != null
-                    ? SyncActions.uploadLocal(buildClient(), stateStore, book, hash) : null;
-            boolean ok = result != null && result.error == KoSyncClient.Error.OK;
-            runOnUiThread(() -> {
-                if (ok) {
-                    settings.recordSyncSuccess(book.name != null ? book.name : book.path);
-                }
-                refreshStatus();
-                manualRemoteView.setText(ok
-                        ? getString(R.string.manual_upload_done)
-                        : "Could not send: " + (result != null
-                                ? KoSyncClient.errorString(result) : "cannot read the book file"));
-            });
-        }).start();
-    }
-
-    /**
-     * Sends the latest book's EPUB file to the Picco over local Wi-Fi, using
-     * CrossPoint's file-transfer server. Skips the upload when a file with the
-     * same name is already there. Fully independent of the sync server: works
-     * while automatic sync is off or the server is rate-limiting.
-     */
-    private void sendBookToPicco() {
-        final OnyxMetadataRepository.Book book = manualBook;
-        // One job at a time: a bulk action is already talking to the Picco.
-        if (book == null || bulkRunning) {
-            return;
-        }
-        final String address = settings.getPiccoAddress();
-        if (address.isEmpty()) {
-            transferStatusView.setText(R.string.transfer_no_address);
-            return;
-        }
-        sendBookButton.setEnabled(false);
-        transferStatusView.setText(R.string.transfer_checking);
-        withPiccoFolder(address, folder -> {
-            // A list refresh still in flight must not overwrite this transfer's
-            // result. Its listing is still saved; only its screen update is dropped.
-            piccoCheckGeneration++;
-            if (piccoRefreshing) {
-                piccoRefreshing = false;
-                renderPiccoLibrary();
-            }
-            final SendMissingJob job = SendMissingJob.oneBook(this, new PiccoClient(address),
-                    address, folder, new File(book.path), piccoLibrary,
-                    e -> piccoErrorMessage(e, address));
-            boolean started = jobs.start(job, new Job.Listener() {
-                @Override
-                public void progress(int done, int total, String key, String state) {
-                    if (Job.WAITING.equals(state)) {
-                        transferStatusView.setText(R.string.transfer_adding_cover);
-                    } else if (Job.SENDING.equals(state)) {
-                        transferStatusView.setText(R.string.transfer_sending);
-                    }
-                }
-
-                @Override
-                public void finished(String resultSentence) {
-                    setBulkRunning(false);
-                    if (resultSentence != null) {
-                        transferStatusView.setText(resultSentence);
-                    }
-                    // Once the file is on the Picco there is nothing left to send.
-                    sendBookButton.setEnabled(!job.delivered());
-                    if (job.delivered()) {
-                        renderPiccoLibrary();
-                    }
-                }
-            });
-            if (started) {
-                setBulkRunning(true);
-            } else {
-                sendBookButton.setEnabled(true);
-                transferStatusView.setText("");
-            }
-        }, message -> {
-            sendBookButton.setEnabled(true);
-            transferStatusView.setText(message != null
-                    ? message : getString(R.string.transfer_missing));
-        });
     }
 
     /**
@@ -810,80 +1451,16 @@ public class MainActivity extends Activity {
                 : getString(R.string.transfer_no_network);
     }
 
-    // --- Bulk actions ---------------------------------------------------------
+    // --- Send missing books ----------------------------------------------------------
 
-    private void setBulkRunning(boolean running) {
-        bulkRunning = running;
-        syncAllButton.setEnabled(!running);
-        sendMissingButton.setEnabled(!running);
-        cleanLibraryButton.setEnabled(!running);
-    }
-
-    private void showBulkStatus(String text) {
-        bulkStatusView.setVisibility(View.VISIBLE);
-        bulkStatusView.setText(text);
-    }
-
-    /** Builds the bulk status line for one progress update, or null to keep it. */
-    private interface ProgressText {
-        String of(int done, int total, String key, String rowState);
-    }
-
-    /**
-     * Runs a bulk job (bulkRunning is already set), showing its progress and
-     * result in the bulk status line; then runs after on the UI thread.
-     */
-    private void startBulkJob(Job job, ProgressText text, Runnable after) {
-        boolean started = jobs.start(job, new Job.Listener() {
-            @Override
-            public void progress(int done, int total, String key, String rowState) {
-                String line = text.of(done, total, key, rowState);
-                if (line != null) {
-                    showBulkStatus(line);
-                }
-            }
-
-            @Override
-            public void finished(String resultSentence) {
-                setBulkRunning(false);
-                if (resultSentence != null) {
-                    showBulkStatus(resultSentence);
-                }
-                after.run();
-            }
-        });
-        if (!started) {
-            setBulkRunning(false);
-            bulkStatusView.setVisibility(View.GONE);
+    /** Ends a Send / Fix that stopped before its job started. */
+    private void callOff(String message) {
+        busy = false;
+        if (message != null) {
+            showNotice(message, true);
+        } else {
+            hideNotice();
         }
-    }
-
-    /** "3 of 10": the book being worked on, or the last one finished. */
-    private static int shownIndex(int done, String rowState) {
-        return rowState == null || Job.SENDING.equals(rowState) || Job.WAITING.equals(rowState)
-                ? done + 1 : done;
-    }
-
-    /**
-     * Brings the position of every book that is both on this Boox and on the
-     * Picco up to date, newest position winning. Without a saved Picco list,
-     * every book opened on this Boox is synced. See SyncAllJob.
-     */
-    private void syncAllPositions() {
-        if (bulkRunning) {
-            return;
-        }
-        setBulkRunning(true);
-        showBulkStatus(getString(R.string.manual_checking));
-        startBulkJob(new SyncAllJob(this, settings, repository, stateStore, buildClient(),
-                        deviceId(), piccoLibrary, settings.getPiccoAddress()),
-                (done, total, key, state) -> getString(R.string.sync_all_progress,
-                        shownIndex(done, state), total, displayTitle(key)),
-                () -> {
-                    refreshStatus();
-                    renderPiccoLibrary();
-                    refreshLocalBook();
-                });
     }
 
     /**
@@ -891,24 +1468,17 @@ public class MainActivity extends Activity {
      * asking. Compares against a fresh listing so nothing is sent twice.
      */
     private void sendMissingBooks() {
-        if (bulkRunning) {
+        if (busy || currentJob != null) {
             return;
         }
         final String address = settings.getPiccoAddress();
         if (address.isEmpty()) {
-            showBulkStatus(getString(R.string.transfer_no_address));
+            showNotice(getString(R.string.transfer_no_address), true);
             return;
         }
-        setBulkRunning(true);
-        showBulkStatus(getString(R.string.send_missing_checking));
-        withPiccoFolder(address, folder -> findAndSendMissing(address, folder), message -> {
-            setBulkRunning(false);
-            if (message != null) {
-                showBulkStatus(message);
-            } else {
-                bulkStatusView.setVisibility(View.GONE);
-            }
-        });
+        busy = true;
+        showNotice(getString(R.string.send_missing_checking), false);
+        withPiccoFolder(address, folder -> findAndSendMissing(address, folder), this::callOff);
     }
 
     private void findAndSendMissing(String address, String folder) {
@@ -921,14 +1491,14 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 final String message = piccoErrorMessage(e, address);
                 runOnUiThread(() -> {
-                    setBulkRunning(false);
-                    showBulkStatus(message);
+                    markPicco(address, false);
+                    callOff(message);
                 });
                 return;
             }
             final List<File> missing = new ArrayList<>();
             long bytes = 0;
-            java.util.Set<String> seen = new java.util.HashSet<>();
+            Set<String> seen = new HashSet<>();
             for (OnyxMetadataRepository.Book book : repository.queryAllBooks()) {
                 String name = fileName(book.path);
                 File file = new File(book.path);
@@ -941,42 +1511,42 @@ public class MainActivity extends Activity {
             }
             final String size = android.text.format.Formatter.formatShortFileSize(this, bytes);
             runOnUiThread(() -> {
-                renderPiccoLibrary();
+                markPicco(address, true);
+                reload();
                 if (missing.isEmpty()) {
-                    setBulkRunning(false);
-                    showBulkStatus(getString(R.string.send_missing_none));
+                    callOff(getString(R.string.send_missing_none));
                     return;
                 }
-                bulkStatusView.setVisibility(View.GONE);
+                if (isFinishing()) {
+                    busy = false;
+                    return;
+                }
+                hideNotice();
                 new android.app.AlertDialog.Builder(this)
                         .setTitle(R.string.send_missing_confirm_title)
                         .setMessage(getString(R.string.send_missing_confirm_body,
                                 missing.size(), size, piccoFolderLabel(this, folder)))
-                        .setPositiveButton(R.string.send_missing_confirm_ok,
-                                (d, w) -> startBulkJob(new SendMissingJob(this, client,
-                                                address, folder, missing, piccoLibrary),
-                                        (done, total, key, state) -> getString(
-                                                R.string.send_missing_progress,
-                                                shownIndex(done, state), total, displayTitle(key)),
-                                        () -> {
-                                            renderPiccoLibrary();
-                                            if (manualBook != null) {
-                                                refreshPiccoLibrary();
-                                            }
-                                        }))
-                        .setNegativeButton(R.string.send_missing_cancel,
-                                (d, w) -> setBulkRunning(false))
-                        .setOnCancelListener(d -> setBulkRunning(false))
+                        .setPositiveButton(R.string.send_missing_confirm_ok, (d, w) -> {
+                            // Every book waits its turn, so the rows show it.
+                            for (File file : missing) {
+                                jobRows.put(LibraryModel.keyOf(file.getPath()), Job.WAITING);
+                            }
+                            renderPage();
+                            startJob(new SendMissingJob(this, client, address, folder, missing,
+                                    piccoLibrary), () -> { });
+                        })
+                        .setNegativeButton(R.string.send_missing_cancel, (d, w) -> busy = false)
+                        .setOnCancelListener(d -> busy = false)
                         .show();
             });
         }).start();
     }
 
-    // --- Clean library ----------------------------------------------------------
+    // --- Fix missing covers ------------------------------------------------------------
 
-    private static String bookTitle(File file) {
+    private static String coverTitle(File file) {
         String[] meta = EpubCover.titleAndAuthor(file);
-        return meta != null && !meta[0].isEmpty() ? meta[0] : displayTitle(file.getName());
+        return meta != null && !meta[0].isEmpty() ? meta[0] : TitleCleaner.fromFileName(file.getName());
     }
 
     private static String titleList(List<String> titles) {
@@ -990,12 +1560,12 @@ public class MainActivity extends Activity {
      * the Picco's own books), asks, then fixes them. See CoverFixer.
      */
     private void cleanLibrary() {
-        if (bulkRunning) {
+        if (busy || currentJob != null) {
             return;
         }
         final String address = settings.getPiccoAddress();
         if (address.isEmpty()) {
-            showBulkStatus(getString(R.string.transfer_no_address));
+            showNotice(getString(R.string.transfer_no_address), true);
             return;
         }
         if (!Permissions.hasAllFilesAccess()) {
@@ -1010,8 +1580,9 @@ public class MainActivity extends Activity {
                     .show();
             return;
         }
-        setBulkRunning(true);
-        showBulkStatus(getString(R.string.send_missing_checking));
+        busy = true;
+        showNotice(getString(R.string.send_missing_checking), false);
+        renderSlot();
         new Thread(() -> {
             PiccoClient client = new PiccoClient(address);
             List<String> onPicco;
@@ -1021,13 +1592,14 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 final String message = piccoErrorMessage(e, address);
                 runOnUiThread(() -> {
-                    setBulkRunning(false);
-                    showBulkStatus(message);
+                    markPicco(address, false);
+                    callOff(message);
                 });
                 return;
             }
+            runOnUiThread(() -> markPicco(address, true));
             CleanPlan plan = new CleanPlan();
-            java.util.Set<String> seenPaths = new java.util.HashSet<>();
+            Set<String> seenPaths = new HashSet<>();
             List<OnyxMetadataRepository.Book> books = repository.queryAllBooks();
             List<String> libraryPaths = new ArrayList<>();
             for (OnyxMetadataRepository.Book book : books) {
@@ -1039,7 +1611,7 @@ public class MainActivity extends Activity {
                     continue;
                 }
                 String text = getString(R.string.clean_checking_boox, i + 1, books.size());
-                runOnUiThread(() -> showBulkStatus(text));
+                runOnUiThread(() -> showNotice(text, false));
                 EpubCover.Kind kind = CoverFixer.check(file).kind;
                 if (kind == EpubCover.Kind.TAG_IMAGE) {
                     plan.tagged++;
@@ -1049,7 +1621,7 @@ public class MainActivity extends Activity {
                     continue;
                 }
                 plan.booxBooks.add(file);
-                plan.booxTitles.add(bookTitle(file));
+                plan.booxTitles.add(coverTitle(file));
                 for (String piccoPath : onPicco) {
                     if (fileName(piccoPath).equals(file.getName())) {
                         plan.piccoPathOf.put(file.getPath(), piccoPath);
@@ -1062,19 +1634,19 @@ public class MainActivity extends Activity {
             for (int i = 0; i < others.size(); i++) {
                 String piccoPath = others.get(i);
                 String text = getString(R.string.clean_checking_picco, i + 1, others.size(),
-                        displayTitle(piccoPath));
-                runOnUiThread(() -> showBulkStatus(text));
+                        TitleCleaner.fromFileName(fileName(piccoPath)));
+                runOnUiThread(() -> showNotice(text, false));
                 File copy = new File(work, "picco-" + i + ".epub");
                 try {
                     client.download(piccoPath, copy);
                 } catch (IOException e) {
-                    android.util.Log.w("MainActivity", "Could not check " + piccoPath + ": " + e);
+                    Log.w(TAG, "Could not check " + piccoPath + ": " + e);
                     continue;
                 }
                 if (CoverFixer.needsCover(copy)) {
                     plan.piccoOnly.add(piccoPath);
                     plan.downloaded.put(piccoPath, copy);
-                    plan.piccoOnlyTitles.add(bookTitle(copy));
+                    plan.piccoOnlyTitles.add(coverTitle(copy));
                 } else {
                     //noinspection ResultOfMethodCallIgnored
                     copy.delete();
@@ -1086,16 +1658,15 @@ public class MainActivity extends Activity {
 
     private void confirmClean(PiccoClient client, CleanPlan plan) {
         if (isFinishing()) {
-            setBulkRunning(false);
+            busy = false;
             return;
         }
-        renderPiccoLibrary();
+        reload();
         if (plan.booxBooks.isEmpty() && plan.piccoOnly.isEmpty()) {
-            setBulkRunning(false);
-            showBulkStatus(getString(R.string.clean_none));
+            callOff(getString(R.string.clean_none));
             return;
         }
-        bulkStatusView.setVisibility(View.GONE);
+        hideNotice();
         String message;
         if (plan.booxBooks.isEmpty()) {
             message = getString(R.string.clean_confirm_picco_only_none_boox);
@@ -1125,43 +1696,46 @@ public class MainActivity extends Activity {
         builder.setPositiveButton(R.string.clean_confirm_ok, (d, w) -> {
                     boolean includePiccoOnly = box != null && box.isChecked();
                     if (plan.booxBooks.isEmpty() && !includePiccoOnly) {
-                        setBulkRunning(false);
+                        busy = false;
                         return;
                     }
-                    runClean(client, plan, includePiccoOnly);
+                    startJob(new FixCoversJob(this, settings, repository, stateStore,
+                            buildClient(), deviceId(), client, plan, includePiccoOnly), () -> { });
                 })
-                .setNegativeButton(R.string.send_missing_cancel, (d, w) -> setBulkRunning(false))
-                .setOnCancelListener(d -> setBulkRunning(false))
+                .setNegativeButton(R.string.send_missing_cancel, (d, w) -> busy = false)
+                .setOnCancelListener(d -> busy = false)
                 .show();
     }
 
-    private void runClean(PiccoClient client, CleanPlan plan, boolean includePiccoOnly) {
-        Map<String, String> titles = new HashMap<>();
-        for (int i = 0; i < plan.booxBooks.size(); i++) {
-            titles.put(LibraryModel.keyOf(plan.booxBooks.get(i).getPath()), plan.booxTitles.get(i));
-        }
-        for (int i = 0; i < plan.piccoOnly.size(); i++) {
-            titles.put(LibraryModel.keyOf(plan.piccoOnly.get(i)), plan.piccoOnlyTitles.get(i));
-        }
-        startBulkJob(new FixCoversJob(this, settings, repository, stateStore, buildClient(),
-                        deviceId(), client, plan, includePiccoOnly),
-                (done, total, key, state) -> {
-                    String title = titles.containsKey(key) ? titles.get(key) : displayTitle(key);
-                    return Job.WAITING.equals(state)
-                            ? getString(R.string.clean_sync_first, done + 1, total, title)
-                            : getString(R.string.clean_progress,
-                                    shownIndex(done, state), total, title);
-                },
-                () -> {
-                    renderPiccoLibrary();
-                    refreshLocalBook();
-                });
+    // --- Device and network helpers --------------------------------------------------
+
+    private KoSyncClient buildClient() {
+        return new KoSyncClient(settings, "NeoSync", deviceId());
     }
 
     private String deviceId() {
         String androidId = Settings.Secure.getString(getContentResolver(),
                 Settings.Secure.ANDROID_ID);
         return androidId != null ? androidId : "boox-companion";
+    }
+
+    /**
+     * Shows the last known update answer, then asks GitHub in the background
+     * (at most once a day) and updates the slot.
+     */
+    private void refreshUpdate() {
+        UpdateChecker checker = new UpdateChecker(this);
+        update = checker.knownUpdate();
+        renderSlot();
+        new Thread(() -> {
+            UpdateChecker.Update found = checker.check(false);
+            runOnUiThread(() -> {
+                if (!isFinishing()) {
+                    update = found;
+                    renderSlot();
+                }
+            });
+        }).start();
     }
 
     /**
@@ -1181,65 +1755,8 @@ public class MainActivity extends Activity {
         try {
             startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
         } catch (android.content.ActivityNotFoundException e) {
-            android.util.Log.w("MainActivity", "No Wi-Fi settings screen: " + e);
+            Log.w(TAG, "No Wi-Fi settings screen: " + e);
         }
-    }
-
-    /**
-     * Shows the "new version" banner from the last known answer, then asks
-     * GitHub in the background (at most once a day) and updates it.
-     */
-    private void refreshUpdateBanner() {
-        UpdateChecker checker = new UpdateChecker(this);
-        showUpdateBanner(checker.knownUpdate());
-        new Thread(() -> {
-            UpdateChecker.Update update = checker.check(false);
-            runOnUiThread(() -> {
-                if (!isFinishing()) {
-                    showUpdateBanner(update);
-                }
-            });
-        }).start();
-    }
-
-    private void showUpdateBanner(UpdateChecker.Update update) {
-        View banner = findViewById(R.id.group_update_banner);
-        if (update == null) {
-            banner.setVisibility(View.GONE);
-            return;
-        }
-        ((TextView) findViewById(R.id.text_update_banner))
-                .setText(getString(R.string.update_banner, update.version));
-        findViewById(R.id.button_update_banner).setOnClickListener(v ->
-                SettingsActivity.openDownload(this, update));
-        banner.setVisibility(View.VISIBLE);
-    }
-
-    /** Shows or hides the hotspot hints for the current network. */
-    private void refreshNetworkHints() {
-        if (wifiHintView == null || isFinishing()) {
-            return;
-        }
-        wifiHintView.setVisibility(onWifiWithoutInternet() ? View.VISIBLE : View.GONE);
-        refreshStatus();
-    }
-
-    /**
-     * True on a Wi-Fi network that has no internet, which in practice means
-     * the Picco's own hotspot. Mobile data or no network at all don't count.
-     */
-    private boolean onWifiWithoutInternet() {
-        android.net.ConnectivityManager cm =
-                (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-        if (cm == null) {
-            return false;
-        }
-        android.net.Network network = cm.getActiveNetwork();
-        android.net.NetworkCapabilities caps =
-                network != null ? cm.getNetworkCapabilities(network) : null;
-        return caps != null
-                && caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
-                && !caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED);
     }
 
     /**
@@ -1248,18 +1765,17 @@ public class MainActivity extends Activity {
      * check looks at the transport, not at internet reachability.
      */
     private boolean hasLocalNetwork() {
-        android.net.ConnectivityManager cm =
-                (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         if (cm == null) {
             return true; // Cannot tell — fall back to the generic message.
         }
-        android.net.Network network = cm.getActiveNetwork();
+        Network network = cm.getActiveNetwork();
         if (network == null) {
             return false;
         }
-        android.net.NetworkCapabilities caps = cm.getNetworkCapabilities(network);
+        NetworkCapabilities caps = cm.getNetworkCapabilities(network);
         return caps != null
-                && (caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
-                        || caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET));
+                && (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+                        || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET));
     }
 }

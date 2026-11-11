@@ -1,5 +1,8 @@
 package dev.neosync.boox.jobs;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -12,7 +15,9 @@ import java.util.function.LongSupplier;
  * the UI through the given executor. Progress reaches the UI at most every
  * throttleMs (an e-ink screen can't redraw faster): in between, only the
  * newest update is kept and delivered when the interval is over, and the
- * last one always arrives before finished.
+ * last one always arrives before finished. Row states are not dropped that
+ * way: the newest state of each book is collected in between and handed on
+ * (Listener.rowStates) with the next update.
  */
 public final class JobRunner {
 
@@ -95,6 +100,8 @@ public final class JobRunner {
         Runnable pending;
         ScheduledFuture<?> flush;
         boolean finished;
+        /** Newest row state per key since the last delivery, in first-change order. */
+        Map<String, String> rows = new LinkedHashMap<>();
 
         Run(Job.Listener target) {
             this.target = target;
@@ -106,6 +113,9 @@ public final class JobRunner {
             synchronized (lock) {
                 if (finished) {
                     return;
+                }
+                if (currentKey != null && rowState != null) {
+                    rows.put(currentKey, rowState);
                 }
                 long now = clock.getAsLong();
                 if (!anyDelivered || now - lastDeliveredMs >= throttleMs) {
@@ -143,7 +153,7 @@ public final class JobRunner {
                 finished = true;
                 cancelFlush();
                 if (pending != null) {
-                    ui.execute(pending);
+                    deliver(pending, clock.getAsLong());
                     pending = null;
                 }
                 // Free the runner before the UI hears about the end, so the
@@ -163,6 +173,11 @@ public final class JobRunner {
         private void deliver(Runnable update, long now) {
             anyDelivered = true;
             lastDeliveredMs = now;
+            if (!rows.isEmpty()) {
+                Map<String, String> batch = Collections.unmodifiableMap(rows);
+                rows = new LinkedHashMap<>();
+                ui.execute(() -> target.rowStates(batch));
+            }
             ui.execute(update);
         }
 

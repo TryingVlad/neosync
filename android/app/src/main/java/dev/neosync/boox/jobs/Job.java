@@ -2,6 +2,8 @@ package dev.neosync.boox.jobs;
 
 import android.content.Context;
 
+import java.util.Map;
+
 /**
  * A long piece of work over many books (send missing books, sync all
  * positions, fix covers), run one at a time by JobRunner on a background
@@ -32,6 +34,15 @@ public interface Job {
          *                   is on this book but its row keeps its state
          */
         void progress(int done, int total, String currentKey, String rowState);
+
+        /**
+         * The newest row state of every book that changed since the last
+         * update, keyed by library key. JobRunner calls it right before each
+         * progress update it hands on, so a book whose state changed while
+         * updates were held back never misses its last state ("sent").
+         */
+        default void rowStates(Map<String, String> states) {
+        }
 
         /**
          * The result sentence; null only when the job ended without giving

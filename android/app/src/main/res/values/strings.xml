@@ -217,6 +217,103 @@
     <string name="button_how_it_works">How it works</string>
     <string name="main_footer">NeoSync is open source (MIT). Not affiliated with Onyx Boox or CrossPoint.</string>
 
+    <!-- Home: the library -->
+    <string name="chevron" translatable="false">›</string>
+    <string name="dismiss_mark" translatable="false">✕</string>
+    <string name="chip_positions_synced">Positions synced</string>
+    <string name="chip_synced_sub">%1$s · %2$s</string>
+    <string name="chip_just_now">just now</string>
+    <string name="chip_signed_in">Signed in</string>
+    <string name="chip_nothing_synced">nothing synced yet</string>
+    <string name="chip_paused">Sync paused</string>
+    <string name="chip_paused_sub">automatic sync is off</string>
+    <string name="chip_not_syncing">Positions not syncing</string>
+    <string name="chip_not_syncing_sub">since %1$s · tap to fix</string>
+    <string name="chip_picco_connected">Picco connected</string>
+    <string name="chip_picco_not_connected">Picco not connected</string>
+    <string name="chip_picco_list_from">book list from %1$s</string>
+    <string name="chip_picco_no_list">no book list yet</string>
+    <string name="chip_picco">Picco</string>
+    <string name="chip_picco_not_set_up">not set up</string>
+    <string name="chip_picco_looking">looking…</string>
+
+    <string name="sug_no_internet_title">This Wi-Fi has no internet</string>
+    <string name="sug_no_internet_body">You’re probably on the Picco’s hotspot. Positions need your usual Wi-Fi.</string>
+    <string name="sug_no_internet_button">Wi-Fi</string>
+    <string name="sug_auth_title">Wrong username or password</string>
+    <string name="sug_auth_body">The sync server doesn’t accept this account any more. Sign in again to keep syncing.</string>
+    <string name="sug_server_title">Can’t reach the sync server</string>
+    <string name="sug_server_body">Your places are kept here and sent once the server answers again.</string>
+    <string name="sug_paused_title">Sync paused</string>
+    <string name="sug_paused_body">Automatic sync is off, so no position is sent or fetched.</string>
+    <string name="sug_paused_button">Turn on</string>
+    <string name="sug_setup_title">Connect your Picco</string>
+    <string name="sug_setup_body">Open File Transfer on the Picco, then tap Find. You’ll see its books here and can send new ones.</string>
+    <string name="sug_setup_button">Find</string>
+    <string name="sug_setup_looking">Looking…</string>
+    <string name="sug_setup_not_found">No Picco found. Open File Transfer on the Picco, make sure both are on the same Wi-Fi, then tap Find again.</string>
+    <plurals name="sug_send_title">
+        <item quantity="one">%1$d book isn’t on the Picco yet</item>
+        <item quantity="other">%1$d books aren’t on the Picco yet</item>
+    </plurals>
+    <string name="sug_send_body">%1$s · %2$s</string>
+    <string name="sug_names_more">%1$s and %2$d more</string>
+    <string name="sug_send_button">Send</string>
+    <plurals name="sug_fix_title">
+        <item quantity="one">%1$d book would show a black cover on the Picco</item>
+        <item quantity="other">%1$d books would show a black cover on the Picco</item>
+    </plurals>
+    <string name="sug_fix_body">NeoSync can give each one a cover. Your notes and places stay as they are.</string>
+    <string name="sug_fix_button">Fix</string>
+    <string name="sug_update_title">NeoSync %1$s is available</string>
+    <string name="sug_update_body">Install it over this version: your settings stay.</string>
+    <string name="cd_dismiss">Not now</string>
+
+    <string name="job_count">%1$d of %2$d</string>
+    <string name="job_now">Now: %1$s</string>
+    <string name="job_now_picco">Now: %1$s · keep File Transfer open on the Picco</string>
+    <string name="job_stop">Stop</string>
+    <string name="job_stopping">Stopping…</string>
+    <string name="job_stopped">Stopped.</string>
+    <string name="send_missing_stopped">Stopped. Sent %1$d of %2$d books to the Picco.</string>
+    <string name="clean_stopped">Stopped. Covers added to %1$d books.</string>
+    <string name="row_job_sent">✓ Sent</string>
+    <string name="row_job_sending">Sending…</string>
+    <string name="row_job_waiting">Waiting</string>
+    <string name="row_job_fetched">✓ Fetched</string>
+    <string name="row_job_sent_place">✓ Sent place</string>
+    <string name="row_job_failed">Failed</string>
+
+    <string name="filter_all">All %1$d</string>
+    <string name="filter_reading">Reading</string>
+    <string name="filter_only_here">Only here</string>
+    <string name="filter_only_picco">Only on Picco</string>
+    <string name="cd_search">Search</string>
+    <string name="hint_search">Title or author</string>
+    <string name="page_prev" translatable="false">‹</string>
+    <string name="page_next" translatable="false">›</string>
+    <string name="cd_page_prev">Previous page</string>
+    <string name="cd_page_next">Next page</string>
+    <string name="page_of">%1$d / %2$d</string>
+    <string name="bar_boox">Boox</string>
+    <string name="bar_picco">Picco</string>
+    <string name="bar_none" translatable="false">—</string>
+    <string name="pct">%1$d%%</string>
+    <string name="library_none">No books yet. Books you add to this Boox show up here.</string>
+    <string name="library_no_match">No books match.</string>
+    <string name="library_empty_state"><b>Read a few pages in Neo Reader.</b> NeoSync saves your place as you go. On the Picco, open the same book and choose <b>Sync Progress</b>.</string>
+
+    <string name="row_same_place">✓ Same place · %1$s</string>
+    <string name="row_same_place_no_time">✓ Same place</string>
+    <string name="row_read_further">Read further here · syncs soon</string>
+    <string name="row_waiting">Read further here · waiting to sync</string>
+    <string name="row_picco_ahead">Picco is ahead · tap to jump</string>
+    <string name="row_not_on_picco">Not on the Picco</string>
+    <string name="row_only_on_picco">Only on the Picco</string>
+    <string name="row_not_synced">Not synced yet</string>
+    <string name="row_not_opened">Not opened yet</string>
+    <string name="row_boox_only_type">On this Boox only (%1$s)</string>
+
     <string name="notification_channel_name">Background sync</string>
     <string name="notification_title">Syncing reading progress</string>
 </resources>

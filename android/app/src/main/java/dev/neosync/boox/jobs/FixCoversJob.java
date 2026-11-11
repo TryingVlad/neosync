@@ -138,6 +138,7 @@ public final class FixCoversJob implements Job {
         if (lost == null && !stopped && includePiccoOnly) {
             for (int i = 0; i < plan.piccoOnly.size(); i++) {
                 if (Thread.interrupted()) {
+                    stopped = true;
                     break;
                 }
                 String piccoPath = plan.piccoOnly.get(i);
@@ -170,7 +171,9 @@ public final class FixCoversJob implements Job {
         }
         CleanPlan.workDir(context);
 
-        StringBuilder summary = new StringBuilder(context.getString(R.string.clean_done, fixed));
+        // Stopped (also while positions were being saved): say so, not "0 added".
+        StringBuilder summary = new StringBuilder(context.getString(
+                stopped ? R.string.clean_stopped : R.string.clean_done, fixed));
         if (replaced > 0) {
             summary.append(' ').append(context.getString(R.string.clean_done_picco, replaced));
         }

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One library row: cover, title / author / status, and a position bar per device. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:clickable="true" android:focusable="true">
+
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="8dp" android:paddingBottom="8dp">
+<FrameLayout android:id="@+id/book_cover" android:layout_width="34dp" android:layout_height="48dp" android:background="@drawable/cover_bg">
+<TextView android:id="@+id/book_cover_text" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:padding="2dp" android:text="" android:textSize="6sp" android:fontFamily="serif" android:textColor="@color/black" android:maxLines="5" android:ellipsize="end" />
+
+<ImageView android:id="@+id/book_cover_image" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerCrop" android:importantForAccessibility="no" android:visibility="gone" />
+</FrameLayout>
+
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="14dp" android:orientation="vertical">
+<TextView android:id="@+id/book_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Body" android:textStyle="bold" android:singleLine="true" android:ellipsize="end" />
+
+<TextView android:id="@+id/book_author" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Small" android:singleLine="true" android:ellipsize="end" />
+
+<TextView android:id="@+id/book_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Small" android:textColor="@color/black" android:singleLine="true" android:ellipsize="end" />
+</LinearLayout>
+
+<LinearLayout android:layout_width="170dp" android:layout_height="wrap_content" android:layout_marginStart="14dp" android:orientation="vertical">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+<TextView android:layout_width="50dp" android:layout_height="wrap_content" android:text="@string/bar_boox" style="@style/NeoSync.Small" />
+
+<ProgressBar android:id="@+id/book_bar_boox" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_height="8dp" android:layout_weight="1" android:minHeight="8dp" android:maxHeight="8dp" android:max="1000" android:indeterminate="false" android:progressDrawable="@drawable/track_bg" />
+
+<TextView android:id="@+id/book_pct_boox" android:layout_width="50dp" android:layout_height="wrap_content" android:gravity="end" android:text="" style="@style/NeoSync.Small" android:textColor="@color/black" />
+</LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:orientation="horizontal" android:gravity="center_vertical">
+<TextView android:layout_width="50dp" android:layout_height="wrap_content" android:text="@string/bar_picco" style="@style/NeoSync.Small" />
+
+<ProgressBar android:id="@+id/book_bar_picco" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_height="8dp" android:layout_weight="1" android:minHeight="8dp" android:maxHeight="8dp" android:max="1000" android:indeterminate="false" android:progressDrawable="@drawable/track_bg" />
+
+<TextView android:id="@+id/book_pct_picco" android:layout_width="50dp" android:layout_height="wrap_content" android:gravity="end" android:text="" style="@style/NeoSync.Small" android:textColor="@color/black" />
+</LinearLayout>
+</LinearLayout>
+</LinearLayout>
+
+<!-- Hairline between rows, no boxes. -->
+<View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_disabled" />
+</LinearLayout>

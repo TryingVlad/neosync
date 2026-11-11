@@ -33,6 +33,8 @@ public class SyncSettings {
     private static final String KEY_AUTO_SYNC = "auto_sync";
     private static final String KEY_PICCO_ADDRESS = "picco_address";
     private static final String KEY_PICCO_FOLDER = "picco_folder";
+    public static final String KEY_LIBRARY_FILTER = "library_filter";
+    public static final String KEY_DISMISSED_SUGGESTIONS = "dismissed_suggestions";
     // Bumped after every sync attempt, so listeners hear about an attempt
     // even when its outcome (same error text) leaves the other keys unchanged.
     public static final String KEY_LAST_ATTEMPT_MS = "last_attempt_ms";
@@ -134,6 +136,27 @@ public class SyncSettings {
         } else {
             prefs.edit().putString(KEY_PICCO_FOLDER, folder).apply();
         }
+    }
+
+    /** The home screen's last filter (a LibraryModel.Filter name), or null. */
+    public String getLibraryFilter() {
+        return prefs.getString(KEY_LIBRARY_FILTER, null);
+    }
+
+    public void setLibraryFilter(String filter) {
+        prefs.edit().putString(KEY_LIBRARY_FILTER, filter).apply();
+    }
+
+    /** Suggestion.dismissKey() values the user hid with ✕. */
+    public java.util.Set<String> getDismissedSuggestions() {
+        return new java.util.HashSet<>(
+                prefs.getStringSet(KEY_DISMISSED_SUGGESTIONS, java.util.Collections.emptySet()));
+    }
+
+    public void addDismissedSuggestion(String key) {
+        java.util.Set<String> keys = getDismissedSuggestions();
+        keys.add(key);
+        prefs.edit().putStringSet(KEY_DISMISSED_SUGGESTIONS, keys).apply();
     }
 
     public boolean hasCredentials() {

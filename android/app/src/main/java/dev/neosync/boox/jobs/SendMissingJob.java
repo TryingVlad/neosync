@@ -91,8 +91,10 @@ public final class SendMissingJob implements Job {
     private void runAll(Listener l) {
         int sent = 0;
         String failure = null;
+        boolean stopped = false;
         for (int i = 0; i < files.size(); i++) {
             if (Thread.interrupted()) {
+                stopped = true;
                 break;
             }
             File file = files.get(i);
@@ -119,7 +121,8 @@ public final class SendMissingJob implements Job {
         }
         delivered = failure == null && sent == files.size();
         l.finished(failure != null ? failure
-                : context.getString(R.string.send_missing_done, sent, files.size()));
+                : context.getString(stopped ? R.string.send_missing_stopped
+                        : R.string.send_missing_done, sent, files.size()));
     }
 
     private void runOne(Listener l) {
