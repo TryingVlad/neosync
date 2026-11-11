@@ -91,6 +91,11 @@ Two buttons work on the whole list:
 - **Send missing books**: copies every EPUB on this Boox that the Picco
   doesn't have yet, after showing how many and their total size.
 
+The first time NeoSync sends a book, it lists the Picco's folders and asks
+where books should go (it suggests `books` when there is one). The choice is
+remembered; *Settings → Connection → Choose again* makes it ask once more. A
+book already anywhere on the Picco, in any folder, is never sent twice.
+
 Book files travel straight to CrossPoint's upload endpoint on your local
 network: no sync server involved, so it works while the server is
 rate-limiting.
@@ -113,9 +118,16 @@ Picco, so it joins your usual Wi-Fi next to the Boox.
   60-second poll as fallback.
 - **Upload:** when Neo Reader's position changes, it is sent to the server.
 - **Fetch:** when the server holds a newer position from another device, it
-  is written into Neo Reader's row. Neo Reader only reads it on a cold start,
-  so its background process is killed first; a book open in the foreground is
-  never interrupted and cannot be moved.
+  is written into Neo Reader's row, so the book opens there next time. A book
+  open in the foreground is never interrupted and cannot be moved.
+- **Finding what changed:** the default server (crosspoint-sync) has a change
+  feed: one request lists every book whose position another device changed
+  since the last check. NeoSync reads it when the Boox wakes and every few
+  minutes, so a book you read on the Picco is already at the right page when
+  you open it on the Boox, even if it isn't your latest book. Plain kosync
+  servers don't have the feed; there NeoSync asks about the books on both
+  devices one by one (all of them when the Boox wakes, a few at a time
+  otherwise).
 
 ### Position mapping (firmware 4.x)
 
@@ -146,6 +158,13 @@ By default a book is identified by the MD5 of its **file name**, CrossPoint's
 default. "By file contents" uses KOReader's partial-MD5 instead and needs
 byte-identical files. Use the same mode on both devices.
 
+An accented letter can be stored two ways in a file name ("é" as one
+character, or "e" plus an accent mark). The Boox and the Picco don't always
+agree, so NeoSync checks and sends both spellings of such names.
+
+Two different files of the same book (another edition, another download) are
+two different books to the sync server. Keep one copy on both devices.
+
 ## Reporting a problem
 
 *Settings → Copy problem report* copies a short report to the clipboard:
@@ -170,8 +189,10 @@ request carries nothing but the app version.
 
 - A fetch cannot move a book that is open on screen; close it first.
 - "Send missing books" only sends EPUBs.
-- Books are matched between the devices by exact file name, also in the
-  Picco list.
+- Books are matched between the devices by file name, also in the Picco
+  list, so both devices need the same file.
+- A book never opened in Neo Reader can't be moved ahead of time: Neo Reader
+  only records its page count once it has been opened.
 - KOReader on the same device with the same account will fight this app.
 - Calibre-Web-Automated's kosync bridge expects the plaintext password and
   will not work.

@@ -19,9 +19,11 @@ import dev.neosync.boox.R;
 import dev.neosync.boox.activity.MainActivity;
 import dev.neosync.boox.contentprovider.OnyxMetadataRepository;
 import dev.neosync.boox.kosync.KoSyncClient;
+import dev.neosync.boox.kosync.LibrarySweep;
 import dev.neosync.boox.kosync.SyncActions;
 import dev.neosync.boox.kosync.SyncSettings;
 import dev.neosync.boox.kosync.SyncStateStore;
+import dev.neosync.boox.transfer.PiccoLibraryStore;
 
 import java.util.HashMap;
 import java.util.List;
@@ -60,6 +62,22 @@ public class SyncService extends Service {
     private static final long MIN_PUSH_INTERVAL_MS = 45_000;
     /** After the screen turns on, wait for Wi-Fi to reconnect before checking. */
     private static final long WAKE_CHECK_DELAY_MS = 8_000;
+    /** Check the other (closed) books this often, and after every wake. */
+    private static final long SWEEP_INTERVAL_MS = 15 * 60_000;
+    /** Ask about one closed book at most this often. */
+    private static final long SWEEP_BOOK_MIN_AGE_MS = 10 * 60_000;
+    /**
+     * Closed books per check (requests are 6 s apart). Picking the tablet up
+     * or opening NeoSync is when a fetch matters, so a wake checks every book
+     * shared with the Picco; the quiet periodic check takes a few.
+     */
+    private static final int SWEEP_MAX_BOOKS_WAKE = 25;
+    private static final int SWEEP_MAX_BOOKS_PERIODIC = 5;
+    /** With a change feed, ask it this often (one request each time). */
+    private static final long FEED_INTERVAL_MS = 3 * 60_000;
+    private static final int FEED_PAGE_SIZE = 50;
+    /** Pages per check; a long backlog carries on at the next check. */
+    private static final int FEED_MAX_PAGES = 10;
 
     private HandlerThread workerThread;
     private Handler worker;
@@ -82,6 +100,13 @@ public class SyncService extends Service {
 
     private final Map<String, Long> lastServerCheckMs = new HashMap<>();
     private final Map<String, Long> lastPushMs = new HashMap<>();
+    private long lastSweepMs = 0;
+    private long lastFeedMs = 0;
+    /** Whether the server has crosspoint-sync's change feed; null until asked. */
+    private Boolean feedSupported = null;
+    private final Map<String, String> hashCache = new HashMap<>();
+    private String hashCacheMethod = null;
+    private PiccoLibraryStore piccoLibrary;
     /** Set on screen-on: picking the device up is when a fetch is most useful. */
     private volatile boolean wakeCheckPending = false;
     private android.content.BroadcastReceiver screenReceiver;
@@ -109,6 +134,7 @@ public class SyncService extends Service {
         }
         stateStore = new SyncStateStore(this);
         repository = new OnyxMetadataRepository(this);
+        piccoLibrary = new PiccoLibraryStore(this);
         String androidId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
         deviceId = androidId != null ? androidId : "boox-companion";
         client = new KoSyncClient(settings, "NeoSync", deviceId);
@@ -298,6 +324,7 @@ public class SyncService extends Service {
         // progress while the book sits closed here. Our own writes set
         // lastAccess to the applied server timestamp, so an unchanged remote
         // is never re-applied, and the device-id guard ignores our own pushes.
+        boolean woke = wakeCheckPending;
         if (!books.isEmpty()) {
             OnyxMetadataRepository.Book latest = books.get(0);
             boolean due = wakeCheckPending
@@ -309,7 +336,133 @@ public class SyncService extends Service {
             } else if (resolvedThisScan.contains(latest.path)) {
                 wakeCheckPending = false;
             }
+            resolvedThisScan.add(latest.path);
         }
+
+        // Then the other, closed books: one read on the Picco gets its newer
+        // position written here while it is still closed, instead of only
+        // once it is opened (too late, NeoReader has loaded it by then).
+        // Right after waking, and otherwise every few minutes.
+        if (wakeCheckPending || KoSyncClient.coolDownUntilMs() > 0) {
+            return; // offline or told to slow down: try again on a later scan
+        }
+        if (!Boolean.FALSE.equals(feedSupported)) {
+            // crosspoint-sync lists what changed since last time: one request.
+            if (woke || sinceLast(lastFeedMs) >= FEED_INTERVAL_MS) {
+                lastFeedMs = System.currentTimeMillis();
+                readChangeFeed(books);
+            }
+            if (!Boolean.FALSE.equals(feedSupported)) {
+                return;
+            }
+        }
+        // Stock kosync servers can only be asked about one book at a time.
+        if (woke || sinceLast(lastSweepMs) >= SWEEP_INTERVAL_MS) {
+            // The first pass after a start (boot, update) is a full one too.
+            boolean full = woke || lastSweepMs == 0;
+            lastSweepMs = System.currentTimeMillis();
+            String address = settings.getPiccoAddress();
+            List<String> onPicco = piccoLibrary.hasList(address)
+                    ? piccoLibrary.getBooks(address) : null;
+            for (OnyxMetadataRepository.Book book : LibrarySweep.pick(books, onPicco,
+                    resolvedThisScan, lastServerCheckMs, System.currentTimeMillis(),
+                    SWEEP_BOOK_MIN_AGE_MS, full ? SWEEP_MAX_BOOKS_WAKE : SWEEP_MAX_BOOKS_PERIODIC)) {
+                if (!resolve(book, stateStore.get(book.path), book.lastAccessMs, false, true)) {
+                    break; // offline or rate-limited: the rest would fail the same way
+                }
+            }
+        }
+    }
+
+    /**
+     * Reads the server's change feed from the saved cursor and applies each
+     * newer position from another device to the matching book here. The
+     * cursor only moves on after a page was handled, so nothing is skipped
+     * when the connection drops halfway.
+     */
+    private void readChangeFeed(List<OnyxMetadataRepository.Book> books) {
+        Map<String, OnyxMetadataRepository.Book> byHash = null;
+        long cursor = settings.getChangesCursor();
+        for (int page = 0; page < FEED_MAX_PAGES; page++) {
+            KoSyncClient.Result result = client.getChanges(cursor, FEED_PAGE_SIZE);
+            if (result.error == KoSyncClient.Error.NOT_FOUND) {
+                Log.i(TAG, "Server has no change feed; checking books one by one");
+                feedSupported = false;
+                return;
+            }
+            if (result.error == KoSyncClient.Error.RATE_LIMITED) {
+                backOff(result);
+                return;
+            }
+            if (result.error != KoSyncClient.Error.OK) {
+                if (feedSupported == null && result.error == KoSyncClient.Error.JSON_ERROR) {
+                    feedSupported = false; // something answers, but not a feed
+                }
+                return; // offline or a hiccup: same cursor next time
+            }
+            feedSupported = true;
+            settings.clearSyncError();
+            for (KoSyncClient.Progress change : result.changes.items) {
+                if (deviceId.equals(change.deviceId)) {
+                    continue;
+                }
+                if (byHash == null) {
+                    byHash = hashIndex(books);
+                }
+                OnyxMetadataRepository.Book book = byHash.get(change.document);
+                for (int a = 0; book == null && a < change.aliases.size(); a++) {
+                    book = byHash.get(change.aliases.get(a));
+                }
+                Log.d(TAG, "change " + change.document + " " + Math.round(change.percentage * 1000) / 10.0
+                        + "% by " + change.device + (book == null ? " (no book here)" : ""));
+                if (book == null) {
+                    continue; // not on this tablet, or never opened here
+                }
+                lastServerCheckMs.put(book.path, System.currentTimeMillis());
+                long remoteMs = change.timestampSec * 1000L;
+                if (remoteMs > book.lastAccessMs) {
+                    applyRemote(book, change, book.totalPages(), remoteMs);
+                }
+            }
+            cursor = result.changes.cursor;
+            settings.setChangesCursor(cursor);
+            if (!result.changes.more) {
+                return;
+            }
+        }
+    }
+
+    /** Document hash → book, for the books with a position here. */
+    private Map<String, OnyxMetadataRepository.Book> hashIndex(
+            List<OnyxMetadataRepository.Book> books) {
+        String method = settings.getMatchMethod();
+        if (!method.equals(hashCacheMethod)) {
+            hashCache.clear();
+            hashCacheMethod = method;
+        }
+        Map<String, OnyxMetadataRepository.Book> index = new HashMap<>();
+        for (OnyxMetadataRepository.Book book : books) {
+            if (book.totalPages() <= 0) {
+                continue;
+            }
+            String hash = hashCache.get(book.path);
+            if (hash == null) {
+                hash = SyncActions.documentHash(settings, book.path);
+                if (hash == null) {
+                    continue;
+                }
+                hashCache.put(book.path, hash);
+            }
+            index.put(hash, book);
+            for (String other : SyncActions.alternateHashes(book.path, hash)) {
+                index.put(other, book);
+            }
+        }
+        return index;
+    }
+
+    private static long sinceLast(long ms) {
+        return ms == 0 ? Long.MAX_VALUE : System.currentTimeMillis() - ms;
     }
 
     /**
@@ -341,7 +494,7 @@ public class SyncService extends Service {
         if (!check) {
             return !mayPush || push(book, state, hash, total);
         }
-        KoSyncClient.Result remote = client.getProgress(hash);
+        KoSyncClient.Result remote = SyncActions.getProgress(client, book.path, hash);
         if (remote.error == KoSyncClient.Error.RATE_LIMITED) {
             backOff(remote);
             return false;

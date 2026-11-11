@@ -27,6 +27,7 @@ public class SyncSettings {
     private static final String KEY_ONBOARDED = "onboarded";
     private static final String KEY_AUTO_SYNC = "auto_sync";
     private static final String KEY_PICCO_ADDRESS = "picco_address";
+    private static final String KEY_PICCO_FOLDER = "picco_folder";
     // Bumped after every sync attempt, so listeners hear about an attempt
     // even when its outcome (same error text) leaves the other keys unchanged.
     public static final String KEY_LAST_ATTEMPT_MS = "last_attempt_ms";
@@ -113,6 +114,23 @@ public class SyncSettings {
         prefs.edit().putString(KEY_PICCO_ADDRESS, address.trim()).apply();
     }
 
+    /**
+     * The Picco folder books are sent to ("/" or "/books"), or null until
+     * the user picked one: NeoSync asks the first time it sends a book.
+     */
+    public String getPiccoFolder() {
+        return prefs.getString(KEY_PICCO_FOLDER, null);
+    }
+
+    /** Null forgets the choice, so the next send asks again. */
+    public void setPiccoFolder(String folder) {
+        if (folder == null) {
+            prefs.edit().remove(KEY_PICCO_FOLDER).apply();
+        } else {
+            prefs.edit().putString(KEY_PICCO_FOLDER, folder).apply();
+        }
+    }
+
     public boolean hasCredentials() {
         return !getUsername().isEmpty() && !getPasswordMd5().isEmpty();
     }
@@ -143,6 +161,32 @@ public class SyncSettings {
             url = url.substring(0, url.length() - 1);
         }
         return url;
+    }
+
+    // --- Change feed -------------------------------------------------------
+
+    /**
+     * Where the server's change feed was last read up to. Tied to the server
+     * and account it came from: another server's cursor means nothing here,
+     * so a different one starts over from 0 (a full snapshot).
+     */
+    public long getChangesCursor() {
+        return feedOwner().equals(prefs.getString("changes_owner", ""))
+                ? prefs.getLong("changes_cursor", 0) : 0;
+    }
+
+    public void setChangesCursor(long cursor) {
+        prefs.edit()
+                .putString("changes_owner", feedOwner())
+                .putLong("changes_cursor", cursor)
+                .apply();
+    }
+
+    private String feedOwner() {
+        // Bump the version when book matching gets better, so the feed is
+        // read again from the start and changes it skipped are matched now
+        // (v3: both Unicode spellings of accented file names).
+        return "v3|" + getBaseUrl() + "|" + getUsername();
     }
 
     // --- Status area -------------------------------------------------------

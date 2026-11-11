@@ -333,7 +333,8 @@ public class MainActivity extends Activity {
                 return;
             }
             String hash = SyncActions.documentHash(settings, book.path);
-            KoSyncClient.Result serverResult = hash != null ? buildClient().getProgress(hash) : null;
+            KoSyncClient.Result serverResult = hash != null
+                    ? SyncActions.getProgress(buildClient(), book.path, hash) : null;
             runOnUiThread(() -> {
                 if (manualBook != book) {
                     return; // A newer load replaced this book meanwhile.
@@ -670,26 +671,100 @@ public class MainActivity extends Activity {
             transferStatusView.setText(R.string.transfer_no_address);
             return;
         }
-        // A list refresh still in flight must not overwrite this transfer's
-        // result. Its listing is still saved; only its screen update is dropped.
-        piccoCheckGeneration++;
-        if (piccoRefreshing) {
-            piccoRefreshing = false;
-            renderPiccoLibrary();
-        }
         sendBookButton.setEnabled(false);
         transferStatusView.setText(R.string.transfer_checking);
+        withPiccoFolder(address, folder -> {
+            // A list refresh still in flight must not overwrite this transfer's
+            // result. Its listing is still saved; only its screen update is dropped.
+            piccoCheckGeneration++;
+            if (piccoRefreshing) {
+                piccoRefreshing = false;
+                renderPiccoLibrary();
+            }
+            new Thread(() -> {
+                final boolean delivered = transferBook(book, address, folder);
+                runOnUiThread(() -> {
+                    // Once the file is on the Picco there is nothing left to send.
+                    sendBookButton.setEnabled(!delivered);
+                });
+            }).start();
+        }, message -> {
+            sendBookButton.setEnabled(true);
+            transferStatusView.setText(message != null
+                    ? message : getString(R.string.transfer_missing));
+        });
+    }
+
+    /**
+     * Runs then(folder) with the Picco folder new books go to. The first
+     * time, lists the Picco's folders and asks which one to use (suggesting
+     * "books"), then remembers it; Settings can reset the choice. On the UI
+     * thread. onStop gets an error message, or null when the user cancelled.
+     */
+    private void withPiccoFolder(String address, java.util.function.Consumer<String> then,
+                                 java.util.function.Consumer<String> onStop) {
+        String chosen = settings.getPiccoFolder();
+        if (chosen != null) {
+            then.accept(chosen);
+            return;
+        }
         new Thread(() -> {
-            final boolean delivered = transferBook(book, address);
-            runOnUiThread(() -> {
-                // Once the file is on the Picco there is nothing left to send.
-                sendBookButton.setEnabled(!delivered);
-            });
+            List<String> folders;
+            try {
+                folders = new PiccoClient(address).listFolders();
+            } catch (Exception e) {
+                final String message = piccoErrorMessage(e, address);
+                runOnUiThread(() -> onStop.accept(message));
+                return;
+            }
+            runOnUiThread(() -> askPiccoFolder(folders, then, onStop));
         }).start();
     }
 
+    private void askPiccoFolder(List<String> folders, java.util.function.Consumer<String> then,
+                                java.util.function.Consumer<String> onStop) {
+        if (isFinishing()) {
+            return;
+        }
+        final List<String> choices = new ArrayList<>();
+        choices.add("/");
+        choices.addAll(folders);
+        String[] labels = new String[choices.size()];
+        for (int i = 0; i < choices.size(); i++) {
+            labels[i] = piccoFolderLabel(this, choices.get(i));
+        }
+        final int[] picked = {choices.indexOf(PiccoClient.suggestedFolder(folders))};
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.picco_folder_title)
+                .setSingleChoiceItems(labels, picked[0], (d, which) -> picked[0] = which)
+                .setPositiveButton(R.string.picco_folder_ok, (d, w) -> {
+                    String folder = choices.get(Math.max(0, picked[0]));
+                    settings.setPiccoFolder(folder);
+                    then.accept(folder);
+                })
+                .setNegativeButton(R.string.send_missing_cancel, (d, w) -> onStop.accept(null))
+                .setOnCancelListener(d -> onStop.accept(null))
+                .show();
+    }
+
+    /** "Top level of the Picco" for "/", else the folder name ("books"). */
+    public static String piccoFolderLabel(android.content.Context context, String folder) {
+        return folder == null || folder.equals("/")
+                ? context.getString(R.string.picco_folder_root)
+                : folder.substring(folder.lastIndexOf('/') + 1);
+    }
+
+    /** What to tell the user when the Picco could not be reached. */
+    private String piccoErrorMessage(Exception e, String address) {
+        return !(e instanceof IOException)
+                ? getString(R.string.transfer_unexpected, String.valueOf(e))
+                : hasLocalNetwork()
+                ? getString(R.string.transfer_unreachable, address)
+                : getString(R.string.transfer_no_network);
+    }
+
     /** Runs on a background thread; returns true when the file is on the Picco. */
-    private boolean transferBook(OnyxMetadataRepository.Book book, String address) {
+    private boolean transferBook(OnyxMetadataRepository.Book book, String address, String folder) {
         File file = new File(book.path);
         if (!file.canRead()) {
             transferStatusView.post(() -> transferStatusView.setText(R.string.transfer_no_file));
@@ -702,7 +777,7 @@ public class MainActivity extends Activity {
                 return true;
             }
             runOnUiThread(() -> transferStatusView.setText(R.string.transfer_sending));
-            PiccoClient.UploadResult result = client.upload(file);
+            PiccoClient.UploadResult result = client.upload(file, folder);
             final int message;
             switch (result.status) {
                 case SENT:
@@ -844,6 +919,17 @@ public class MainActivity extends Activity {
         }
         setBulkRunning(true);
         showBulkStatus(getString(R.string.send_missing_checking));
+        withPiccoFolder(address, folder -> findAndSendMissing(address, folder), message -> {
+            setBulkRunning(false);
+            if (message != null) {
+                showBulkStatus(message);
+            } else {
+                bulkStatusView.setVisibility(View.GONE);
+            }
+        });
+    }
+
+    private void findAndSendMissing(String address, String folder) {
         new Thread(() -> {
             PiccoClient client = new PiccoClient(address);
             List<String> onPicco;
@@ -851,11 +937,7 @@ public class MainActivity extends Activity {
                 onPicco = client.listBooks();
                 piccoLibrary.save(address, onPicco);
             } catch (Exception e) {
-                final String message = !(e instanceof IOException)
-                        ? getString(R.string.transfer_unexpected, String.valueOf(e))
-                        : hasLocalNetwork()
-                        ? getString(R.string.transfer_unreachable, address)
-                        : getString(R.string.transfer_no_network);
+                final String message = piccoErrorMessage(e, address);
                 runOnUiThread(() -> {
                     setBulkRunning(false);
                     showBulkStatus(message);
@@ -887,9 +969,9 @@ public class MainActivity extends Activity {
                 new android.app.AlertDialog.Builder(this)
                         .setTitle(R.string.send_missing_confirm_title)
                         .setMessage(getString(R.string.send_missing_confirm_body,
-                                missing.size(), size))
+                                missing.size(), size, piccoFolderLabel(this, folder)))
                         .setPositiveButton(R.string.send_missing_confirm_ok,
-                                (d, w) -> uploadAll(client, address, missing))
+                                (d, w) -> uploadAll(client, address, missing, folder))
                         .setNegativeButton(R.string.send_missing_cancel,
                                 (d, w) -> setBulkRunning(false))
                         .setOnCancelListener(d -> setBulkRunning(false))
@@ -898,7 +980,7 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private void uploadAll(PiccoClient client, String address, List<File> files) {
+    private void uploadAll(PiccoClient client, String address, List<File> files, String folder) {
         new Thread(() -> {
             int sent = 0;
             String failure = null;
@@ -908,7 +990,7 @@ public class MainActivity extends Activity {
                         displayTitle(file.getName()));
                 runOnUiThread(() -> showBulkStatus(text));
                 try {
-                    PiccoClient.UploadResult result = client.upload(file);
+                    PiccoClient.UploadResult result = client.upload(file, folder);
                     if (result.status != PiccoClient.Status.SERVER_ERROR) {
                         sent++;
                         piccoLibrary.addUploaded(address, file.getName());

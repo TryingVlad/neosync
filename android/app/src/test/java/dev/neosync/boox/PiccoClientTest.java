@@ -47,6 +47,7 @@ public class PiccoClientTest {
     private byte[] uploadedBody;
     private String uploadedContentType;
     private String uploadedLength;
+    private String uploadedTarget;
 
     @Before
     public void startServer() throws IOException {
@@ -91,6 +92,7 @@ public class PiccoClientTest {
             code = body != null ? 200 : 404;
             if (body == null) body = "not found";
         } else if (target.startsWith("/upload")) {
+            uploadedTarget = target;
             uploadedContentType = headers.get("content-type");
             uploadedLength = headers.get("content-length");
             uploadedBody = new byte[Integer.parseInt(uploadedLength)];
@@ -208,7 +210,7 @@ public class PiccoClientTest {
         byte[] content = "%PDF-1.4 fake".getBytes(StandardCharsets.UTF_8);
         File book = writeTemp("Report.pdf", content);
 
-        PiccoClient.UploadResult result = new PiccoClient(address).upload(book);
+        PiccoClient.UploadResult result = new PiccoClient(address).upload(book, "/");
 
         assertEquals(PiccoClient.Status.SENT, result.status);
         assertTrue(uploadedContentType.startsWith("multipart/form-data; boundary="));
@@ -222,20 +224,41 @@ public class PiccoClientTest {
     }
 
     @Test
+    public void upload_goesToTheChosenFolder() throws IOException {
+        File book = writeTemp("Dune.epub", new byte[] {1, 2, 3});
+        new PiccoClient(address).upload(book, "/books");
+        assertEquals("/upload?path=%2Fbooks", uploadedTarget);
+        new PiccoClient(address).upload(book, "/");
+        assertEquals("/upload?path=%2F", uploadedTarget);
+    }
+
+    @Test
+    public void listFolders_topLevelVisibleFoldersAndSuggestsBooks() throws IOException {
+        listings.put("/", "[{\"name\":\"Books\",\"isDirectory\":true},"
+                + "{\"name\":\".crosspoint\",\"isDirectory\":true},"
+                + "{\"name\":\"fonts\",\"isDirectory\":true},"
+                + "{\"name\":\"Dune.epub\",\"isDirectory\":false}]");
+        List<String> folders = new PiccoClient(address).listFolders();
+        assertEquals(Arrays.asList("/Books", "/fonts"), folders);
+        assertEquals("/Books", PiccoClient.suggestedFolder(folders));
+        assertEquals("/", PiccoClient.suggestedFolder(Arrays.asList("/fonts")));
+    }
+
+    @Test
     public void upload_mapsAlreadyExistsAndOtherErrors() throws IOException {
         File book = writeTemp("Dune.epub", new byte[] {1, 2, 3});
 
         uploadCode = 400;
         uploadBody = "File already exists";
-        assertEquals(PiccoClient.Status.ALREADY_THERE, new PiccoClient(address).upload(book).status);
+        assertEquals(PiccoClient.Status.ALREADY_THERE, new PiccoClient(address).upload(book, "/").status);
 
         uploadBody = "Invalid path";
-        PiccoClient.UploadResult result = new PiccoClient(address).upload(book);
+        PiccoClient.UploadResult result = new PiccoClient(address).upload(book, "/");
         assertEquals(PiccoClient.Status.SERVER_ERROR, result.status);
         assertEquals(400, result.httpCode);
 
         uploadCode = 500;
-        assertEquals(PiccoClient.Status.SERVER_ERROR, new PiccoClient(address).upload(book).status);
+        assertEquals(PiccoClient.Status.SERVER_ERROR, new PiccoClient(address).upload(book, "/").status);
     }
 
     private static File writeTemp(String name, byte[] content) throws IOException {

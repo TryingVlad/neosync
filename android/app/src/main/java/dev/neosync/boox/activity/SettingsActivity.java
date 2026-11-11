@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.RadioGroup;
 import android.widget.TextView;
@@ -47,6 +48,22 @@ public class SettingsActivity extends Activity {
 
             @Override
             public void afterTextChanged(Editable s) { }
+        });
+
+        // The folder is picked from the Picco's own list the first time a
+        // book is sent (the Picco must be reachable for that), so here it can
+        // only be shown and reset.
+        TextView piccoFolderView = findViewById(R.id.text_picco_folder);
+        String piccoFolder = settings.getPiccoFolder();
+        piccoFolderView.setText(piccoFolder != null
+                ? MainActivity.piccoFolderLabel(this, piccoFolder)
+                : getString(R.string.picco_folder_unset));
+        View piccoFolderButton = findViewById(R.id.button_picco_folder);
+        piccoFolderButton.setEnabled(piccoFolder != null);
+        piccoFolderButton.setOnClickListener(v -> {
+            settings.setPiccoFolder(null);
+            piccoFolderView.setText(R.string.picco_folder_reset);
+            v.setEnabled(false);
         });
 
         RadioGroup matchMethodGroup = findViewById(R.id.group_match_method);

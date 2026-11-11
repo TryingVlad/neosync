@@ -175,12 +175,45 @@ public class PiccoClient {
     }
 
     /**
-     * Uploads the file into the Picco's top-level folder under its current
-     * name. CrossPoint indexes uploaded book files into its library on its
-     * own. Uses a fixed content length: the Picco's tiny HTTP server does not
-     * handle chunked bodies reliably.
+     * The Picco's top-level folders ("/books", …), for choosing where books
+     * go. Hidden ones (".crosspoint") are left out.
      */
-    public UploadResult upload(File file) throws IOException {
+    public List<String> listFolders() throws IOException {
+        List<String> folders = new ArrayList<>();
+        JSONArray entries = listDir("/");
+        for (int i = 0; i < entries.length(); i++) {
+            JSONObject entry = entries.optJSONObject(i);
+            if (entry == null || !entry.optBoolean("isDirectory", false)) {
+                continue;
+            }
+            String name = entry.optString("name", "");
+            if (!name.isEmpty() && !name.startsWith(".")) {
+                folders.add("/" + name);
+            }
+        }
+        return folders;
+    }
+
+    /**
+     * The folder to suggest first: one called "books" (any case), which is
+     * where CrossPoint users usually keep them, else the top level.
+     */
+    public static String suggestedFolder(List<String> folders) {
+        for (String folder : folders) {
+            if (folder.equalsIgnoreCase("/books")) {
+                return folder;
+            }
+        }
+        return "/";
+    }
+
+    /**
+     * Uploads the file into the given Picco folder ("/" or "/books") under
+     * its current name. CrossPoint indexes uploaded book files into its
+     * library on its own. Uses a fixed content length: the Picco's tiny HTTP
+     * server does not handle chunked bodies reliably.
+     */
+    public UploadResult upload(File file, String folder) throws IOException {
         String boundary = "NeoSync" + Long.toHexString(System.currentTimeMillis());
         String fileName = file.getName().replace('"', '_');
         byte[] head = ("--" + boundary + "\r\n"
@@ -188,7 +221,8 @@ public class PiccoClient {
                 + "Content-Type: " + contentType(fileName) + "\r\n\r\n").getBytes(StandardCharsets.UTF_8);
         byte[] tail = ("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8);
 
-        HttpURLConnection conn = open("/upload?path=%2F", "POST");
+        String target = folder == null || folder.isEmpty() ? "/" : folder;
+        HttpURLConnection conn = open("/upload?path=" + URLEncoder.encode(target, "UTF-8"), "POST");
         conn.setDoOutput(true);
         conn.setReadTimeout(UPLOAD_READ_TIMEOUT_MS);
         conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);

@@ -141,7 +141,14 @@
     <string name="send_missing_checking">Comparing this Boox’s books with the Picco’s…</string>
     <string name="send_missing_none">Every EPUB on this Boox is already on the Picco.</string>
     <string name="send_missing_confirm_title">Send books to the Picco?</string>
-    <string name="send_missing_confirm_body">%1$d EPUB books on this Boox aren’t on the Picco yet (%2$s in total). Keep the Picco’s File Transfer screen open while they are sent.</string>
+    <string name="send_missing_confirm_body">%1$d EPUB books on this Boox aren’t on the Picco yet (%2$s in total). They go into “%3$s”. Keep the Picco’s File Transfer screen open while they are sent.</string>
+    <string name="picco_folder_title">Where should books go on the Picco?</string>
+    <string name="picco_folder_ok">Use this folder</string>
+    <string name="picco_folder_root">Top level of the Picco</string>
+    <string name="label_picco_folder">Folder for books sent to the Picco</string>
+    <string name="picco_folder_unset">Not chosen yet. NeoSync asks the first time it sends a book.</string>
+    <string name="button_picco_folder_change">Choose again</string>
+    <string name="picco_folder_reset">NeoSync will ask again the next time it sends a book.</string>
     <string name="send_missing_confirm_ok">Send</string>
     <string name="send_missing_cancel">Cancel</string>
     <string name="send_missing_progress">Sending · %1$d of %2$d · %3$s</string>

@@ -94,6 +94,17 @@ public class KoSyncClient {
         public String device;
         public String deviceId;
         public long timestampSec;    // server-side timestamp, epoch seconds
+        /** Other hashes the server merged into this document (changes feed only). */
+        public java.util.List<String> aliases = new java.util.ArrayList<>();
+    }
+
+    /** One page of the server's progress change feed. */
+    public static class Changes {
+        /** Where the next request starts (pass back as since). */
+        public long cursor;
+        /** More changes are waiting after this page. */
+        public boolean more;
+        public final java.util.List<Progress> items = new java.util.ArrayList<>();
     }
 
     public static class Result {
@@ -102,6 +113,8 @@ public class KoSyncClient {
         public final Progress progress;
         /** For RATE_LIMITED: the server's Retry-After in seconds, or 0 if not given. */
         public long retryAfterSec;
+        /** For getChanges: the page read. */
+        public Changes changes;
 
         Result(Error error, int httpCode, Progress progress) {
             this.error = error;
@@ -231,6 +244,86 @@ public class KoSyncClient {
             Log.w(TAG, "getProgress failed: " + e);
             return new Result(Error.NETWORK_ERROR, 0, null);
         }
+    }
+
+    /**
+     * The books whose position changed since a cursor, newest position per
+     * book, without the ones this device wrote last. A crosspoint-sync
+     * extension (GET /api/v1/progress/changes); stock kosync servers answer
+     * 404, which comes back as NOT_FOUND so the caller can fall back to
+     * asking about books one by one.
+     */
+    public Result getChanges(long since, int limit) {
+        if (isCoolingDown()) {
+            return new Result(Error.RATE_LIMITED, 429, null);
+        }
+        return track(getChangesOnce(since, limit));
+    }
+
+    private Result getChangesOnce(long since, int limit) {
+        if (!settings.hasCredentials()) {
+            return new Result(Error.NO_CREDENTIALS, 0, null);
+        }
+        try {
+            HttpURLConnection conn = open("/api/v1/progress/changes?since=" + since
+                    + "&limit=" + limit + "&device="
+                    + java.net.URLEncoder.encode(deviceId, "UTF-8"), "GET");
+            int code = conn.getResponseCode();
+            String body = readBody(conn);
+            if (code == 200 && body != null) {
+                try {
+                    Changes changes = parseChanges(body);
+                    Log.d(TAG, "getChanges since " + since + " -> " + changes.items.size()
+                            + " change(s), cursor " + changes.cursor);
+                    Result result = new Result(Error.OK, code, null);
+                    result.changes = changes;
+                    return result;
+                } catch (Exception e) {
+                    Log.w(TAG, "getChanges JSON parse failed: " + e);
+                    return new Result(Error.JSON_ERROR, code, null);
+                }
+            }
+            Log.d(TAG, "getChanges since " + since + " -> " + code);
+            if (code == 401) return new Result(Error.AUTH_FAILED, code, null);
+            if (code == 404) return new Result(Error.NOT_FOUND, code, null);
+            if (code == 429) return rateLimited(conn);
+            return new Result(Error.SERVER_ERROR, code, null);
+        } catch (Exception e) {
+            Log.w(TAG, "getChanges failed: " + e);
+            return new Result(Error.NETWORK_ERROR, 0, null);
+        }
+    }
+
+    /** Parses a change feed page; throws on anything that isn't one. */
+    public static Changes parseChanges(String body) throws org.json.JSONException {
+        JSONObject json = new JSONObject(body);
+        if (!json.has("cursor") || !json.has("changes")) {
+            throw new org.json.JSONException("not a change feed");
+        }
+        Changes changes = new Changes();
+        changes.cursor = json.getLong("cursor");
+        changes.more = json.optBoolean("more", false);
+        org.json.JSONArray items = json.getJSONArray("changes");
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject item = items.getJSONObject(i);
+            Progress p = new Progress();
+            p.document = item.optString("document", "");
+            p.progress = item.optString("progress", "");
+            p.percentage = item.optDouble("percentage", 0.0);
+            p.device = item.optString("device", "");
+            p.deviceId = item.optString("device_id", "");
+            p.timestampSec = item.optLong("timestamp", 0);
+            org.json.JSONArray aliases = item.optJSONArray("aliases");
+            if (aliases != null) {
+                for (int j = 0; j < aliases.length(); j++) {
+                    p.aliases.add(aliases.getString(j));
+                }
+            }
+            if (!p.document.isEmpty()) {
+                changes.items.add(p);
+            }
+        }
+        return changes;
     }
 
     public Result updateProgress(String documentHash, String progress, double percentage) {

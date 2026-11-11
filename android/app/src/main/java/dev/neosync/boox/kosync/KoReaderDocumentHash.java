@@ -58,6 +58,26 @@ public final class KoReaderDocumentHash {
         return md5Hex(filename);
     }
 
+    /**
+     * The filename hash for each way the name can be spelled in Unicode.
+     * An accented letter can be stored as one character ("é") or as a
+     * letter plus an accent mark ("e" + U+0301); they look the same but hash
+     * differently, and the Boox and the Picco don't always store a name the
+     * same way. As-is first, then the composed and decomposed spellings when
+     * they differ. Empty when the path has no file name.
+     */
+    public static java.util.List<String> filenameVariants(String path) {
+        java.util.LinkedHashSet<String> hashes = new java.util.LinkedHashSet<>();
+        int slash = path.lastIndexOf('/');
+        String filename = slash >= 0 ? path.substring(slash + 1) : path;
+        if (!filename.isEmpty()) {
+            hashes.add(md5Hex(filename));
+            hashes.add(md5Hex(java.text.Normalizer.normalize(filename, java.text.Normalizer.Form.NFC)));
+            hashes.add(md5Hex(java.text.Normalizer.normalize(filename, java.text.Normalizer.Form.NFD)));
+        }
+        return new java.util.ArrayList<>(hashes);
+    }
+
     /** Lowercase hex MD5 of a UTF-8 string (also used for the kosync password). */
     public static String md5Hex(String input) {
         try {

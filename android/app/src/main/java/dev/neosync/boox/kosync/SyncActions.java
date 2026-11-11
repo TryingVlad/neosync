@@ -31,6 +31,46 @@ public final class SyncActions {
     }
 
     /**
+     * The other hashes the same book may be stored under: with filename
+     * matching, the other Unicode spellings of an accented name (see
+     * KoReaderDocumentHash.filenameVariants). Empty for content hashes and
+     * plain names.
+     */
+    public static java.util.List<String> alternateHashes(String path, String hash) {
+        java.util.List<String> variants = KoReaderDocumentHash.filenameVariants(path);
+        if (!variants.contains(hash)) {
+            return new java.util.ArrayList<>(); // a content hash: one per book
+        }
+        variants.remove(hash);
+        return variants;
+    }
+
+    /**
+     * Asks the server for the book's position under every spelling of its
+     * name and returns the newest one found. One request for most books; a
+     * second only for accented names, so "Jours de révolte" read on the Picco
+     * is found even when the Boox spells the é differently.
+     */
+    public static KoSyncClient.Result getProgress(KoSyncClient client, String path, String hash) {
+        KoSyncClient.Result best = client.getProgress(hash);
+        if (best.error != KoSyncClient.Error.OK && best.error != KoSyncClient.Error.NOT_FOUND) {
+            return best;
+        }
+        for (String other : alternateHashes(path, hash)) {
+            KoSyncClient.Result result = client.getProgress(other);
+            if (result.error == KoSyncClient.Error.OK) {
+                if (best.error != KoSyncClient.Error.OK
+                        || result.progress.timestampSec > best.progress.timestampSec) {
+                    best = result;
+                }
+            } else if (result.error != KoSyncClient.Error.NOT_FOUND) {
+                return result; // offline or slowed down: don't half-answer
+            }
+        }
+        return best;
+    }
+
+    /**
      * Writes remote progress into the Onyx provider: progress column (library
      * shelf) plus NeoReader's internal position when a calibration pair is
      * available. Records what was written for echo suppression.
@@ -143,6 +183,14 @@ public final class SyncActions {
         int total = book.totalPages();
         double percentage = localPercentage(book);
         KoSyncClient.Result result = client.updateProgress(hash, String.valueOf(page), percentage);
+        // Every spelling of the name, so a device that spells it the other
+        // way sees this position too.
+        for (String other : alternateHashes(book.path, hash)) {
+            if (result.error != KoSyncClient.Error.OK) {
+                break;
+            }
+            result = client.updateProgress(other, String.valueOf(page), percentage);
+        }
         if (result.error == KoSyncClient.Error.OK) {
             SyncStateStore.BookState state = stateStore.get(book.path);
             state.lastPushedProgress = book.progress;

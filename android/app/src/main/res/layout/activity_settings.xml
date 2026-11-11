@@ -23,6 +23,12 @@
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/label_picco_address" style="@style/NeoSync.Body" />
 
 <EditText android:id="@+id/field_picco_address" android:layout_width="match_parent" android:layout_marginTop="4dp" android:hint="@string/hint_picco_address" android:inputType="textUri" style="@style/NeoSync.Field" />
+
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:text="@string/label_picco_folder" style="@style/NeoSync.Body" />
+
+<TextView android:id="@+id/text_picco_folder" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="" style="@style/NeoSync.Small" />
+
+<Button android:id="@+id/button_picco_folder" android:layout_width="match_parent" android:layout_marginTop="10dp" android:text="@string/button_picco_folder_change" style="@style/NeoSync.Button.Secondary" />
 </LinearLayout>
 
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:text="@string/settings_books_header" style="@style/NeoSync.Section" />

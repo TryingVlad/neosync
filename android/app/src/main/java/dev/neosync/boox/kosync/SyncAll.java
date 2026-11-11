@@ -107,7 +107,7 @@ public class SyncAll {
             summary.failed++;
             return null;
         }
-        KoSyncClient.Result remote = client.getProgress(hash);
+        KoSyncClient.Result remote = SyncActions.getProgress(client, book.path, hash);
         if (remote.error == KoSyncClient.Error.RATE_LIMITED
                 || remote.error == KoSyncClient.Error.NETWORK_ERROR) {
             return remote;
