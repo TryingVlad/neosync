@@ -22,10 +22,10 @@ public class LibraryScopeTest {
     }
 
     @Test
-    public void defaultsShowEpubAndPdfOnly() {
+    public void defaultsShowEpubOnly() {
         LibraryScope scope = defaults();
         assertTrue(scope.includes(BOOKS + "/a.epub"));
-        assertTrue(scope.includes(BOOKS + "/a.pdf"));
+        assertFalse(scope.includes(BOOKS + "/a.pdf"));
         assertFalse(scope.includes(BOOKS + "/a.mobi"));
         assertFalse(scope.includes(BOOKS + "/a.md"));
     }

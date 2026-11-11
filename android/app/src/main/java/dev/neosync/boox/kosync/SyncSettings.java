@@ -142,7 +142,7 @@ public class SyncSettings {
         }
     }
 
-    /** File types (lower case) the home list shows; EPUB and PDF until chosen. */
+    /** File types (lower case) the home list shows; EPUB only until chosen. */
     public java.util.Set<String> getLibraryTypes() {
         java.util.Set<String> saved = prefs.getStringSet(KEY_LIBRARY_TYPES, null);
         return new java.util.HashSet<>(saved != null ? saved

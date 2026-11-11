@@ -249,7 +249,7 @@ in Neo Reader… On the Picco, open the same book and choose Sync Progress."
 ### 5.8 Library settings: book types and folders (added at the user's request)
 
 Settings gets a **Library** section (between Picco and Help) with one page:
-- **Book types shown:** tick boxes for EPUB, PDF, MOBI, AZW / AZW3, FB2, CBZ / CBR, DJVU. Default: **EPUB and PDF**.
+- **Book types shown:** tick boxes for EPUB, PDF, MOBI, AZW / AZW3, FB2, CBZ / CBR, DJVU. Default: **EPUB only** (a Picco can't open PDFs; other types can be ticked).
 - **Folders:** tick boxes for each folder on the Boox that holds books. Default: all shown; unticking one hides it and its subfolders.
 
 These only change which Boox books the **list** shows (and the counts and "Only here" filter built from it). They never change what is synced, sent or fixed.

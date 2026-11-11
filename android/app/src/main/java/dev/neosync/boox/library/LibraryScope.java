@@ -17,9 +17,9 @@ import java.util.TreeSet;
  */
 public final class LibraryScope {
 
-    /** Shown until the user chooses otherwise. */
+    /** Shown until the user chooses otherwise: EPUB only, since a Picco can't open PDFs. */
     public static final Set<String> DEFAULT_TYPES =
-            Collections.unmodifiableSet(new HashSet<>(Arrays.asList("epub", "pdf")));
+            Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("epub")));
 
     /** Every type the user can choose from (lower case), in display order. */
     public static final List<String> ALL_TYPES = Collections.unmodifiableList(Arrays.asList(
