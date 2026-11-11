@@ -41,7 +41,7 @@ public final class SuggestionPicker {
                 case RATE_LIMITED:
                 case OTHER:
                     return new Suggestion(Suggestion.Kind.PROBLEM_SERVER, 0, null);
-                default:
+                default: // NONE
                     break;
             }
         }
@@ -53,7 +53,8 @@ public final class SuggestionPicker {
             }
         }
         if (in.piccoConfigured && in.piccoReachable && in.missingOnPicco > 0) {
-            s = new Suggestion(Suggestion.Kind.SEND_MISSING, in.missingOnPicco, in.missingNames);
+            s = new Suggestion(Suggestion.Kind.SEND_MISSING, in.missingOnPicco, in.missingNames,
+                    in.missingBytes);
             if (!isDismissed(in, s)) {
                 return s;
             }

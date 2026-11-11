@@ -11,11 +11,18 @@ public final class Suggestion {
     public final Kind kind;
     public final int count;
     public final String detail;
+    /** Total size in bytes; only SEND_MISSING sets it, 0 otherwise. */
+    public final long bytes;
 
     public Suggestion(Kind kind, int count, String detail) {
+        this(kind, count, detail, 0L);
+    }
+
+    public Suggestion(Kind kind, int count, String detail, long bytes) {
         this.kind = kind;
         this.count = count;
         this.detail = detail;
+        this.bytes = bytes;
     }
 
     /** Identifies this card for "not now"; changes when the count (or update version) changes. */

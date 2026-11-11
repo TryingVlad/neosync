@@ -51,6 +51,7 @@ public class SuggestionPickerTest {
         Suggestion s = SuggestionPicker.pick(in);
         assertEquals(Kind.JOB, s.kind);
         assertEquals(0, s.count);
+        assertEquals(0L, s.bytes);
     }
 
     @Test
@@ -123,10 +124,12 @@ public class SuggestionPickerTest {
         SuggestionPicker.Input in = base();
         in.missingOnPicco = 3;
         in.missingNames = "A, B, C";
+        in.missingBytes = 123456L;
         Suggestion s = SuggestionPicker.pick(in);
         assertEquals(Kind.SEND_MISSING, s.kind);
         assertEquals(3, s.count);
         assertEquals("A, B, C", s.detail);
+        assertEquals(123456L, s.bytes);
         in.piccoReachable = false;
         assertNull(SuggestionPicker.pick(in));
     }
