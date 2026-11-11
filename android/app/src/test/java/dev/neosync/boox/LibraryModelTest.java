@@ -201,4 +201,18 @@ public class LibraryModelTest {
     public void normalBookKept() {
         assertTrue(LibraryModel.isListable("/storage/emulated/0/Books/a.b/My.Book.epub", true, true));
     }
+
+    @Test
+    public void jobInputSkipsHiddenFolders() {
+        List<String> rows = Arrays.asList(
+                "/storage/emulated/0/Books/a.epub",
+                "/storage/emulated/0/Books/.neosync-backup/a.epub",
+                GHOST,
+                "/storage/emulated/0/Books/gone.epub",
+                "/storage/emulated/0/Books/b.epub");
+        List<String> kept = LibraryModel.listable(rows, path -> path,
+                path -> !path.endsWith("gone.epub"), true);
+        assertEquals(Arrays.asList("/storage/emulated/0/Books/a.epub",
+                "/storage/emulated/0/Books/b.epub"), kept);
+    }
 }

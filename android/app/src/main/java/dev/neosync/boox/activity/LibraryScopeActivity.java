@@ -91,11 +91,10 @@ public class LibraryScopeActivity extends Activity {
     private List<String> folders() {
         List<String> paths = new ArrayList<>();
         try {
-            boolean fileAccess = Permissions.hasAllFilesAccess();
-            for (OnyxMetadataRepository.Book book : new OnyxMetadataRepository(this).queryAllBooks()) {
-                if (LibraryModel.isListable(book.path, new File(book.path).exists(), fileAccess)) {
-                    paths.add(book.path);
-                }
+            for (OnyxMetadataRepository.Book book : LibraryModel.listable(
+                    new OnyxMetadataRepository(this).queryAllBooks(), b -> b.path,
+                    path -> new File(path).exists(), Permissions.hasAllFilesAccess())) {
+                paths.add(book.path);
             }
         } catch (RuntimeException ignored) {
             // No library to read: only the saved choices are shown.

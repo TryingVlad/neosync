@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 /** Merges the Boox library and the Picco list into one row per book. */
 public final class LibraryModel {
@@ -69,6 +71,23 @@ public final class LibraryModel {
             }
         }
         return exists || !hasAllFilesAccess;
+    }
+
+    /**
+     * The Onyx library rows that are books to list, in order. Home, the
+     * suggestion counts and every job read the library through this, so
+     * they agree on which books exist (see {@link #isListable}).
+     */
+    public static <T> List<T> listable(List<T> rows, Function<T, String> pathOf,
+                                       Predicate<String> exists, boolean hasAllFilesAccess) {
+        List<T> kept = new ArrayList<>();
+        for (T row : rows) {
+            String path = pathOf.apply(row);
+            if (isListable(path, exists.test(path), hasAllFilesAccess)) {
+                kept.add(row);
+            }
+        }
+        return kept;
     }
 
     /** File name after the last '/', NFC-normalised. */

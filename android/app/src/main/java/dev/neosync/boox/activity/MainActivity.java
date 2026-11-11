@@ -524,6 +524,15 @@ public class MainActivity extends Activity implements JobSession.Screen {
 
     // --- Building the library ----------------------------------------------------
 
+    /**
+     * The library's books, skipping Onyx cloud copies, NeoSync's backups and
+     * files deleted since. Home and every job read the library through this.
+     */
+    private List<OnyxMetadataRepository.Book> listableBooks() {
+        return LibraryModel.listable(repository.queryAllBooks(), book -> book.path,
+                path -> new File(path).exists(), Permissions.hasAllFilesAccess());
+    }
+
     private Snapshot buildSnapshot(String address, boolean syncing) {
         Snapshot s = new Snapshot();
         boolean filenameMode = SyncSettings.MATCH_FILENAME.equals(settings.getMatchMethod());
@@ -533,17 +542,13 @@ public class MainActivity extends Activity implements JobSession.Screen {
         List<LibraryModel.BooxBook> boox = new ArrayList<>();
         List<LibraryModel.BooxBook> everyBoox = new ArrayList<>();
         Map<String, RemotePosition> remoteByKey = new HashMap<>();
-        boolean fileAccess = Permissions.hasAllFilesAccess();
         // Most recently read first, so the first copy of a duplicate name is
         // the one LibraryModel.merge keeps.
-        for (OnyxMetadataRepository.Book book : repository.queryAllBooks()) {
+        for (OnyxMetadataRepository.Book book : listableBooks()) {
             if (!LibraryModel.isBookFile(book.path)) {
                 continue; // Onyx also lists note files (.md) and the like
             }
             File file = new File(book.path);
-            if (!LibraryModel.isListable(book.path, file.exists(), fileAccess)) {
-                continue; // Onyx cloud copies, backups, files deleted since
-            }
             String key = LibraryModel.keyOf(book.path);
             boolean readable = file.canRead();
             BookMeta meta = metaCache.get(file);
@@ -1554,7 +1559,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
             final List<File> missing = new ArrayList<>();
             long bytes = 0;
             Set<String> seen = new HashSet<>();
-            for (OnyxMetadataRepository.Book book : repository.queryAllBooks()) {
+            for (OnyxMetadataRepository.Book book : listableBooks()) {
                 String name = fileName(book.path);
                 File file = new File(book.path);
                 if (!name.toLowerCase(Locale.ROOT).endsWith(".epub") || !seen.add(name)
@@ -1647,7 +1652,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
             runOnUiThread(() -> markPicco(address, true));
             CleanPlan plan = new CleanPlan();
             Set<String> seenPaths = new HashSet<>();
-            List<OnyxMetadataRepository.Book> books = repository.queryAllBooks();
+            List<OnyxMetadataRepository.Book> books = listableBooks();
             List<String> libraryPaths = new ArrayList<>();
             for (OnyxMetadataRepository.Book book : books) {
                 libraryPaths.add(book.path);
