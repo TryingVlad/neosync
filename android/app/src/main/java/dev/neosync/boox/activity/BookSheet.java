@@ -545,7 +545,7 @@ final class BookSheet {
         a.withPiccoFolder(address, folder -> {
             sendJob = SendMissingJob.oneBook(app, new PiccoClient(address), address,
                     folder, new File(e.booxPath), a.piccoLibrary,
-                    ex -> a.piccoErrorMessage(ex, address), force);
+                    ex -> MainActivity.piccoErrorMessage(app, ex, address), force);
             if (!a.startJob(sendJob)) {
                 sendingFile = false;
                 sendJob = null;

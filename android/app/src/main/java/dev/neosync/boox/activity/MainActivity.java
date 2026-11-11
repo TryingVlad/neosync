@@ -1515,11 +1515,20 @@ public class MainActivity extends Activity implements JobSession.Screen {
 
     /** What to tell the user when the Picco could not be reached. */
     String piccoErrorMessage(Exception e, String address) {
+        return piccoErrorMessage(this, e, address);
+    }
+
+    /**
+     * The same, for jobs that outlive this screen: pass the application
+     * context so the job never holds an activity a rotation destroyed.
+     */
+    static String piccoErrorMessage(android.content.Context context, Exception e,
+                                    String address) {
         return !(e instanceof IOException)
-                ? getString(R.string.transfer_unexpected, String.valueOf(e))
-                : WifiHelper.hasLocalNetwork(this)
-                ? getString(R.string.transfer_unreachable, address)
-                : getString(R.string.transfer_no_network);
+                ? context.getString(R.string.transfer_unexpected, String.valueOf(e))
+                : WifiHelper.hasLocalNetwork(context)
+                ? context.getString(R.string.transfer_unreachable, address)
+                : context.getString(R.string.transfer_no_network);
     }
 
     // --- Send missing books ----------------------------------------------------------
