@@ -21,6 +21,7 @@ import dev.neosync.boox.service.SyncService;
 import dev.neosync.boox.transfer.BookSyncStatus;
 import dev.neosync.boox.transfer.PiccoClient;
 import dev.neosync.boox.transfer.PiccoLibraryStore;
+import dev.neosync.boox.update.UpdateChecker;
 
 import java.io.File;
 import java.io.IOException;
@@ -198,6 +199,7 @@ public class MainActivity extends Activity {
             }
             refreshStatus();
             renderPiccoLibrary();
+            refreshUpdateBanner();
             // The Picco address may have been changed on the settings screen.
             if (piccoAddressChecked != null
                     && !settings.getPiccoAddress().equals(piccoAddressChecked)) {
@@ -957,6 +959,36 @@ public class MainActivity extends Activity {
         } catch (android.content.ActivityNotFoundException e) {
             android.util.Log.w("MainActivity", "No Wi-Fi settings screen: " + e);
         }
+    }
+
+    /**
+     * Shows the "new version" banner from the last known answer, then asks
+     * GitHub in the background (at most once a day) and updates it.
+     */
+    private void refreshUpdateBanner() {
+        UpdateChecker checker = new UpdateChecker(this);
+        showUpdateBanner(checker.knownUpdate());
+        new Thread(() -> {
+            UpdateChecker.Update update = checker.check(false);
+            runOnUiThread(() -> {
+                if (!isFinishing()) {
+                    showUpdateBanner(update);
+                }
+            });
+        }).start();
+    }
+
+    private void showUpdateBanner(UpdateChecker.Update update) {
+        View banner = findViewById(R.id.group_update_banner);
+        if (update == null) {
+            banner.setVisibility(View.GONE);
+            return;
+        }
+        ((TextView) findViewById(R.id.text_update_banner))
+                .setText(getString(R.string.update_banner, update.version));
+        findViewById(R.id.button_update_banner).setOnClickListener(v ->
+                SettingsActivity.openDownload(this, update));
+        banner.setVisibility(View.VISIBLE);
     }
 
     /** Shows or hides the hotspot hints for the current network. */

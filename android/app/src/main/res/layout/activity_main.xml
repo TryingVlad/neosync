@@ -9,6 +9,13 @@
 <ImageButton android:id="@+id/button_settings" android:layout_width="44dp" android:layout_height="44dp" android:layout_marginEnd="-10dp" android:src="@drawable/ic_settings" android:background="@null" android:padding="10dp" android:contentDescription="@string/cd_settings" />
 </LinearLayout>
 
+<!-- Shown only when a newer release is on GitHub. -->
+<LinearLayout android:id="@+id/group_update_banner" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="16dp" android:visibility="gone" style="@style/NeoSync.Card">
+<TextView android:id="@+id/text_update_banner" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="" style="@style/NeoSync.Body" android:textStyle="bold" />
+
+<Button android:id="@+id/button_update_banner" android:layout_width="wrap_content" android:layout_marginStart="12dp" android:layout_marginTop="0dp" android:paddingStart="18dp" android:paddingEnd="18dp" android:text="@string/button_get_update" style="@style/NeoSync.Button.Primary" />
+</LinearLayout>
+
 <!-- Status hero: the answer to "is sync working?" at a glance. -->
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="20dp" style="@style/NeoSync.Card">
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">

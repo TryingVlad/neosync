@@ -17,7 +17,9 @@ Grab the APK from the
 [latest release](https://github.com/TryingVlad/neosync/releases/latest)
 (direct link:
 [neosync.apk](https://github.com/TryingVlad/neosync/releases/latest/download/neosync.apk))
-and sideload it on the Boox. Later releases install as updates over it.
+and sideload it on the Boox. Later releases install as updates over it:
+NeoSync checks GitHub once a day and shows a banner when a new version is
+out.
 
 Coming from **7.0.0 or older**: uninstall that version first. Those builds
 were signed with a temporary key, so Android won't accept 7.0.1 as an update
@@ -144,6 +146,16 @@ By default a book is identified by the MD5 of its **file name**, CrossPoint's
 default. "By file contents" uses KOReader's partial-MD5 instead and needs
 byte-identical files. Use the same mode on both devices.
 
+## Reporting a problem
+
+*Settings → Copy problem report* copies a short report to the clipboard:
+your device model, firmware, Android version, a few NeoSync settings and its
+recent log. Book names, file paths, document hashes and your account details
+are removed, and it fits in a Reddit comment. Paste it, with a few words on
+what happened, in a Reddit comment or message, or in a
+[GitHub issue](https://github.com/TryingVlad/neosync/issues). The app sends
+nothing by itself.
+
 ## Privacy
 
 Only the MD5 of your password is stored on the device, which is the credential
@@ -151,7 +163,8 @@ the protocol uses. Your username, book identifiers (hashes, not titles) and
 positions are stored on the sync server you choose, always over HTTPS. Book
 files and the Picco's book list only travel between the Boox and the Picco on
 your local network (plain HTTP, as CrossPoint's file-transfer server speaks
-it).
+it). Once a day NeoSync asks GitHub's public API for the latest release; that
+request carries nothing but the app version.
 
 ## Known limitations
 
