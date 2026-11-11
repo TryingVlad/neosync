@@ -18,7 +18,9 @@ import dev.neosync.boox.kosync.SyncAll;
 import dev.neosync.boox.kosync.SyncSettings;
 import dev.neosync.boox.kosync.SyncStateStore;
 import dev.neosync.boox.service.SyncService;
+import dev.neosync.boox.epub.EpubCover;
 import dev.neosync.boox.transfer.BookSyncStatus;
+import dev.neosync.boox.transfer.CoverFixer;
 import dev.neosync.boox.transfer.PiccoClient;
 import dev.neosync.boox.transfer.PiccoLibraryStore;
 import dev.neosync.boox.update.UpdateChecker;
@@ -69,6 +71,7 @@ public class MainActivity extends Activity {
     private PiccoLibraryStore piccoLibrary;
     private Button syncAllButton;
     private Button sendMissingButton;
+    private Button cleanLibraryButton;
     private TextView bulkStatusView;
     private View wifiHintView;
     // Keeps the hotspot hint current as the Boox switches networks.
@@ -159,6 +162,8 @@ public class MainActivity extends Activity {
         findViewById(R.id.button_wifi_settings).setOnClickListener(v -> openWifiPicker());
         syncAllButton.setOnClickListener(v -> syncAllPositions());
         sendMissingButton.setOnClickListener(v -> sendMissingBooks());
+        cleanLibraryButton = findViewById(R.id.button_clean_library);
+        cleanLibraryButton.setOnClickListener(v -> cleanLibrary());
         findViewById(R.id.button_manual_check).setOnClickListener(v -> manualCheck());
         applyRemoteButton.setOnClickListener(v -> manualApplyRemote());
         uploadLocalButton.setOnClickListener(v -> manualUploadLocal());
@@ -776,6 +781,10 @@ public class MainActivity extends Activity {
                 transferStatusView.post(() -> transferStatusView.setText(R.string.transfer_already));
                 return true;
             }
+            if (needsCover(file)) {
+                runOnUiThread(() -> transferStatusView.setText(R.string.transfer_adding_cover));
+                new CoverFixer(this).fixInPlace(file);
+            }
             runOnUiThread(() -> transferStatusView.setText(R.string.transfer_sending));
             PiccoClient.UploadResult result = client.upload(file, folder);
             final int message;
@@ -823,6 +832,7 @@ public class MainActivity extends Activity {
         bulkRunning = running;
         syncAllButton.setEnabled(!running);
         sendMissingButton.setEnabled(!running);
+        cleanLibraryButton.setEnabled(!running);
     }
 
     private void showBulkStatus(String text) {
@@ -878,12 +888,7 @@ public class MainActivity extends Activity {
                                 if (summary.stoppedReason != null) {
                                     int done = summary.fetched + summary.sent
                                             + summary.unchanged + summary.failed;
-                                    String reason = summary.stoppedError
-                                            == KoSyncClient.Error.NETWORK_ERROR
-                                            ? getString(hasInternet()
-                                                    ? R.string.sync_all_server_unreachable
-                                                    : R.string.sync_all_no_internet)
-                                            : summary.stoppedReason;
+                                    String reason = syncStopReason(summary);
                                     text = done == 0 ? reason : getString(
                                             R.string.sync_all_stopped, done, summary.count, reason);
                                 } else {
@@ -989,6 +994,9 @@ public class MainActivity extends Activity {
                 String text = getString(R.string.send_missing_progress, i + 1, files.size(),
                         displayTitle(file.getName()));
                 runOnUiThread(() -> showBulkStatus(text));
+                if (needsCover(file)) {
+                    new CoverFixer(this).fixInPlace(file);
+                }
                 try {
                     PiccoClient.UploadResult result = client.upload(file, folder);
                     if (result.status != PiccoClient.Status.SERVER_ERROR) {
@@ -1012,6 +1020,331 @@ public class MainActivity extends Activity {
                 if (manualBook != null) {
                     refreshPiccoLibrary();
                 }
+            });
+        }).start();
+    }
+
+    /** Why a "Sync all" run stopped, in words for the user. */
+    private String syncStopReason(SyncAll.Summary summary) {
+        return summary.stoppedError == KoSyncClient.Error.NETWORK_ERROR
+                ? getString(hasInternet() ? R.string.sync_all_server_unreachable
+                        : R.string.sync_all_no_internet)
+                : summary.stoppedReason;
+    }
+
+    /** An EPUB the Picco would show with a black cover, and that can be fixed. */
+    private static boolean needsCover(File file) {
+        EpubCover.Kind kind = CoverFixer.check(file).kind;
+        return kind == EpubCover.Kind.TAG_IMAGE || kind == EpubCover.Kind.NEEDS_SNAPSHOT;
+    }
+
+    // --- Clean library ----------------------------------------------------------
+
+    /** What "Clean library" found, before anything is changed. */
+    private static final class CleanPlan {
+        /** Books on this Boox without a cover the Picco can show. */
+        final List<File> booxBooks = new ArrayList<>();
+        /** Boox file path -> the same book's path on the Picco, when it's there. */
+        final Map<String, String> piccoPathOf = new HashMap<>();
+        /** Picco-only books that need a cover, and where they were downloaded. */
+        final List<String> piccoOnly = new ArrayList<>();
+        final Map<String, File> downloaded = new HashMap<>();
+        final List<String> booxTitles = new ArrayList<>();
+        final List<String> piccoOnlyTitles = new ArrayList<>();
+        int tagged;
+        int pictured;
+    }
+
+    private File cleanWorkDir() {
+        File dir = new File(getCacheDir(), "clean-library");
+        File[] old = dir.listFiles();
+        if (old != null) {
+            for (File f : old) {
+                //noinspection ResultOfMethodCallIgnored
+                f.delete();
+            }
+        }
+        //noinspection ResultOfMethodCallIgnored
+        dir.mkdirs();
+        return dir;
+    }
+
+    private static String bookTitle(File file) {
+        String[] meta = EpubCover.titleAndAuthor(file);
+        return meta != null && !meta[0].isEmpty() ? meta[0] : displayTitle(file.getName());
+    }
+
+    private static String titleList(List<String> titles) {
+        int shown = Math.min(5, titles.size());
+        String list = String.join(", ", titles.subList(0, shown));
+        return titles.size() > shown ? list + ", …" : list;
+    }
+
+    /**
+     * Finds every book without a cover the Picco can show (on this Boox, and
+     * the Picco's own books), asks, then fixes them. See CoverFixer.
+     */
+    private void cleanLibrary() {
+        if (bulkRunning) {
+            return;
+        }
+        final String address = settings.getPiccoAddress();
+        if (address.isEmpty()) {
+            showBulkStatus(getString(R.string.transfer_no_address));
+            return;
+        }
+        if (!Permissions.hasAllFilesAccess()) {
+            // Without it no book can be read or fixed, and every Picco book
+            // would wrongly look like it isn't on this Boox.
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle(R.string.clean_needs_files_title)
+                    .setMessage(R.string.clean_needs_files_body)
+                    .setPositiveButton(R.string.clean_needs_files_open,
+                            (d, w) -> Permissions.openAllFilesAccessSettings(this))
+                    .setNegativeButton(R.string.send_missing_cancel, null)
+                    .show();
+            return;
+        }
+        setBulkRunning(true);
+        showBulkStatus(getString(R.string.send_missing_checking));
+        new Thread(() -> {
+            PiccoClient client = new PiccoClient(address);
+            List<String> onPicco;
+            try {
+                onPicco = client.listBooks();
+                piccoLibrary.save(address, onPicco);
+            } catch (Exception e) {
+                final String message = piccoErrorMessage(e, address);
+                runOnUiThread(() -> {
+                    setBulkRunning(false);
+                    showBulkStatus(message);
+                });
+                return;
+            }
+            CleanPlan plan = new CleanPlan();
+            java.util.Set<String> seenPaths = new java.util.HashSet<>();
+            List<OnyxMetadataRepository.Book> books = repository.queryAllBooks();
+            List<String> libraryPaths = new ArrayList<>();
+            for (OnyxMetadataRepository.Book book : books) {
+                libraryPaths.add(book.path);
+            }
+            for (int i = 0; i < books.size(); i++) {
+                File file = new File(books.get(i).path);
+                if (!CoverFixer.isEpub(file) || !file.canRead() || !seenPaths.add(file.getPath())) {
+                    continue;
+                }
+                String text = getString(R.string.clean_checking_boox, i + 1, books.size());
+                runOnUiThread(() -> showBulkStatus(text));
+                EpubCover.Kind kind = CoverFixer.check(file).kind;
+                if (kind == EpubCover.Kind.TAG_IMAGE) {
+                    plan.tagged++;
+                } else if (kind == EpubCover.Kind.NEEDS_SNAPSHOT) {
+                    plan.pictured++;
+                } else {
+                    continue;
+                }
+                plan.booxBooks.add(file);
+                plan.booxTitles.add(bookTitle(file));
+                for (String piccoPath : onPicco) {
+                    if (fileName(piccoPath).equals(file.getName())) {
+                        plan.piccoPathOf.put(file.getPath(), piccoPath);
+                        break;
+                    }
+                }
+            }
+            List<String> others = CoverFixer.piccoOnlyEpubs(onPicco, libraryPaths);
+            File work = cleanWorkDir();
+            for (int i = 0; i < others.size(); i++) {
+                String piccoPath = others.get(i);
+                String text = getString(R.string.clean_checking_picco, i + 1, others.size(),
+                        displayTitle(piccoPath));
+                runOnUiThread(() -> showBulkStatus(text));
+                File copy = new File(work, "picco-" + i + ".epub");
+                try {
+                    client.download(piccoPath, copy);
+                } catch (IOException e) {
+                    android.util.Log.w("MainActivity", "Could not check " + piccoPath + ": " + e);
+                    continue;
+                }
+                if (needsCover(copy)) {
+                    plan.piccoOnly.add(piccoPath);
+                    plan.downloaded.put(piccoPath, copy);
+                    plan.piccoOnlyTitles.add(bookTitle(copy));
+                } else {
+                    //noinspection ResultOfMethodCallIgnored
+                    copy.delete();
+                }
+            }
+            runOnUiThread(() -> confirmClean(client, plan));
+        }).start();
+    }
+
+    private void confirmClean(PiccoClient client, CleanPlan plan) {
+        if (isFinishing()) {
+            setBulkRunning(false);
+            return;
+        }
+        renderPiccoLibrary();
+        if (plan.booxBooks.isEmpty() && plan.piccoOnly.isEmpty()) {
+            setBulkRunning(false);
+            showBulkStatus(getString(R.string.clean_none));
+            return;
+        }
+        bulkStatusView.setVisibility(View.GONE);
+        String message;
+        if (plan.booxBooks.isEmpty()) {
+            message = getString(R.string.clean_confirm_picco_only_none_boox);
+        } else {
+            message = getString(R.string.clean_confirm_boox, plan.booxBooks.size(),
+                    titleList(plan.booxTitles), plan.tagged, plan.pictured);
+            if (!plan.piccoPathOf.isEmpty()) {
+                message += getString(R.string.clean_confirm_picco_part, plan.piccoPathOf.size());
+            }
+        }
+        android.widget.CheckBox piccoOnlyBox = null;
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.clean_confirm_title)
+                .setMessage(message);
+        if (!plan.piccoOnly.isEmpty()) {
+            piccoOnlyBox = new android.widget.CheckBox(this);
+            piccoOnlyBox.setText(getString(R.string.clean_picco_only_checkbox,
+                    plan.piccoOnly.size(), titleList(plan.piccoOnlyTitles)));
+            piccoOnlyBox.setChecked(false);
+            int pad = dp(20);
+            android.widget.FrameLayout frame = new android.widget.FrameLayout(this);
+            frame.setPadding(pad, dp(8), pad, 0);
+            frame.addView(piccoOnlyBox);
+            builder.setView(frame);
+        }
+        final android.widget.CheckBox box = piccoOnlyBox;
+        builder.setPositiveButton(R.string.clean_confirm_ok, (d, w) -> {
+                    boolean includePiccoOnly = box != null && box.isChecked();
+                    if (plan.booxBooks.isEmpty() && !includePiccoOnly) {
+                        setBulkRunning(false);
+                        return;
+                    }
+                    runClean(client, plan, includePiccoOnly);
+                })
+                .setNegativeButton(R.string.send_missing_cancel, (d, w) -> setBulkRunning(false))
+                .setOnCancelListener(d -> setBulkRunning(false))
+                .show();
+    }
+
+    private void runClean(PiccoClient client, CleanPlan plan, boolean includePiccoOnly) {
+        new Thread(() -> {
+            // 1. The Picco forgets its own position for a replaced book, so
+            //    every position goes to the server before anything changes.
+            List<OnyxMetadataRepository.Book> toSync = new ArrayList<>();
+            for (OnyxMetadataRepository.Book book : repository.queryBooksWithProgress()) {
+                if (plan.piccoPathOf.containsKey(new File(book.path).getPath())) {
+                    toSync.add(book);
+                }
+            }
+            if (!toSync.isEmpty()) {
+                SyncAll.Summary[] result = new SyncAll.Summary[1];
+                new SyncAll(this, settings, repository, stateStore, buildClient(), deviceId())
+                        .run(toSync, new SyncAll.Listener() {
+                            @Override
+                            public void onBook(int index, int count, OnyxMetadataRepository.Book book) {
+                                String text = getString(R.string.clean_sync_first,
+                                        index + 1, count, displayName(book));
+                                runOnUiThread(() -> showBulkStatus(text));
+                            }
+
+                            @Override
+                            public void onFinished(SyncAll.Summary summary) {
+                                result[0] = summary;
+                            }
+                        });
+                if (result[0] != null && result[0].stoppedReason != null) {
+                    final String text = getString(R.string.clean_sync_failed, syncStopReason(result[0]));
+                    runOnUiThread(() -> {
+                        setBulkRunning(false);
+                        showBulkStatus(text);
+                    });
+                    return;
+                }
+            }
+
+            // 2. Fix, then replace on the Picco.
+            CoverFixer fixer = new CoverFixer(this);
+            int total = plan.booxBooks.size() + (includePiccoOnly ? plan.piccoOnly.size() : 0);
+            int done = 0;
+            int fixed = 0;
+            int replaced = 0;
+            int failed = 0;
+            String lost = null;
+            for (File file : plan.booxBooks) {
+                String text = getString(R.string.clean_progress, done + 1, total,
+                        plan.booxTitles.get(done));
+                runOnUiThread(() -> showBulkStatus(text));
+                done++;
+                CoverFixer.Outcome outcome = fixer.fixInPlace(file);
+                if (outcome == CoverFixer.Outcome.FAILED || outcome == CoverFixer.Outcome.NOT_AN_EPUB) {
+                    failed++;
+                    continue;
+                }
+                fixed++;
+                String piccoPath = plan.piccoPathOf.get(file.getPath());
+                if (piccoPath == null) {
+                    continue;
+                }
+                try {
+                    if (client.replace(file, piccoPath).status == PiccoClient.Status.SENT) {
+                        replaced++;
+                    } else {
+                        failed++;
+                    }
+                } catch (IOException e) {
+                    lost = getString(R.string.clean_lost_picco, done - 1, total);
+                    break;
+                }
+            }
+            if (lost == null && includePiccoOnly) {
+                for (int i = 0; i < plan.piccoOnly.size(); i++) {
+                    String piccoPath = plan.piccoOnly.get(i);
+                    String text = getString(R.string.clean_progress, done + 1, total,
+                            plan.piccoOnlyTitles.get(i));
+                    runOnUiThread(() -> showBulkStatus(text));
+                    done++;
+                    File src = plan.downloaded.get(piccoPath);
+                    File fixedCopy = new File(src.getParentFile(), "fixed-" + i + ".epub");
+                    CoverFixer.Outcome outcome = fixer.fixCopy(src, fixedCopy);
+                    if (outcome != CoverFixer.Outcome.TAGGED && outcome != CoverFixer.Outcome.ADDED_PAGE) {
+                        failed++;
+                        continue;
+                    }
+                    try {
+                        if (client.replace(fixedCopy, piccoPath).status == PiccoClient.Status.SENT) {
+                            fixed++;
+                            replaced++;
+                        } else {
+                            failed++;
+                        }
+                    } catch (IOException e) {
+                        lost = getString(R.string.clean_lost_picco, done - 1, total);
+                        break;
+                    }
+                }
+            }
+            cleanWorkDir();
+
+            StringBuilder summary = new StringBuilder(getString(R.string.clean_done, fixed));
+            if (replaced > 0) {
+                summary.append(' ').append(getString(R.string.clean_done_picco, replaced));
+            }
+            if (failed > 0) {
+                summary.append(' ').append(getString(R.string.clean_failed_part, failed));
+            }
+            if (lost != null) {
+                summary.append("\n").append(lost);
+            }
+            final String text = summary.toString();
+            runOnUiThread(() -> {
+                setBulkRunning(false);
+                showBulkStatus(text);
+                renderPiccoLibrary();
+                refreshLocalBook();
             });
         }).start();
     }

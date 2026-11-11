@@ -80,7 +80,7 @@ this Boox*. This comes from what the Boox already knows, so it costs no
 requests to the sync server; reading done on the Picco shows up once the Boox
 has fetched it.
 
-Two buttons work on the whole list:
+Three buttons work on the whole list:
 
 - **Sync all positions**: for every book on both devices, asks the server
   and keeps the newest position: fetched if the Picco is ahead, sent if this
@@ -90,6 +90,17 @@ Two buttons work on the whole list:
   first rate limit or network error.
 - **Send missing books**: copies every EPUB on this Boox that the Picco
   doesn't have yet, after showing how many and their total size.
+- **Fix missing covers**: the Picco shows a black tile for a book without a
+  cover it can read. This finds those books, on this Boox and on the Picco,
+  and gives each one a cover: a picture already in the book when its first
+  page is just that picture (or one is called "cover"), otherwise a picture
+  of the book's first page. Only the book's list of contents changes, never
+  a chapter, so Neo Reader keeps your notes, highlights and position. The
+  original is copied to `Books/.neosync-backup` first. The fixed file
+  replaces the Picco's copy, which resets the Picco's own position for it:
+  positions are saved to the server first, so open the book on the Picco and
+  choose Sync Progress to get your place back. Books that are only on the
+  Picco are fixed only if you tick them. Needs book file access.
 
 The first time NeoSync sends a book, it lists the Picco's folders and asks
 where books should go (it suggests `books` when there is one). The choice is
@@ -189,6 +200,8 @@ request carries nothing but the app version.
 
 - A fetch cannot move a book that is open on screen; close it first.
 - "Send missing books" only sends EPUBs.
+- "Send missing books" and "Send to Picco" give a coverless EPUB its cover
+  (as above) before sending it.
 - Books are matched between the devices by file name, also in the Picco
   list, so both devices need the same file.
 - A book never opened in Neo Reader can't be moved ahead of time: Neo Reader

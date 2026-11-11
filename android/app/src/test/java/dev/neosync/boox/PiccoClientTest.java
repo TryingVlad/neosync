@@ -48,6 +48,8 @@ public class PiccoClientTest {
     private String uploadedContentType;
     private String uploadedLength;
     private String uploadedTarget;
+    /** Picco path -> file served by /download. */
+    private final Map<String, byte[]> downloads = new HashMap<>();
 
     @Before
     public void startServer() throws IOException {
@@ -104,6 +106,20 @@ public class PiccoClientTest {
             }
             code = uploadCode;
             body = uploadBody;
+        } else if (target.startsWith("/download?path=")) {
+            String path = URLDecoder.decode(target.substring("/download?path=".length()), "UTF-8");
+            byte[] data = downloads.get(path);
+            OutputStream out = socket.getOutputStream();
+            if (data == null) {
+                out.write("HTTP/1.1 404 X\r\nContent-Length: 9\r\nConnection: close\r\n\r\nnot found"
+                        .getBytes(StandardCharsets.US_ASCII));
+            } else {
+                out.write(("HTTP/1.1 200 X\r\nContent-Length: " + data.length
+                        + "\r\nConnection: close\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
+                out.write(data);
+            }
+            out.flush();
+            return;
         } else {
             code = 404;
             body = "no route";
@@ -230,6 +246,45 @@ public class PiccoClientTest {
         assertEquals("/upload?path=%2Fbooks", uploadedTarget);
         new PiccoClient(address).upload(book, "/");
         assertEquals("/upload?path=%2F", uploadedTarget);
+    }
+
+    @Test
+    public void replace_overwritesUnderThePiccoNameInItsFolder() throws IOException {
+        File fixed = writeTemp("fixed-copy.epub", new byte[] {7, 7});
+        PiccoClient.UploadResult result =
+                new PiccoClient(address).replace(fixed, "books/Sci-fi/Dune (z-lib).epub");
+        assertEquals(PiccoClient.Status.SENT, result.status);
+        assertEquals("/upload?path=%2Fbooks%2FSci-fi&overwrite=1", uploadedTarget);
+        String body = new String(uploadedBody, StandardCharsets.UTF_8);
+        assertTrue(body, body.contains("filename=\"Dune (z-lib).epub\""));
+    }
+
+    @Test
+    public void replace_topLevelBook() throws IOException {
+        File fixed = writeTemp("x.epub", new byte[] {1});
+        new PiccoClient(address).replace(fixed, "Dune.epub");
+        assertEquals("/upload?path=%2F&overwrite=1", uploadedTarget);
+    }
+
+    @Test
+    public void download_savesTheFile() throws IOException {
+        byte[] data = new byte[100_000];
+        for (int i = 0; i < data.length; i++) data[i] = (byte) i;
+        downloads.put("/books/Dune.epub", data);
+        File dest = new File(writeTemp("ignored.bin", new byte[0]).getParentFile(), "dl.epub");
+        new PiccoClient(address).download("books/Dune.epub", dest);
+        assertArrayEquals(data, java.nio.file.Files.readAllBytes(dest.toPath()));
+    }
+
+    @Test
+    public void download_missingFileThrows() throws IOException {
+        File dest = new File(writeTemp("ignored2.bin", new byte[0]).getParentFile(), "dl2.epub");
+        try {
+            new PiccoClient(address).download("books/Nope.epub", dest);
+            fail("expected IOException");
+        } catch (IOException expected) {
+            assertFalse(dest.exists());
+        }
     }
 
     @Test

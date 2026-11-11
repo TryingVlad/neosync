@@ -97,6 +97,10 @@
 <Button android:id="@+id/button_send_missing" android:layout_width="0dp" android:layout_marginTop="0dp" android:text="@string/button_send_missing" style="@style/NeoSync.Button.Secondary" android:layout_weight="1" />
 </LinearLayout>
 
+<Button android:id="@+id/button_clean_library" android:layout_width="match_parent" android:layout_marginTop="10dp" android:text="@string/button_clean_library" style="@style/NeoSync.Button.Secondary" />
+
+<TextView android:id="@+id/text_clean_library_hint" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="@string/clean_library_hint" style="@style/NeoSync.Small" />
+
 <TextView android:id="@+id/text_bulk_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="" style="@style/NeoSync.Small" android:visibility="gone" />
 
 <LinearLayout android:id="@+id/list_picco_books" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />

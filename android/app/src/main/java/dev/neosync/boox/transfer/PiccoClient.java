@@ -31,6 +31,8 @@ import java.util.Set;
  *
  *   GET  /api/files?path=<dir>  -> JSON listing of one directory
  *   POST /upload?path=<dir>     -> multipart upload; 400 when the name exists
+ *                                  (unless &overwrite=1)
+ *   GET  /download?path=<file>  -> the file
  */
 public class PiccoClient {
 
@@ -214,15 +216,67 @@ public class PiccoClient {
      * server does not handle chunked bodies reliably.
      */
     public UploadResult upload(File file, String folder) throws IOException {
+        return upload(file, folder, file.getName(), false);
+    }
+
+    /**
+     * Overwrites a book on the Picco with file, keeping the Picco's name and
+     * folder. piccoPath is relative to its root ("books/Dune.epub"), as
+     * {@link #listBooks()} returns it. CrossPoint drops its cached copy of
+     * the book, including its own reading position.
+     */
+    public UploadResult replace(File file, String piccoPath) throws IOException {
+        String path = piccoPath.startsWith("/") ? piccoPath.substring(1) : piccoPath;
+        int slash = path.lastIndexOf('/');
+        String folder = slash < 0 ? "/" : "/" + path.substring(0, slash);
+        return upload(file, folder, path.substring(slash + 1), true);
+    }
+
+    /** Saves a Picco book (path as listBooks returns it) to dest. */
+    public void download(String piccoPath, File dest) throws IOException {
+        String path = piccoPath.startsWith("/") ? piccoPath : "/" + piccoPath;
+        HttpURLConnection conn = open("/download?path=" + URLEncoder.encode(path, "UTF-8"), "GET");
+        conn.setReadTimeout(UPLOAD_READ_TIMEOUT_MS);
+        File part = new File(dest.getPath() + ".part");
+        try {
+            int code = conn.getResponseCode();
+            if (code != 200) {
+                throw new IOException("Picco download failed: HTTP " + code);
+            }
+            long expected = conn.getContentLengthLong();
+            try (InputStream in = conn.getInputStream();
+                 OutputStream out = new java.io.FileOutputStream(part)) {
+                byte[] buf = new byte[32768];
+                int n;
+                while ((n = in.read(buf)) > 0) {
+                    out.write(buf, 0, n);
+                }
+            }
+            if (expected >= 0 && part.length() != expected) {
+                throw new IOException("Picco download cut short");
+            }
+            if (!part.renameTo(dest)) {
+                throw new IOException("Could not save " + dest.getName());
+            }
+        } finally {
+            conn.disconnect();
+            //noinspection ResultOfMethodCallIgnored
+            part.delete();
+        }
+    }
+
+    private UploadResult upload(File file, String folder, String remoteName, boolean overwrite)
+            throws IOException {
         String boundary = "NeoSync" + Long.toHexString(System.currentTimeMillis());
-        String fileName = file.getName().replace('"', '_');
+        String fileName = remoteName.replace('"', '_');
         byte[] head = ("--" + boundary + "\r\n"
                 + "Content-Disposition: form-data; name=\"file\"; filename=\"" + fileName + "\"\r\n"
                 + "Content-Type: " + contentType(fileName) + "\r\n\r\n").getBytes(StandardCharsets.UTF_8);
         byte[] tail = ("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8);
 
         String target = folder == null || folder.isEmpty() ? "/" : folder;
-        HttpURLConnection conn = open("/upload?path=" + URLEncoder.encode(target, "UTF-8"), "POST");
+        HttpURLConnection conn = open("/upload?path=" + URLEncoder.encode(target, "UTF-8")
+                + (overwrite ? "&overwrite=1" : ""), "POST");
         conn.setDoOutput(true);
         conn.setReadTimeout(UPLOAD_READ_TIMEOUT_MS);
         conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
