@@ -173,4 +173,32 @@ public class LibraryModelTest {
             assertFalse(name, LibraryModel.isBookFile(name));
         }
     }
+
+    // --- Which Onyx rows are real books ---------------------------------------
+
+    private static final String GHOST = "/storage/emulated/0/.ksync/acct/reader/"
+            + "27204b954259466ca75d44629b0a3b74/book/27204b954259466ca75d44629b0a3b74.epub";
+
+    @Test
+    public void hiddenFolderRowsSkipped() {
+        assertFalse(LibraryModel.isListable(GHOST, true, true));
+        assertFalse(LibraryModel.isListable(GHOST, true, false));
+        assertFalse(LibraryModel.isListable("/storage/emulated/0/Books/.neosync-backup/a.epub",
+                true, true));
+    }
+
+    @Test
+    public void missingFileSkippedWithAccess() {
+        assertFalse(LibraryModel.isListable("/storage/emulated/0/Books/gone.epub", false, true));
+    }
+
+    @Test
+    public void missingFileKeptWithoutAccess() {
+        assertTrue(LibraryModel.isListable("/storage/emulated/0/Books/a.epub", false, false));
+    }
+
+    @Test
+    public void normalBookKept() {
+        assertTrue(LibraryModel.isListable("/storage/emulated/0/Books/a.b/My.Book.epub", true, true));
+    }
 }

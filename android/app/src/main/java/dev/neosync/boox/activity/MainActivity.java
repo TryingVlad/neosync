@@ -533,6 +533,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
         List<LibraryModel.BooxBook> boox = new ArrayList<>();
         List<LibraryModel.BooxBook> everyBoox = new ArrayList<>();
         Map<String, RemotePosition> remoteByKey = new HashMap<>();
+        boolean fileAccess = Permissions.hasAllFilesAccess();
         // Most recently read first, so the first copy of a duplicate name is
         // the one LibraryModel.merge keeps.
         for (OnyxMetadataRepository.Book book : repository.queryAllBooks()) {
@@ -540,6 +541,9 @@ public class MainActivity extends Activity implements JobSession.Screen {
                 continue; // Onyx also lists note files (.md) and the like
             }
             File file = new File(book.path);
+            if (!LibraryModel.isListable(book.path, file.exists(), fileAccess)) {
+                continue; // Onyx cloud copies, backups, files deleted since
+            }
             String key = LibraryModel.keyOf(book.path);
             boolean readable = file.canRead();
             BookMeta meta = metaCache.get(file);

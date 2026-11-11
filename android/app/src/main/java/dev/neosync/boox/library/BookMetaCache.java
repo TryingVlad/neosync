@@ -26,24 +26,52 @@ public class BookMetaCache {
 
     private static final String PREFS = "book_meta";
     private static final String THUMB_DIR = "thumbs";
+    /**
+     * Entry format. 2: a book that couldn't be opened is no longer stored (older
+     * entries may hold such a guess as "no cover, black"), so 1 is recomputed.
+     */
+    private static final int SCHEMA = 2;
 
-    private final SharedPreferences prefs;
+    /** Where the entries are kept: SharedPreferences in the app, a map in tests. */
+    public interface Store {
+        String get(String key);
+
+        void put(String key, String value);
+    }
+
+    private final Store store;
     private final File thumbDir;
 
     public BookMetaCache(Context context) {
         Context app = context.getApplicationContext();
-        this.prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        SharedPreferences prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        this.store = new Store() {
+            @Override
+            public String get(String key) {
+                return prefs.getString(key, null);
+            }
+
+            @Override
+            public void put(String key, String value) {
+                prefs.edit().putString(key, value).apply();
+            }
+        };
         this.thumbDir = new File(app.getCacheDir(), THUMB_DIR);
+    }
+
+    public BookMetaCache(Store store, File thumbDir) {
+        this.store = store;
+        this.thumbDir = thumbDir;
     }
 
     public BookMeta get(File book) {
         String pathKey = pathKey(book);
         String version = version(book);
         try {
-            String stored = prefs.getString(pathKey, null);
+            String stored = store.get(pathKey);
             if (stored != null) {
                 JSONObject o = new JSONObject(stored);
-                if (version.equals(o.optString("v"))) {
+                if (o.optInt("s") == SCHEMA && version.equals(o.optString("v"))) {
                     return new BookMeta(o.getString("title"), o.optString("author"),
                             o.optBoolean("cover"), o.optBoolean("black"));
                 }
@@ -51,15 +79,21 @@ public class BookMetaCache {
         } catch (Exception ignored) {
             // fall through and recompute
         }
-        BookMeta meta = compute(book);
+        Computed computed = compute(book);
+        BookMeta meta = computed.meta;
+        if (!computed.read) {
+            // Likely no file access yet: ask again next time rather than remember a guess.
+            return meta;
+        }
         try {
             JSONObject o = new JSONObject();
+            o.put("s", SCHEMA);
             o.put("v", version);
             o.put("title", meta.title);
             o.put("author", meta.author);
             o.put("cover", meta.hasCover);
             o.put("black", meta.wouldShowBlack);
-            prefs.edit().putString(pathKey, o.toString()).apply();
+            store.put(pathKey, o.toString());
         } catch (Exception ignored) {
         }
         return meta;
@@ -102,16 +136,30 @@ public class BookMetaCache {
         return thumb;
     }
 
-    private BookMeta compute(File book) {
+    private static final class Computed {
+        final BookMeta meta;
+        /** False when the book couldn't be opened: the meta is a guess. */
+        final boolean read;
+
+        Computed(BookMeta meta, boolean read) {
+            this.meta = meta;
+            this.read = read;
+        }
+    }
+
+    private static Computed compute(File book) {
         String fallback = TitleCleaner.fromFileName(book.getName());
-        if (!isEpub(book)) return new BookMeta(fallback, "", false, false);
+        if (!isEpub(book)) return new Computed(new BookMeta(fallback, "", false, false), true);
         String[] ta = EpubCover.titleAndAuthor(book);
         String title = ta == null || ta[0].isEmpty() ? fallback : ta[0];
         String author = ta == null ? "" : ta[1];
         EpubCover.Check check = EpubCover.check(book);
-        boolean usable = check.kind == EpubCover.Kind.HAS_COVER;
+        // Only these are drawn black on the Picco; an unreadable book is unknown.
+        boolean black = check.kind == EpubCover.Kind.TAG_IMAGE
+                || check.kind == EpubCover.Kind.NEEDS_SNAPSHOT;
         boolean hasPicture = check.coverEntry != null;
-        return new BookMeta(title, author, hasPicture, !usable);
+        boolean read = ta != null && check.kind != EpubCover.Kind.UNREADABLE;
+        return new Computed(new BookMeta(title, author, hasPicture, black), read);
     }
 
     private Bitmap decodeCover(File book, int widthPx, int heightPx) {

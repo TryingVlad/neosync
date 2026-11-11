@@ -430,6 +430,7 @@
     <string name="library_scope_folders_header">Folders</string>
     <string name="library_scope_folders_hint">Untick a folder to leave its books out of the list.</string>
     <string name="library_scope_no_folders">No books found on this Boox yet.</string>
+    <string name="library_scope_types_none">None</string>
     <string name="library_scope_no_types">Nothing ticked: the home list will be empty.</string>
     <string name="library_scope_azw" translatable="false">AZW / AZW3</string>
     <string name="library_scope_cbz" translatable="false">CBZ / CBR</string>

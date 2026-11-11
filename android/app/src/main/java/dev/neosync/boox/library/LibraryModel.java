@@ -55,6 +55,22 @@ public final class LibraryModel {
         return dot > 0 && BOOK_EXTENSIONS.contains(file.substring(dot + 1).toLowerCase(Locale.ROOT));
     }
 
+    /**
+     * Whether an Onyx library row is a book to list. Rows inside a hidden
+     * folder (Onyx cloud copies under .ksync, NeoSync's backups) never are; a
+     * missing file only counts as gone when NeoSync has all-files access,
+     * since without it exists() can wrongly say false.
+     */
+    public static boolean isListable(String path, boolean exists, boolean hasAllFilesAccess) {
+        String[] parts = path.split("/");
+        for (int i = 0; i < parts.length - 1; i++) {
+            if (parts[i].startsWith(".")) {
+                return false;
+            }
+        }
+        return exists || !hasAllFilesAccess;
+    }
+
     /** File name after the last '/', NFC-normalised. */
     public static String keyOf(String path) {
         String name = path.substring(path.lastIndexOf('/') + 1);

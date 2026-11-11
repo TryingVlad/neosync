@@ -161,7 +161,7 @@ public class SettingsActivity extends Activity {
                 ? MainActivity.piccoFolderLabel(this, folder)
                 : getString(R.string.settings_folder_unset));
 
-        value(R.id.row_library_types, LibraryScopeActivity.typesSummary(settings.getLibraryTypes()));
+        value(R.id.row_library_types, LibraryScopeActivity.typesSummary(this, settings.getLibraryTypes()));
         int hidden = settings.getHiddenFolders().size();
         value(R.id.row_library_folders, hidden == 0
                 ? getString(R.string.settings_library_all_folders)

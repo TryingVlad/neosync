@@ -1,6 +1,7 @@
 package dev.neosync.boox.activity;
 
 import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -8,6 +9,7 @@ import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -17,6 +19,7 @@ import java.util.Set;
 import dev.neosync.boox.R;
 import dev.neosync.boox.contentprovider.OnyxMetadataRepository;
 import dev.neosync.boox.kosync.SyncSettings;
+import dev.neosync.boox.library.LibraryModel;
 import dev.neosync.boox.library.LibraryScope;
 
 /**
@@ -88,8 +91,11 @@ public class LibraryScopeActivity extends Activity {
     private List<String> folders() {
         List<String> paths = new ArrayList<>();
         try {
+            boolean fileAccess = Permissions.hasAllFilesAccess();
             for (OnyxMetadataRepository.Book book : new OnyxMetadataRepository(this).queryAllBooks()) {
-                paths.add(book.path);
+                if (LibraryModel.isListable(book.path, new File(book.path).exists(), fileAccess)) {
+                    paths.add(book.path);
+                }
             }
         } catch (RuntimeException ignored) {
             // No library to read: only the saved choices are shown.
@@ -145,7 +151,7 @@ public class LibraryScopeActivity extends Activity {
     }
 
     /** "EPUB, PDF": the chosen types in display order (AZW and CBZ stand for their pairs). */
-    static String typesSummary(Set<String> types) {
+    static String typesSummary(Context context, Set<String> types) {
         List<String> names = new ArrayList<>();
         for (String type : LibraryScope.ALL_TYPES) {
             if (!types.contains(type) || type.equals("azw3") && types.contains("azw")
@@ -155,6 +161,6 @@ public class LibraryScopeActivity extends Activity {
             names.add(type.equals("azw") ? "AZW" : type.equals("cbz") ? "CBZ"
                     : type.toUpperCase(Locale.ROOT));
         }
-        return names.isEmpty() ? "None" : String.join(", ", names);
+        return names.isEmpty() ? context.getString(R.string.library_scope_types_none) : String.join(", ", names);
     }
 }
