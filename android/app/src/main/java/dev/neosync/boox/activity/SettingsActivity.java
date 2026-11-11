@@ -77,9 +77,6 @@ public class SettingsActivity extends Activity {
         end(R.id.row_folder, getString(R.string.settings_change));
 
         // Library
-        row(R.id.row_library_types, R.string.settings_library_types).setOnClickListener(v ->
-                startActivity(new Intent(this, LibraryScopeActivity.class)));
-        more(R.id.row_library_types);
         row(R.id.row_library_folders, R.string.settings_library_folders).setOnClickListener(v ->
                 startActivity(new Intent(this, LibraryScopeActivity.class)));
         more(R.id.row_library_folders);
@@ -161,7 +158,6 @@ public class SettingsActivity extends Activity {
                 ? MainActivity.piccoFolderLabel(this, folder)
                 : getString(R.string.settings_folder_unset));
 
-        value(R.id.row_library_types, LibraryScopeActivity.typesSummary(this, settings.getLibraryTypes()));
         int hidden = settings.getHiddenFolders().size();
         value(R.id.row_library_folders, hidden == 0
                 ? getString(R.string.settings_library_all_folders)

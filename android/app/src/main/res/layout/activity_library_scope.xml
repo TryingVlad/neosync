@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Library settings (spec 5.8): tick boxes for the book types and the folders the home list shows.
+<!-- Library settings (spec 5.8): tick boxes for the folders the home list shows.
      The rows are added by LibraryScopeActivity. -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/white" android:fitsSystemWindows="true">
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="28dp">
@@ -10,11 +10,6 @@
 
 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="@string/library_scope_title" style="@style/NeoSync.Title" />
 </LinearLayout>
-
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:paddingBottom="4dp" android:text="@string/library_scope_types_header" style="@style/NeoSync.Section" />
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingBottom="4dp" android:text="@string/library_scope_types_hint" style="@style/NeoSync.Small" />
-<LinearLayout android:id="@+id/list_types" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
-<TextView android:id="@+id/text_no_types" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/library_scope_no_types" style="@style/NeoSync.Small" android:visibility="gone" />
 
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:paddingBottom="4dp" android:text="@string/library_scope_folders_header" style="@style/NeoSync.Section" />
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingBottom="4dp" android:text="@string/library_scope_folders_hint" style="@style/NeoSync.Small" />

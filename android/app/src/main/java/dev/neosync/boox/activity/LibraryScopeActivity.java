@@ -3,7 +3,6 @@ package dev.neosync.boox.activity;
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
-import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
 import android.widget.LinearLayout;
@@ -13,7 +12,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 import dev.neosync.boox.R;
@@ -23,16 +21,14 @@ import dev.neosync.boox.library.LibraryModel;
 import dev.neosync.boox.library.LibraryScope;
 
 /**
- * Library settings (spec 5.8): which book types and folders the home list
- * shows. Each tick is saved at once; the home screen reloads when it is back.
+ * Library settings (spec 5.8): which folders the home list shows (EPUB
+ * books only: the types both Neo Reader and the Picco open). Each tick is saved at once; the home screen reloads when it is back.
  */
 public class LibraryScopeActivity extends Activity {
 
     private static final String STORAGE_ROOT = "/storage/emulated/0/";
 
     private SyncSettings settings;
-    private LinearLayout typeList;
-    private TextView noTypes;
     private LinearLayout folderList;
     /** The listable book files, once loaded; null until then. */
     private List<String> bookPaths;
@@ -43,29 +39,6 @@ public class LibraryScopeActivity extends Activity {
         settings = new SyncSettings(this);
         setContentView(R.layout.activity_library_scope);
         findViewById(R.id.button_back).setOnClickListener(v -> finish());
-
-        typeList = findViewById(R.id.list_types);
-        noTypes = findViewById(R.id.text_no_types);
-        Set<String> types = settings.getLibraryTypes();
-        for (String group : typeGroups()) {
-            String[] members = group.split(",");
-            CheckBox box = addRow(typeList, typeLabel(members));
-            box.setChecked(types.contains(members[0]));
-            box.setOnCheckedChangeListener((b, on) -> {
-                Set<String> now = settings.getLibraryTypes();
-                for (String m : members) {
-                    if (on) {
-                        now.add(m);
-                    } else {
-                        now.remove(m);
-                    }
-                }
-                settings.setLibraryTypes(now);
-                noTypes.setVisibility(now.isEmpty() ? View.VISIBLE : View.GONE);
-                showFolders(); // folders follow the ticked types
-            });
-        }
-        noTypes.setVisibility(types.isEmpty() ? View.VISIBLE : View.GONE);
 
         // Reading the whole Onyx library (and checking each file) is slow on
         // a big library: build the folder list off the UI thread.
@@ -82,13 +55,13 @@ public class LibraryScopeActivity extends Activity {
         }, "NeoSync library folders").start();
     }
 
-    /** Rebuilds the folder list for the ticked types; nothing until loaded. */
+    /** Builds the folder list; nothing until the books are loaded. */
     private void showFolders() {
         if (bookPaths == null) {
             return;
         }
         folderList.removeAllViews();
-        List<String> folders = folders(bookPaths, settings.getLibraryTypes(),
+        List<String> folders = folders(bookPaths, LibraryScope.LISTED_TYPES,
                 settings.getHiddenFolders());
         if (folders.isEmpty()) {
             TextView none = new TextView(this);
@@ -113,7 +86,7 @@ public class LibraryScopeActivity extends Activity {
     }
 
     /**
-     * Folders to list: those with books of the ticked types, plus any hidden
+     * Folders to list: those with books of the listed types, plus any hidden
      * one (so it can be ticked again).
      */
     static List<String> folders(List<String> paths, Set<String> types, Set<String> hidden) {
@@ -155,44 +128,8 @@ public class LibraryScopeActivity extends Activity {
         return box;
     }
 
-    /** The type groups as comma-joined lower-case extensions; azw/azw3 and cbz/cbr share a box. */
-    private static List<String> typeGroups() {
-        List<String> groups = new ArrayList<>();
-        for (String type : LibraryScope.ALL_TYPES) {
-            if (type.equals("azw3") || type.equals("cbr")) {
-                continue;
-            }
-            groups.add(type.equals("azw") ? "azw,azw3" : type.equals("cbz") ? "cbz,cbr" : type);
-        }
-        return groups;
-    }
-
-    private String typeLabel(String[] members) {
-        if (members[0].equals("azw")) {
-            return getString(R.string.library_scope_azw);
-        }
-        if (members[0].equals("cbz")) {
-            return getString(R.string.library_scope_cbz);
-        }
-        return members[0].toUpperCase(Locale.ROOT);
-    }
-
     /** "Books/Old" for /storage/emulated/0/Books/Old. */
     static String folderLabel(String folder) {
         return folder.startsWith(STORAGE_ROOT) ? folder.substring(STORAGE_ROOT.length()) : folder;
-    }
-
-    /** "EPUB, PDF": the chosen types in display order (AZW and CBZ stand for their pairs). */
-    static String typesSummary(Context context, Set<String> types) {
-        List<String> names = new ArrayList<>();
-        for (String type : LibraryScope.ALL_TYPES) {
-            if (!types.contains(type) || type.equals("azw3") && types.contains("azw")
-                    || type.equals("cbr") && types.contains("cbz")) {
-                continue;
-            }
-            names.add(type.equals("azw") ? "AZW" : type.equals("cbz") ? "CBZ"
-                    : type.toUpperCase(Locale.ROOT));
-        }
-        return names.isEmpty() ? context.getString(R.string.library_scope_types_none) : String.join(", ", names);
     }
 }

@@ -363,20 +363,13 @@
     <string name="settings_picco_header">Picco</string>
     <string name="settings_help_header">Help</string>
     <string name="settings_library_header">Library</string>
-    <string name="settings_library_types">Book types</string>
     <string name="settings_library_folders">Folders</string>
     <string name="settings_library_all_folders">All</string>
     <string name="settings_library_hidden_folders">%d hidden</string>
     <string name="library_scope_title">Library</string>
-    <string name="library_scope_types_header">Book types</string>
-    <string name="library_scope_types_hint">Only these kinds of books are listed on the home screen. Syncing is not affected.</string>
     <string name="library_scope_folders_header">Folders</string>
-    <string name="library_scope_folders_hint">Untick a folder to leave its books out of the list.</string>
-    <string name="library_scope_no_folders">No books of these types on this Boox.</string>
-    <string name="library_scope_types_none">None</string>
-    <string name="library_scope_no_types">Nothing ticked: the home list will be empty.</string>
-    <string name="library_scope_azw" translatable="false">AZW / AZW3</string>
-    <string name="library_scope_cbz" translatable="false">CBZ / CBR</string>
+    <string name="library_scope_folders_hint">The folders in Neo Reader’s library that hold EPUB books. Untick one to leave its books out of the list.</string>
+    <string name="library_scope_no_folders">No EPUB books on this Boox yet.</string>
     <string name="settings_advanced_header">Advanced</string>
     <string name="settings_account">Account</string>
     <string name="settings_not_signed_in">Not signed in</string>

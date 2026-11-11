@@ -1,7 +1,6 @@
 package dev.neosync.boox.library;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -11,19 +10,18 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Which of the Boox's books the home list shows (spec 5.8): the chosen file
+ * Which of the Boox's books the home list shows (spec 5.8): the listed file
  * types, minus the folders the user unticked. It only narrows the list; sync,
  * sending and cover fixing don't use it.
  */
 public final class LibraryScope {
 
-    /** Shown until the user chooses otherwise: EPUB only, since a Picco can't open PDFs. */
-    public static final Set<String> DEFAULT_TYPES =
+    /**
+     * The types listed: EPUB only. The Picco opens EPUB, TXT, XTC and BMP; of
+     * those Neo Reader opens EPUB and TXT, and NeoSync syncs and sends EPUB.
+     */
+    public static final Set<String> LISTED_TYPES =
             Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("epub")));
-
-    /** Every type the user can choose from (lower case), in display order. */
-    public static final List<String> ALL_TYPES = Collections.unmodifiableList(Arrays.asList(
-            "epub", "pdf", "mobi", "azw", "azw3", "fb2", "cbz", "cbr", "djvu"));
 
     private final Set<String> types;
     private final Set<String> hiddenFolders;

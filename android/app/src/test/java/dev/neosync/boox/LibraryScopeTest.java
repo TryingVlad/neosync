@@ -18,7 +18,7 @@ public class LibraryScopeTest {
     private static final String BOOKS = "/storage/emulated/0/Books";
 
     private static LibraryScope defaults() {
-        return new LibraryScope(LibraryScope.DEFAULT_TYPES, Collections.emptySet());
+        return new LibraryScope(LibraryScope.LISTED_TYPES, Collections.emptySet());
     }
 
     @Test
@@ -37,7 +37,7 @@ public class LibraryScopeTest {
 
     @Test
     public void hiddenFolderHidesItsBooksAndSubfolders() {
-        LibraryScope scope = new LibraryScope(LibraryScope.DEFAULT_TYPES,
+        LibraryScope scope = new LibraryScope(LibraryScope.LISTED_TYPES,
                 Collections.singleton(BOOKS + "/Old"));
         assertFalse(scope.includes(BOOKS + "/Old/a.epub"));
         assertFalse(scope.includes(BOOKS + "/Old/x/b.epub"));
@@ -58,7 +58,7 @@ public class LibraryScopeTest {
         List<String> paths = Arrays.asList(BOOKS + "/b/two.EPUB", BOOKS + "/note/a.pdf",
                 BOOKS + "/note/b.pdf", BOOKS + "/mix/c.pdf", BOOKS + "/mix/d.epub");
         assertEquals(Arrays.asList(BOOKS + "/b", BOOKS + "/mix"),
-                LibraryScope.bookFolders(paths, LibraryScope.DEFAULT_TYPES));
+                LibraryScope.bookFolders(paths, LibraryScope.LISTED_TYPES));
         assertEquals(Arrays.asList(BOOKS + "/mix", BOOKS + "/note"),
                 LibraryScope.bookFolders(paths, Collections.singleton("pdf")));
         assertEquals(Collections.emptyList(),

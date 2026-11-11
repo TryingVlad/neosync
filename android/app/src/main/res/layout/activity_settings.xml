@@ -24,7 +24,6 @@
 <include android:id="@+id/row_folder" layout="@layout/item_setting" />
 
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:paddingBottom="4dp" android:text="@string/settings_library_header" style="@style/NeoSync.Section" />
-<include android:id="@+id/row_library_types" layout="@layout/item_setting" />
 <include android:id="@+id/row_library_folders" layout="@layout/item_setting" />
 
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:paddingBottom="4dp" android:text="@string/settings_help_header" style="@style/NeoSync.Section" />
