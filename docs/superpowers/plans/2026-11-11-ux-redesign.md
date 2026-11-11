@@ -427,6 +427,33 @@ Rows per spec §5.4 / mockup 4:
 - [ ] **Step 4: Verify on the Go:** each row opens the right place; switching matching mode persists; turning automatic sync off shows "Sync paused · Turn on" on home; the notification shows the last synced book. Screenshot Settings.
 - [ ] **Step 5: Commit** `"Regroup Settings, add Advanced pages and a useful notification"`.
 
+### Task 13a: Library settings — book types and folders (added 2026-11-11 at the user's request)
+
+**Files:**
+- Create: `.../library/LibraryScope.java`, `.../activity/LibraryScopeActivity.java`, `res/layout/activity_library_scope.xml`
+- Modify: `.../kosync/SyncSettings.java` (two new prefs), `.../activity/SettingsActivity.java` (new "Library" section), `.../activity/MainActivity.java` (`buildSnapshot` applies the scope), `AndroidManifest.xml`, `res/values/strings.xml`
+- Test: `app/src/test/java/dev/neosync/boox/LibraryScopeTest.java`
+
+**Interfaces:**
+- Consumes: `LibraryModel.isBookFile(String)` (Task 10 fix round).
+- Produces: `final class LibraryScope { static final Set<String> DEFAULT_TYPES /* {"epub","pdf"} */; static final List<String> ALL_TYPES /* epub, pdf, mobi, azw, azw3, fb2, cbz, cbr, djvu */; LibraryScope(Set<String> types, Set<String> hiddenFolders); boolean includes(String path) /* isBookFile && extension in types && no hidden folder is a prefix of the path's parent */; static List<String> bookFolders(Collection<String> paths) /* distinct parent folders of book files, sorted */ }`
+- Produces on `SyncSettings`: `Set<String> getLibraryTypes()` (default `DEFAULT_TYPES`), `void setLibraryTypes(Set<String>)`, `Set<String> getHiddenFolders()` (default empty), `void setHiddenFolders(Set<String>)`. Keys `library_types`, `library_hidden_folders`.
+
+Rules: the scope only filters the **Boox side of the list** (and the "Only here" filter and counts, which derive from it). Picco-side books, sync, send-missing and cover fixing are unchanged. Types are stored lower-case; "azw" and "azw3" are shown as one tick box "AZW / AZW3", and "cbz"/"cbr" as "CBZ / CBR". Folders are hidden by default only when the user unticks them (default: all shown). Settings rows: "Book types · EPUB, PDF" and "Folders · All" (or "3 hidden").
+
+- [ ] **Step 1: Write failing tests** `LibraryScopeTest`:
+  - `defaultsShowEpubAndPdfOnly` (`.epub` and `.pdf` included; `.mobi` and `.md` not)
+  - `typeMatchIgnoresCase` (`BOOK.EPUB`)
+  - `hiddenFolderHidesItsBooksAndSubfolders` (hide `/storage/emulated/0/Books/Old` → `/…/Old/a.epub` and `/…/Old/x/b.epub` excluded; `/…/Books/OldNot/c.epub` included)
+  - `bookFoldersAreDistinctSortedParents`
+  - `nonBookFilesNeverIncluded` (`.md` excluded even if "md" were in types)
+- [ ] **Step 2: Run** `./gradlew testDebugUnitTest --tests '*LibraryScopeTest*'`. Expected: FAIL.
+- [ ] **Step 3: Implement** `LibraryScope` and the `SyncSettings` prefs; apply the scope in `MainActivity.buildSnapshot` when building `BooxBook`s; a settings change reloads the list.
+- [ ] **Step 4: Build the page** `LibraryScopeActivity`: two groups of check rows (Book types; Folders, listing `bookFolders` of the Onyx library, shown relative to `/storage/emulated/0/`), each change saved immediately. Add the "Library" section to Settings (between Picco and Help) once Task 13 has rebuilt Settings.
+- [ ] **Step 5: Run** `./gradlew assembleDebug testDebugUnitTest`. Expected: pass.
+- [ ] **Step 6: Verify on the Go (NeoSync - Dev):** the default list shows only EPUB and PDF books; untick PDF → PDFs disappear; hide a folder → its books disappear; the counts on the filter chips follow. Screenshot the page.
+- [ ] **Step 7: Commit** `"Let the library show chosen book types and folders"`.
+
 ### Task 14: Clean-up, README, full-device pass
 
 **Files:**
