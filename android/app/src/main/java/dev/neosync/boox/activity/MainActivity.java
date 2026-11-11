@@ -43,6 +43,7 @@ import dev.neosync.boox.library.BookMetaCache;
 import dev.neosync.boox.library.LibraryEntry;
 import dev.neosync.boox.library.LibraryModel;
 import dev.neosync.boox.library.LibraryPager;
+import dev.neosync.boox.library.LibraryScope;
 import dev.neosync.boox.library.PiccoFinder;
 import dev.neosync.boox.library.RemotePosition;
 import dev.neosync.boox.library.RemotePositionStore;
@@ -526,7 +527,11 @@ public class MainActivity extends Activity implements JobSession.Screen {
     private Snapshot buildSnapshot(String address, boolean syncing) {
         Snapshot s = new Snapshot();
         boolean filenameMode = SyncSettings.MATCH_FILENAME.equals(settings.getMatchMethod());
+        // Only the list shows the chosen scope; the suggestion counts (missing on
+        // the Picco, black covers) still cover every book, as the jobs do.
+        LibraryScope scope = settings.getLibraryScope();
         List<LibraryModel.BooxBook> boox = new ArrayList<>();
+        List<LibraryModel.BooxBook> everyBoox = new ArrayList<>();
         Map<String, RemotePosition> remoteByKey = new HashMap<>();
         // Most recently read first, so the first copy of a duplicate name is
         // the one LibraryModel.merge keeps.
@@ -543,8 +548,12 @@ public class MainActivity extends Activity implements JobSession.Screen {
                     state.lastPushedProgress, state.lastWrittenProgress);
             double pct = book.progress != null && book.totalPages() > 0
                     ? percentage(book, file) : -1;
-            boox.add(new LibraryModel.BooxBook(book.path, pct, book.lastAccessMs, status,
-                    meta.title, meta.author));
+            LibraryModel.BooxBook entry = new LibraryModel.BooxBook(book.path, pct,
+                    book.lastAccessMs, status, meta.title, meta.author);
+            everyBoox.add(entry);
+            if (scope.includes(book.path)) {
+                boox.add(entry);
+            }
             if (s.metaByKey.containsKey(key)) {
                 continue;
             }
@@ -580,11 +589,15 @@ public class MainActivity extends Activity implements JobSession.Screen {
         }
         s.entries = LibraryModel.merge(boox, onPicco, remoteByKey, s.piccoConfigured, syncing);
 
-        List<String> missingTitles = new ArrayList<>();
         for (LibraryEntry e : s.entries) {
             if (e.booxPct > 0 || e.piccoPct > 0 || e.remote != null) {
                 s.anyPosition = true;
             }
+        }
+        List<String> missingTitles = new ArrayList<>();
+        List<LibraryEntry> everyEntry = boox.size() == everyBoox.size() ? s.entries
+                : LibraryModel.merge(everyBoox, onPicco, remoteByKey, s.piccoConfigured, syncing);
+        for (LibraryEntry e : everyEntry) {
             if (e.booxPath == null || !e.isEpub || !s.readable.contains(e.key)) {
                 continue;
             }

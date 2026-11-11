@@ -33,7 +33,7 @@ import dev.neosync.boox.update.UpdateChecker;
 
 /**
  * Settings (spec 5.4, mockup 4): one row per setting with its current value,
- * grouped Sync, Permissions (5.9), Picco, Help, Advanced and About. The
+ * grouped Sync, Permissions (5.9), Picco, Library (5.8), Help, Advanced and About. The
  * settings that can break sync if changed by mistake (book matching, server)
  * open their own pages. Every value is re-read in onResume, since most rows
  * lead somewhere that can change it.
@@ -75,6 +75,14 @@ public class SettingsActivity extends Activity {
         more(R.id.row_picco);
         row(R.id.row_folder, R.string.settings_folder).setOnClickListener(v -> changeFolder());
         end(R.id.row_folder, getString(R.string.settings_change));
+
+        // Library
+        row(R.id.row_library_types, R.string.settings_library_types).setOnClickListener(v ->
+                startActivity(new Intent(this, LibraryScopeActivity.class)));
+        more(R.id.row_library_types);
+        row(R.id.row_library_folders, R.string.settings_library_folders).setOnClickListener(v ->
+                startActivity(new Intent(this, LibraryScopeActivity.class)));
+        more(R.id.row_library_folders);
 
         // Help
         row(R.id.row_setup_guide, R.string.settings_setup_guide).setOnClickListener(v ->
@@ -152,6 +160,12 @@ public class SettingsActivity extends Activity {
         value(R.id.row_folder, folder != null
                 ? MainActivity.piccoFolderLabel(this, folder)
                 : getString(R.string.settings_folder_unset));
+
+        value(R.id.row_library_types, LibraryScopeActivity.typesSummary(settings.getLibraryTypes()));
+        int hidden = settings.getHiddenFolders().size();
+        value(R.id.row_library_folders, hidden == 0
+                ? getString(R.string.settings_library_all_folders)
+                : getString(R.string.settings_library_hidden_folders, hidden));
 
         value(R.id.row_matching, getString(
                 SyncSettings.MATCH_BINARY.equals(settings.getMatchMethod())

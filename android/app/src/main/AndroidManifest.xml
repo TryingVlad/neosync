@@ -52,6 +52,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".activity.LibraryScopeActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".activity.ConnectionsActivity"
             android:exported="false" />
 

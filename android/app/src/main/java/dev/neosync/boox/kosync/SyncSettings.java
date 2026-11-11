@@ -33,6 +33,8 @@ public class SyncSettings {
     private static final String KEY_LAST_PERCENT = "last_percent";
     private static final String KEY_ONBOARDED = "onboarded";
     private static final String KEY_AUTO_SYNC = "auto_sync";
+    private static final String KEY_LIBRARY_TYPES = "library_types";
+    private static final String KEY_LIBRARY_HIDDEN_FOLDERS = "library_hidden_folders";
     private static final String KEY_PICCO_ADDRESS = "picco_address";
     private static final String KEY_PICCO_FOLDER = "picco_folder";
     public static final String KEY_LIBRARY_FILTER = "library_filter";
@@ -138,6 +140,32 @@ public class SyncSettings {
         } else {
             prefs.edit().putString(KEY_PICCO_FOLDER, folder).apply();
         }
+    }
+
+    /** File types (lower case) the home list shows; EPUB and PDF until chosen. */
+    public java.util.Set<String> getLibraryTypes() {
+        java.util.Set<String> saved = prefs.getStringSet(KEY_LIBRARY_TYPES, null);
+        return new java.util.HashSet<>(saved != null ? saved
+                : dev.neosync.boox.library.LibraryScope.DEFAULT_TYPES);
+    }
+
+    public void setLibraryTypes(java.util.Set<String> types) {
+        prefs.edit().putStringSet(KEY_LIBRARY_TYPES, new java.util.HashSet<>(types)).apply();
+    }
+
+    /** Folders the user unticked: their books (and subfolders') aren't listed. */
+    public java.util.Set<String> getHiddenFolders() {
+        return new java.util.HashSet<>(prefs.getStringSet(KEY_LIBRARY_HIDDEN_FOLDERS,
+                java.util.Collections.emptySet()));
+    }
+
+    public void setHiddenFolders(java.util.Set<String> folders) {
+        prefs.edit().putStringSet(KEY_LIBRARY_HIDDEN_FOLDERS, new java.util.HashSet<>(folders))
+                .apply();
+    }
+
+    public dev.neosync.boox.library.LibraryScope getLibraryScope() {
+        return new dev.neosync.boox.library.LibraryScope(getLibraryTypes(), getHiddenFolders());
     }
 
     /** The home screen's last filter (a LibraryModel.Filter name), or null. */
