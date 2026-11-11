@@ -509,7 +509,7 @@ public class SyncService extends Service {
             settings.clearSyncError();
         }
         if (remote.error == KoSyncClient.Error.OK && remote.progress != null) {
-            remoteStore.recordAll(hash, null, RemotePosition.from(remote.progress));
+            remoteStore.recordFromOthers(hash, null, RemotePosition.from(remote.progress), deviceId);
             long remoteMs = remote.progress.timestampSec * 1000L;
             boolean fromOtherDevice = !deviceId.equals(remote.progress.deviceId);
             if (fromOtherDevice && remoteMs > localBasisMs) {

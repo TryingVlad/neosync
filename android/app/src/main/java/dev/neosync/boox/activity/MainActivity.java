@@ -344,8 +344,8 @@ public class MainActivity extends Activity {
                     ? SyncActions.getProgress(buildClient(), book.path, hash) : null;
             if (serverResult != null && serverResult.error == KoSyncClient.Error.OK
                     && serverResult.progress != null) {
-                new RemotePositionStore(this).recordAll(hash, null,
-                        RemotePosition.from(serverResult.progress));
+                new RemotePositionStore(this).recordFromOthers(hash, null,
+                        RemotePosition.from(serverResult.progress), deviceId());
             }
             runOnUiThread(() -> {
                 if (manualBook != book) {

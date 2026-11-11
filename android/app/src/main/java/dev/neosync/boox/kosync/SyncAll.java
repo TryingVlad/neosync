@@ -124,7 +124,7 @@ public class SyncAll {
         KoSyncClient.Progress progress =
                 remote.error == KoSyncClient.Error.OK ? remote.progress : null;
         if (progress != null) {
-            remoteStore.recordAll(hash, null, RemotePosition.from(progress));
+            remoteStore.recordFromOthers(hash, null, RemotePosition.from(progress), deviceId);
         }
 
         SyncStateStore.BookState state = stateStore.get(book.path);

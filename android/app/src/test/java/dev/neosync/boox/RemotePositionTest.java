@@ -52,6 +52,14 @@ public class RemotePositionTest {
     }
 
     @Test
+    public void ownEchoDetection() {
+        RemotePosition p = new RemotePosition("a", 0, "Boox", "me", 0);
+        assertTrue(p.isFromDevice("me"));
+        assertFalse(p.isFromDevice("other"));
+        assertFalse(p.isFromDevice(null));
+    }
+
+    @Test
     public void crossPointDetection() {
         assertTrue(new RemotePosition("a", 0, "CrossPoint", "d", 0).isCrossPoint());
         assertTrue(new RemotePosition("a", 0, "", "d", 0).isCrossPoint());

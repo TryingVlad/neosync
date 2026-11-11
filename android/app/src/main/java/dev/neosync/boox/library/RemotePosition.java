@@ -67,6 +67,11 @@ public final class RemotePosition {
         return a.timestampMs > b.timestampMs ? a : b;
     }
 
+    /** True when this position was written by the given device (our own echo). */
+    public boolean isFromDevice(String ownDeviceId) {
+        return ownDeviceId != null && ownDeviceId.equals(deviceId);
+    }
+
     /** CrossPoint devices (and unnamed ones) are the e-reader side of the library. */
     public boolean isCrossPoint() {
         return device == null || device.isEmpty()

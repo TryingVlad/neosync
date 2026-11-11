@@ -29,6 +29,15 @@ public class RemotePositionStore {
         recordAll(p.document, null, p);
     }
 
+    /** Like recordAll, but skips positions this device wrote itself. */
+    public void recordFromOthers(String hash, List<String> aliases, RemotePosition p,
+                                 String ownDeviceId) {
+        if (p == null || p.isFromDevice(ownDeviceId)) {
+            return;
+        }
+        recordAll(hash, aliases, p);
+    }
+
     /** Records p under the hash and each alias. */
     public void recordAll(String hash, List<String> aliases, RemotePosition p) {
         if (p == null) {
