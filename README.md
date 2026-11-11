@@ -55,12 +55,13 @@ On the Picco: open the book, press Confirm, choose **Sync Progress**.
 
 The home screen is your library: one row per book, on this Boox, on the
 Picco or both, with a bar for where you are on each device and a line saying
-how they compare: *Same place*, *Read further here · syncs soon*, *Picco is
-ahead · tap to jump*, *Not synced yet*, *Only on the Picco*. Filters along
+how they compare: *Same place*, *Place sent* (the Picco catches up on its
+next Sync Progress), *Read further here · syncs soon*, *Picco is ahead · tap
+to jump*, *Not synced yet*, *Only on the Picco*. Only EPUB books are listed:
+the Picco can't open PDFs and the other formats Neo Reader reads. Filters along
 the top (**All**, **Reading**, **Only here**, **Only on Picco**) and a search
 by title or author narrow it down. The list turns in pages with the arrows at
-the bottom instead of scrolling, so each page is one e-ink refresh. PDFs and
-other files NeoSync can't read itself show the title Neo Reader has for them.
+the bottom instead of scrolling, so each page is one e-ink refresh.
 
 Above the list sit two chips. The left one is for reading places: synced
 (with the last book), paused, or *not syncing*. The right one is for the
@@ -98,9 +99,9 @@ hand.
 - **Permissions**: book file access and notifications, each with a button to
   allow it.
 - **Picco**: where it was found, and the folder new books go to.
-- **Library**: which book types (EPUB only by default, since the Picco can't
-  open PDFs) and which folders the home list shows. This only narrows the
-  list; syncing is not affected.
+- **Library**: which folders the home list shows, from the folders in Neo
+  Reader's library that hold EPUB books. This only narrows the list; syncing
+  is not affected.
 - **Help**: the setup guide and *Report a problem*.
 - **Advanced**: book matching, the sync server, and the size of the cover
   backups.
