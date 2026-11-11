@@ -74,10 +74,21 @@ public class KoSyncClient {
         }
     }
 
+    /**
+     * Always waits the full time: a stopped job (JobRunner.stop interrupts)
+     * must not send its last request early. The interrupt is kept.
+     */
     private static void sleep(long ms) {
-        try {
-            Thread.sleep(ms);
-        } catch (InterruptedException e) {
+        long end = System.currentTimeMillis() + ms;
+        boolean interrupted = false;
+        for (long left = ms; left > 0; left = end - System.currentTimeMillis()) {
+            try {
+                Thread.sleep(left);
+            } catch (InterruptedException e) {
+                interrupted = true;
+            }
+        }
+        if (interrupted) {
             Thread.currentThread().interrupt();
         }
     }

@@ -57,6 +57,12 @@ public class CoverFixer {
         return out;
     }
 
+    /** An EPUB the Picco would show with a black cover, and that can be fixed. */
+    public static boolean needsCover(File file) {
+        EpubCover.Kind kind = check(file).kind;
+        return kind == EpubCover.Kind.TAG_IMAGE || kind == EpubCover.Kind.NEEDS_SNAPSHOT;
+    }
+
     /** Cheap check, no rendering. */
     public static EpubCover.Check check(File file) {
         return isEpub(file) ? EpubCover.check(file)

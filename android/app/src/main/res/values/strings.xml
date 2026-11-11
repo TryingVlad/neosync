@@ -176,6 +176,9 @@
     <string name="send_missing_progress">Sending · %1$d of %2$d · %3$s</string>
     <string name="send_missing_done">Sent %1$d of %2$d books to the Picco.</string>
     <string name="send_missing_lost">Lost the Picco after %1$d of %2$d books. Make sure File Transfer is still open, then try again.</string>
+    <string name="job_send_missing_title">Sending books to the Picco</string>
+    <string name="job_sync_all_title">Syncing positions</string>
+    <string name="job_fix_covers_title">Adding covers</string>
     <string name="book_status_synced">Synced · %1$s · %2$s</string>
     <string name="book_status_synced_no_time">Synced · %1$s</string>
     <string name="book_status_changed">Read further here · %1$s · syncs soon</string>

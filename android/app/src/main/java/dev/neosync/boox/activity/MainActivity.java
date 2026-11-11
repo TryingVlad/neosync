@@ -16,11 +16,17 @@ import dev.neosync.boox.library.RemotePosition;
 import dev.neosync.boox.library.RemotePositionStore;
 import dev.neosync.boox.kosync.KoSyncClient;
 import dev.neosync.boox.kosync.SyncActions;
-import dev.neosync.boox.kosync.SyncAll;
 import dev.neosync.boox.kosync.SyncSettings;
 import dev.neosync.boox.kosync.SyncStateStore;
 import dev.neosync.boox.service.SyncService;
 import dev.neosync.boox.epub.EpubCover;
+import dev.neosync.boox.jobs.CleanPlan;
+import dev.neosync.boox.jobs.FixCoversJob;
+import dev.neosync.boox.jobs.Job;
+import dev.neosync.boox.jobs.JobRunner;
+import dev.neosync.boox.jobs.SendMissingJob;
+import dev.neosync.boox.jobs.SyncAllJob;
+import dev.neosync.boox.library.LibraryModel;
 import dev.neosync.boox.transfer.BookSyncStatus;
 import dev.neosync.boox.transfer.CoverFixer;
 import dev.neosync.boox.transfer.PiccoClient;
@@ -90,7 +96,10 @@ public class MainActivity extends Activity {
                     runOnUiThread(MainActivity.this::refreshNetworkHints);
                 }
             };
-    private boolean bulkRunning; // "Sync all positions" or "Send missing books"
+    private boolean bulkRunning; // a bulk action or a book send, from first check to result
+    /** Runs the long jobs one at a time; e-ink friendly progress (every 3 s at most). */
+    private final JobRunner jobs =
+            new JobRunner(this::runOnUiThread, 3000, System::currentTimeMillis);
     private TextView piccoUpdatedView;
     private LinearLayout piccoBookList;
     // Picco list refresh state: whether one is running, and whether the last
@@ -675,7 +684,8 @@ public class MainActivity extends Activity {
      */
     private void sendBookToPicco() {
         final OnyxMetadataRepository.Book book = manualBook;
-        if (book == null) {
+        // One job at a time: a bulk action is already talking to the Picco.
+        if (book == null || bulkRunning) {
             return;
         }
         final String address = settings.getPiccoAddress();
@@ -693,13 +703,38 @@ public class MainActivity extends Activity {
                 piccoRefreshing = false;
                 renderPiccoLibrary();
             }
-            new Thread(() -> {
-                final boolean delivered = transferBook(book, address, folder);
-                runOnUiThread(() -> {
+            final SendMissingJob job = SendMissingJob.oneBook(this, new PiccoClient(address),
+                    address, folder, new File(book.path), piccoLibrary,
+                    e -> piccoErrorMessage(e, address));
+            boolean started = jobs.start(job, new Job.Listener() {
+                @Override
+                public void progress(int done, int total, String key, String state) {
+                    if (Job.WAITING.equals(state)) {
+                        transferStatusView.setText(R.string.transfer_adding_cover);
+                    } else if (Job.SENDING.equals(state)) {
+                        transferStatusView.setText(R.string.transfer_sending);
+                    }
+                }
+
+                @Override
+                public void finished(String resultSentence) {
+                    setBulkRunning(false);
+                    if (resultSentence != null) {
+                        transferStatusView.setText(resultSentence);
+                    }
                     // Once the file is on the Picco there is nothing left to send.
-                    sendBookButton.setEnabled(!delivered);
-                });
-            }).start();
+                    sendBookButton.setEnabled(!job.delivered());
+                    if (job.delivered()) {
+                        renderPiccoLibrary();
+                    }
+                }
+            });
+            if (started) {
+                setBulkRunning(true);
+            } else {
+                sendBookButton.setEnabled(true);
+                transferStatusView.setText("");
+            }
         }, message -> {
             sendBookButton.setEnabled(true);
             transferStatusView.setText(message != null
@@ -775,64 +810,6 @@ public class MainActivity extends Activity {
                 : getString(R.string.transfer_no_network);
     }
 
-    /** Runs on a background thread; returns true when the file is on the Picco. */
-    private boolean transferBook(OnyxMetadataRepository.Book book, String address, String folder) {
-        File file = new File(book.path);
-        if (!file.canRead()) {
-            transferStatusView.post(() -> transferStatusView.setText(R.string.transfer_no_file));
-            return false;
-        }
-        PiccoClient client = new PiccoClient(address);
-        try {
-            if (client.hasBook(file.getName())) {
-                transferStatusView.post(() -> transferStatusView.setText(R.string.transfer_already));
-                return true;
-            }
-            if (needsCover(file)) {
-                runOnUiThread(() -> transferStatusView.setText(R.string.transfer_adding_cover));
-                new CoverFixer(this).fixInPlace(file);
-            }
-            runOnUiThread(() -> transferStatusView.setText(R.string.transfer_sending));
-            PiccoClient.UploadResult result = client.upload(file, folder);
-            final int message;
-            switch (result.status) {
-                case SENT:
-                    message = R.string.transfer_sent;
-                    break;
-                case ALREADY_THERE:
-                    message = R.string.transfer_already;
-                    break;
-                default:
-                    transferStatusView.post(() -> transferStatusView.setText(
-                            getString(R.string.transfer_server_error, result.httpCode)));
-                    return false;
-            }
-            piccoLibrary.addUploaded(address, file.getName());
-            transferStatusView.post(() -> {
-                transferStatusView.setText(message);
-                renderPiccoLibrary();
-            });
-            return true;
-        } catch (IOException e) {
-            android.util.Log.w("MainActivity", "Picco transfer failed: " + e);
-            // Two very different situations hide behind a failed connection:
-            // the tablet is not on the Picco's network at all (hotspot off or
-            // not joined), or it is online but the Picco does not answer
-            // (wrong address or File Transfer not running).
-            final String message = hasLocalNetwork()
-                    ? getString(R.string.transfer_unreachable, address)
-                    : getString(R.string.transfer_no_network);
-            transferStatusView.post(() -> transferStatusView.setText(message));
-            return false;
-        } catch (Exception e) {
-            // Not a connection problem: the Picco answered, something else broke.
-            android.util.Log.e("MainActivity", "Picco transfer error", e);
-            final String message = getString(R.string.transfer_unexpected, String.valueOf(e));
-            transferStatusView.post(() -> transferStatusView.setText(message));
-            return false;
-        }
-    }
-
     // --- Bulk actions ---------------------------------------------------------
 
     private void setBulkRunning(boolean running) {
@@ -847,10 +824,50 @@ public class MainActivity extends Activity {
         bulkStatusView.setText(text);
     }
 
+    /** Builds the bulk status line for one progress update, or null to keep it. */
+    private interface ProgressText {
+        String of(int done, int total, String key, String rowState);
+    }
+
+    /**
+     * Runs a bulk job (bulkRunning is already set), showing its progress and
+     * result in the bulk status line; then runs after on the UI thread.
+     */
+    private void startBulkJob(Job job, ProgressText text, Runnable after) {
+        boolean started = jobs.start(job, new Job.Listener() {
+            @Override
+            public void progress(int done, int total, String key, String rowState) {
+                String line = text.of(done, total, key, rowState);
+                if (line != null) {
+                    showBulkStatus(line);
+                }
+            }
+
+            @Override
+            public void finished(String resultSentence) {
+                setBulkRunning(false);
+                if (resultSentence != null) {
+                    showBulkStatus(resultSentence);
+                }
+                after.run();
+            }
+        });
+        if (!started) {
+            setBulkRunning(false);
+            bulkStatusView.setVisibility(View.GONE);
+        }
+    }
+
+    /** "3 of 10": the book being worked on, or the last one finished. */
+    private static int shownIndex(int done, String rowState) {
+        return rowState == null || Job.SENDING.equals(rowState) || Job.WAITING.equals(rowState)
+                ? done + 1 : done;
+    }
+
     /**
      * Brings the position of every book that is both on this Boox and on the
      * Picco up to date, newest position winning. Without a saved Picco list,
-     * every book opened on this Boox is synced.
+     * every book opened on this Boox is synced. See SyncAllJob.
      */
     private void syncAllPositions() {
         if (bulkRunning) {
@@ -858,62 +875,15 @@ public class MainActivity extends Activity {
         }
         setBulkRunning(true);
         showBulkStatus(getString(R.string.manual_checking));
-        final String address = settings.getPiccoAddress();
-        new Thread(() -> {
-            List<OnyxMetadataRepository.Book> books = repository.queryBooksWithProgress();
-            if (piccoLibrary.hasList(address)) {
-                List<String> onPicco = piccoLibrary.getBooks(address);
-                List<OnyxMetadataRepository.Book> both = new ArrayList<>();
-                for (OnyxMetadataRepository.Book book : books) {
-                    if (containsFile(onPicco, fileName(book.path))) {
-                        both.add(book);
-                    }
-                }
-                books = both;
-            }
-            if (books.isEmpty()) {
-                runOnUiThread(() -> {
-                    setBulkRunning(false);
-                    showBulkStatus(getString(R.string.sync_all_none));
+        startBulkJob(new SyncAllJob(this, settings, repository, stateStore, buildClient(),
+                        deviceId(), piccoLibrary, settings.getPiccoAddress()),
+                (done, total, key, state) -> getString(R.string.sync_all_progress,
+                        shownIndex(done, state), total, displayTitle(key)),
+                () -> {
+                    refreshStatus();
+                    renderPiccoLibrary();
+                    refreshLocalBook();
                 });
-                return;
-            }
-            new SyncAll(this, settings, repository, stateStore, buildClient(), deviceId())
-                    .run(books, new SyncAll.Listener() {
-                        @Override
-                        public void onBook(int index, int count, OnyxMetadataRepository.Book book) {
-                            String text = getString(R.string.sync_all_progress,
-                                    index + 1, count, displayName(book));
-                            runOnUiThread(() -> showBulkStatus(text));
-                        }
-
-                        @Override
-                        public void onFinished(SyncAll.Summary summary) {
-                            runOnUiThread(() -> {
-                                setBulkRunning(false);
-                                String text;
-                                if (summary.stoppedReason != null) {
-                                    int done = summary.fetched + summary.sent
-                                            + summary.unchanged + summary.failed;
-                                    String reason = syncStopReason(summary);
-                                    text = done == 0 ? reason : getString(
-                                            R.string.sync_all_stopped, done, summary.count, reason);
-                                } else {
-                                    text = getString(R.string.sync_all_done, summary.fetched,
-                                            summary.sent, summary.unchanged);
-                                    if (summary.failed > 0) {
-                                        text += " " + getString(R.string.sync_all_failed_part,
-                                                summary.failed);
-                                    }
-                                }
-                                showBulkStatus(text);
-                                refreshStatus();
-                                renderPiccoLibrary();
-                                refreshLocalBook();
-                            });
-                        }
-                    });
-        }).start();
     }
 
     /**
@@ -983,7 +953,17 @@ public class MainActivity extends Activity {
                         .setMessage(getString(R.string.send_missing_confirm_body,
                                 missing.size(), size, piccoFolderLabel(this, folder)))
                         .setPositiveButton(R.string.send_missing_confirm_ok,
-                                (d, w) -> uploadAll(client, address, missing, folder))
+                                (d, w) -> startBulkJob(new SendMissingJob(this, client,
+                                                address, folder, missing, piccoLibrary),
+                                        (done, total, key, state) -> getString(
+                                                R.string.send_missing_progress,
+                                                shownIndex(done, state), total, displayTitle(key)),
+                                        () -> {
+                                            renderPiccoLibrary();
+                                            if (manualBook != null) {
+                                                refreshPiccoLibrary();
+                                            }
+                                        }))
                         .setNegativeButton(R.string.send_missing_cancel,
                                 (d, w) -> setBulkRunning(false))
                         .setOnCancelListener(d -> setBulkRunning(false))
@@ -992,89 +972,7 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private void uploadAll(PiccoClient client, String address, List<File> files, String folder) {
-        new Thread(() -> {
-            int sent = 0;
-            String failure = null;
-            for (int i = 0; i < files.size(); i++) {
-                File file = files.get(i);
-                String text = getString(R.string.send_missing_progress, i + 1, files.size(),
-                        displayTitle(file.getName()));
-                runOnUiThread(() -> showBulkStatus(text));
-                if (needsCover(file)) {
-                    new CoverFixer(this).fixInPlace(file);
-                }
-                try {
-                    PiccoClient.UploadResult result = client.upload(file, folder);
-                    if (result.status != PiccoClient.Status.SERVER_ERROR) {
-                        sent++;
-                        piccoLibrary.addUploaded(address, file.getName());
-                    }
-                } catch (IOException e) {
-                    // The Picco is gone (File Transfer closed, Wi-Fi dropped):
-                    // the remaining books would all fail the same way.
-                    android.util.Log.w("MainActivity", "Bulk upload stopped: " + e);
-                    failure = getString(R.string.send_missing_lost, i, files.size());
-                    break;
-                }
-            }
-            final String summary = failure != null ? failure
-                    : getString(R.string.send_missing_done, sent, files.size());
-            runOnUiThread(() -> {
-                setBulkRunning(false);
-                showBulkStatus(summary);
-                renderPiccoLibrary();
-                if (manualBook != null) {
-                    refreshPiccoLibrary();
-                }
-            });
-        }).start();
-    }
-
-    /** Why a "Sync all" run stopped, in words for the user. */
-    private String syncStopReason(SyncAll.Summary summary) {
-        return summary.stoppedError == KoSyncClient.Error.NETWORK_ERROR
-                ? getString(hasInternet() ? R.string.sync_all_server_unreachable
-                        : R.string.sync_all_no_internet)
-                : summary.stoppedReason;
-    }
-
-    /** An EPUB the Picco would show with a black cover, and that can be fixed. */
-    private static boolean needsCover(File file) {
-        EpubCover.Kind kind = CoverFixer.check(file).kind;
-        return kind == EpubCover.Kind.TAG_IMAGE || kind == EpubCover.Kind.NEEDS_SNAPSHOT;
-    }
-
     // --- Clean library ----------------------------------------------------------
-
-    /** What "Clean library" found, before anything is changed. */
-    private static final class CleanPlan {
-        /** Books on this Boox without a cover the Picco can show. */
-        final List<File> booxBooks = new ArrayList<>();
-        /** Boox file path -> the same book's path on the Picco, when it's there. */
-        final Map<String, String> piccoPathOf = new HashMap<>();
-        /** Picco-only books that need a cover, and where they were downloaded. */
-        final List<String> piccoOnly = new ArrayList<>();
-        final Map<String, File> downloaded = new HashMap<>();
-        final List<String> booxTitles = new ArrayList<>();
-        final List<String> piccoOnlyTitles = new ArrayList<>();
-        int tagged;
-        int pictured;
-    }
-
-    private File cleanWorkDir() {
-        File dir = new File(getCacheDir(), "clean-library");
-        File[] old = dir.listFiles();
-        if (old != null) {
-            for (File f : old) {
-                //noinspection ResultOfMethodCallIgnored
-                f.delete();
-            }
-        }
-        //noinspection ResultOfMethodCallIgnored
-        dir.mkdirs();
-        return dir;
-    }
 
     private static String bookTitle(File file) {
         String[] meta = EpubCover.titleAndAuthor(file);
@@ -1160,7 +1058,7 @@ public class MainActivity extends Activity {
                 }
             }
             List<String> others = CoverFixer.piccoOnlyEpubs(onPicco, libraryPaths);
-            File work = cleanWorkDir();
+            File work = CleanPlan.workDir(this);
             for (int i = 0; i < others.size(); i++) {
                 String piccoPath = others.get(i);
                 String text = getString(R.string.clean_checking_picco, i + 1, others.size(),
@@ -1173,7 +1071,7 @@ public class MainActivity extends Activity {
                     android.util.Log.w("MainActivity", "Could not check " + piccoPath + ": " + e);
                     continue;
                 }
-                if (needsCover(copy)) {
+                if (CoverFixer.needsCover(copy)) {
                     plan.piccoOnly.add(piccoPath);
                     plan.downloaded.put(piccoPath, copy);
                     plan.piccoOnlyTitles.add(bookTitle(copy));
@@ -1238,122 +1136,26 @@ public class MainActivity extends Activity {
     }
 
     private void runClean(PiccoClient client, CleanPlan plan, boolean includePiccoOnly) {
-        new Thread(() -> {
-            // 1. The Picco forgets its own position for a replaced book, so
-            //    every position goes to the server before anything changes.
-            List<OnyxMetadataRepository.Book> toSync = new ArrayList<>();
-            for (OnyxMetadataRepository.Book book : repository.queryBooksWithProgress()) {
-                if (plan.piccoPathOf.containsKey(new File(book.path).getPath())) {
-                    toSync.add(book);
-                }
-            }
-            if (!toSync.isEmpty()) {
-                SyncAll.Summary[] result = new SyncAll.Summary[1];
-                new SyncAll(this, settings, repository, stateStore, buildClient(), deviceId())
-                        .run(toSync, new SyncAll.Listener() {
-                            @Override
-                            public void onBook(int index, int count, OnyxMetadataRepository.Book book) {
-                                String text = getString(R.string.clean_sync_first,
-                                        index + 1, count, displayName(book));
-                                runOnUiThread(() -> showBulkStatus(text));
-                            }
-
-                            @Override
-                            public void onFinished(SyncAll.Summary summary) {
-                                result[0] = summary;
-                            }
-                        });
-                if (result[0] != null && result[0].stoppedReason != null) {
-                    final String text = getString(R.string.clean_sync_failed, syncStopReason(result[0]));
-                    runOnUiThread(() -> {
-                        setBulkRunning(false);
-                        showBulkStatus(text);
-                    });
-                    return;
-                }
-            }
-
-            // 2. Fix, then replace on the Picco.
-            CoverFixer fixer = new CoverFixer(this);
-            int total = plan.booxBooks.size() + (includePiccoOnly ? plan.piccoOnly.size() : 0);
-            int done = 0;
-            int fixed = 0;
-            int replaced = 0;
-            int failed = 0;
-            String lost = null;
-            for (File file : plan.booxBooks) {
-                String text = getString(R.string.clean_progress, done + 1, total,
-                        plan.booxTitles.get(done));
-                runOnUiThread(() -> showBulkStatus(text));
-                done++;
-                CoverFixer.Outcome outcome = fixer.fixInPlace(file);
-                if (outcome == CoverFixer.Outcome.FAILED || outcome == CoverFixer.Outcome.NOT_AN_EPUB) {
-                    failed++;
-                    continue;
-                }
-                fixed++;
-                String piccoPath = plan.piccoPathOf.get(file.getPath());
-                if (piccoPath == null) {
-                    continue;
-                }
-                try {
-                    if (client.replace(file, piccoPath).status == PiccoClient.Status.SENT) {
-                        replaced++;
-                    } else {
-                        failed++;
-                    }
-                } catch (IOException e) {
-                    lost = getString(R.string.clean_lost_picco, done - 1, total);
-                    break;
-                }
-            }
-            if (lost == null && includePiccoOnly) {
-                for (int i = 0; i < plan.piccoOnly.size(); i++) {
-                    String piccoPath = plan.piccoOnly.get(i);
-                    String text = getString(R.string.clean_progress, done + 1, total,
-                            plan.piccoOnlyTitles.get(i));
-                    runOnUiThread(() -> showBulkStatus(text));
-                    done++;
-                    File src = plan.downloaded.get(piccoPath);
-                    File fixedCopy = new File(src.getParentFile(), "fixed-" + i + ".epub");
-                    CoverFixer.Outcome outcome = fixer.fixCopy(src, fixedCopy);
-                    if (outcome != CoverFixer.Outcome.TAGGED && outcome != CoverFixer.Outcome.ADDED_PAGE) {
-                        failed++;
-                        continue;
-                    }
-                    try {
-                        if (client.replace(fixedCopy, piccoPath).status == PiccoClient.Status.SENT) {
-                            fixed++;
-                            replaced++;
-                        } else {
-                            failed++;
-                        }
-                    } catch (IOException e) {
-                        lost = getString(R.string.clean_lost_picco, done - 1, total);
-                        break;
-                    }
-                }
-            }
-            cleanWorkDir();
-
-            StringBuilder summary = new StringBuilder(getString(R.string.clean_done, fixed));
-            if (replaced > 0) {
-                summary.append(' ').append(getString(R.string.clean_done_picco, replaced));
-            }
-            if (failed > 0) {
-                summary.append(' ').append(getString(R.string.clean_failed_part, failed));
-            }
-            if (lost != null) {
-                summary.append("\n").append(lost);
-            }
-            final String text = summary.toString();
-            runOnUiThread(() -> {
-                setBulkRunning(false);
-                showBulkStatus(text);
-                renderPiccoLibrary();
-                refreshLocalBook();
-            });
-        }).start();
+        Map<String, String> titles = new HashMap<>();
+        for (int i = 0; i < plan.booxBooks.size(); i++) {
+            titles.put(LibraryModel.keyOf(plan.booxBooks.get(i).getPath()), plan.booxTitles.get(i));
+        }
+        for (int i = 0; i < plan.piccoOnly.size(); i++) {
+            titles.put(LibraryModel.keyOf(plan.piccoOnly.get(i)), plan.piccoOnlyTitles.get(i));
+        }
+        startBulkJob(new FixCoversJob(this, settings, repository, stateStore, buildClient(),
+                        deviceId(), client, plan, includePiccoOnly),
+                (done, total, key, state) -> {
+                    String title = titles.containsKey(key) ? titles.get(key) : displayTitle(key);
+                    return Job.WAITING.equals(state)
+                            ? getString(R.string.clean_sync_first, done + 1, total, title)
+                            : getString(R.string.clean_progress,
+                                    shownIndex(done, state), total, title);
+                },
+                () -> {
+                    renderPiccoLibrary();
+                    refreshLocalBook();
+                });
     }
 
     private String deviceId() {
@@ -1438,23 +1240,6 @@ public class MainActivity extends Activity {
         return caps != null
                 && caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
                 && !caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED);
-    }
-
-    /**
-     * True when Android has confirmed the current network reaches the
-     * internet. False on the Picco's own hotspot, which is local only.
-     */
-    private boolean hasInternet() {
-        android.net.ConnectivityManager cm =
-                (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-        if (cm == null) {
-            return true; // Cannot tell — fall back to the generic message.
-        }
-        android.net.Network network = cm.getActiveNetwork();
-        android.net.NetworkCapabilities caps =
-                network != null ? cm.getNetworkCapabilities(network) : null;
-        return caps != null && caps.hasCapability(
-                android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED);
     }
 
     /**

@@ -117,7 +117,22 @@ public final class FirstPageSnapshot {
                 done.countDown();
             }
         });
-        boolean finished = done.await(RENDER_TIMEOUT_S, TimeUnit.SECONDS);
+        // A stop request (JobRunner.stop interrupts) must not cut this book's
+        // render short; the job stops after the book, so keep the flag.
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(RENDER_TIMEOUT_S);
+        boolean finished = false;
+        boolean interrupted = false;
+        while (true) {
+            try {
+                finished = done.await(deadline - System.nanoTime(), TimeUnit.NANOSECONDS);
+                break;
+            } catch (InterruptedException e) {
+                interrupted = true;
+            }
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
         main.post(() -> {
             WebView view = viewRef.get();
             if (view != null) view.destroy();

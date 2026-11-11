@@ -22,8 +22,16 @@ public class SyncAll {
     public interface Listener {
         /** Called before each book; index is 0-based. */
         void onBook(int index, int count, OnyxMetadataRepository.Book book);
+
+        /** Called after each book the run didn't stop on. */
+        default void onBookDone(int index, int count, OnyxMetadataRepository.Book book,
+                                Outcome outcome) {
+        }
+
         void onFinished(Summary summary);
     }
+
+    public enum Outcome { FETCHED, SENT, UNCHANGED, FAILED }
 
     public static class Summary {
         public int fetched;
@@ -87,8 +95,15 @@ public class SyncAll {
         Summary summary = new Summary();
         summary.count = books.size();
         for (int i = 0; i < books.size(); i++) {
+            // Asked to stop (JobRunner.stop): the flag stays set for the caller.
+            if (Thread.currentThread().isInterrupted()) {
+                break;
+            }
             OnyxMetadataRepository.Book book = books.get(i);
             listener.onBook(i, books.size(), book);
+            int fetched = summary.fetched;
+            int sent = summary.sent;
+            int unchanged = summary.unchanged;
             KoSyncClient.Result stop = syncOne(book, summary);
             if (stop != null) {
                 summary.stoppedReason = KoSyncClient.errorString(stop);
@@ -97,6 +112,11 @@ public class SyncAll {
                         SyncProblem.classify(stop.error, SyncProblem.wifiHasInternet(context)));
                 break;
             }
+            listener.onBookDone(i, books.size(), book,
+                    summary.fetched > fetched ? Outcome.FETCHED
+                            : summary.sent > sent ? Outcome.SENT
+                            : summary.unchanged > unchanged ? Outcome.UNCHANGED
+                            : Outcome.FAILED);
         }
         listener.onFinished(summary);
     }
