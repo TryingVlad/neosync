@@ -355,3 +355,10 @@ Calls made while writing this up (marked so they can be checked):
 - Tests: unit tests for the pure logic (status line choice, suggestion priority, title
   cleaning, Picco-position source, undo expiry, subnet probe target list), in the style
   of the existing `*Test.java` files.
+
+### 5.9 File access (added 2026-11-11, user request)
+
+NeoSync can't read book files without Android's all-files access, and without it jumps can't move Neo Reader's page. When it is missing:
+- **Home:** the suggestion slot shows "Allow file access" first, ahead of every other suggestion, with one primary button **Allow** that opens the system page. The home re-checks on return.
+- **Settings:** a **Permissions** group lists File access and Notifications, each with its state (Allowed / Not allowed) and an **Allow** button when not allowed.
+- **Connections:** the Boox section shows the same file-access line.
