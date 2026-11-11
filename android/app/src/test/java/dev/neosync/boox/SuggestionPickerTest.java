@@ -183,4 +183,42 @@ public class SuggestionPickerTest {
         in.blackCovers = 1;
         assertEquals(Kind.FIX_COVERS, SuggestionPicker.pick(in).kind);
     }
+    @Test
+    public void fileAccessBeatsEverySuggestion() {
+        SuggestionPicker.Input in = base();
+        in.fileAccessMissing = true;
+        in.autoSyncOn = false;
+        in.problem = SyncProblem.Type.AUTH;
+        in.problemIsAlarm = true;
+        in.piccoConfigured = false;
+        in.blackCovers = 1;
+        in.updateVersion = "1.2";
+        Suggestion s = SuggestionPicker.pick(in);
+        assertEquals(Kind.FILE_ACCESS, s.kind);
+        assertEquals("FILE_ACCESS:0", s.dismissKey());
+    }
+
+    @Test
+    public void runningJobStillShowsOverFileAccess() {
+        SuggestionPicker.Input in = base();
+        in.fileAccessMissing = true;
+        in.jobRunning = true;
+        assertEquals(Kind.JOB, SuggestionPicker.pick(in).kind);
+    }
+
+    @Test
+    public void fileAccessCannotBeDismissed() {
+        SuggestionPicker.Input in = base();
+        in.fileAccessMissing = true;
+        in.dismissed = set("FILE_ACCESS:0");
+        assertEquals(Kind.FILE_ACCESS, SuggestionPicker.pick(in).kind);
+    }
+
+    @Test
+    public void grantedFileAccessShowsTheNextSuggestion() {
+        SuggestionPicker.Input in = base();
+        in.fileAccessMissing = false;
+        in.blackCovers = 1;
+        assertEquals(Kind.FIX_COVERS, SuggestionPicker.pick(in).kind);
+    }
 }

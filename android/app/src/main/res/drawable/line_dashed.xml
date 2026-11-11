@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A wire in the Connections diagram: a link that isn't up (needs a software layer to draw dashes). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="line">
+    <stroke android:width="1.5dp" android:color="@color/black"
+        android:dashWidth="6dp" android:dashGap="5dp" />
+</shape>

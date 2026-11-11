@@ -377,4 +377,53 @@
 
     <string name="notification_channel_name">Background sync</string>
     <string name="notification_title">Syncing reading progress</string>
+    <!-- File access (spec 5.9) -->
+    <string name="sug_file_access_title">Allow file access</string>
+    <string name="sug_file_access_body">NeoSync needs it to read your books and open them at the right page.</string>
+    <string name="button_allow">Allow</string>
+
+    <!-- Connections screen (spec 5.3). &lt;b> and &lt;u> are escaped: shown with Html.fromHtml. -->
+    <string name="conn_title">Connections</string>
+    <string name="conn_diagram_header">How NeoSync talks to the Picco</string>
+    <string name="conn_node_boox">This Boox</string>
+    <string name="conn_node_boox_sub">Neo Reader</string>
+    <string name="conn_node_server">Sync server</string>
+    <string name="conn_node_server_sub">crosspoint</string>
+    <string name="conn_node_picco">Picco</string>
+    <string name="conn_node_picco_sub">CrossPoint</string>
+    <string name="conn_wire_positions">positions</string>
+    <string name="conn_wire_internet">internet</string>
+    <string name="conn_wire_files">book files &amp; book list</string>
+    <string name="conn_wire_wifi_connected">same Wi-Fi · connected</string>
+    <string name="conn_wire_wifi_not_connected">same Wi-Fi · &lt;b>not connected&lt;/b></string>
+    <string name="conn_wire_wifi_checking">same Wi-Fi · checking…</string>
+    <string name="conn_boox_header">This Boox</string>
+    <string name="conn_file_access_allowed">File access: allowed.</string>
+    <string name="conn_file_access_missing">&lt;b>File access: not allowed.&lt;/b> NeoSync needs it to read your books and open them at the right page.</string>
+    <string name="conn_server_header">Sync server</string>
+    <string name="conn_server_working">&lt;b>● Working.&lt;/b> Last sync %1$s (%2$s).</string>
+    <string name="conn_server_working_no_book">&lt;b>● Working.&lt;/b> Last sync %1$s.</string>
+    <string name="conn_server_signed_in">&lt;b>● Signed in.&lt;/b> Nothing synced yet: read a few pages in Neo Reader.</string>
+    <string name="conn_server_paused">&lt;b>○ Sync paused.&lt;/b> Automatic sync is off, so no position is sent or fetched.</string>
+    <string name="conn_server_no_internet">&lt;b>○ This Wi-Fi has no internet.&lt;/b> Positions need your usual Wi-Fi.</string>
+    <string name="conn_server_auth">&lt;b>○ Wrong username or password.&lt;/b> The sync server doesn’t accept this account any more.</string>
+    <string name="conn_server_unreachable">&lt;b>○ Can’t reach the sync server&lt;/b> since %1$s. Your places are kept here and sent once it answers again.</string>
+    <string name="conn_sync_all">Sync all books now</string>
+    <string name="conn_job_running">Another job is running. Wait for it to finish on the home screen, then try again.</string>
+    <string name="conn_picco_header">Picco · Wi-Fi</string>
+    <string name="conn_picco_connected">&lt;b>● Picco connected&lt;/b> at %1$s.</string>
+    <string name="conn_picco_checking">&lt;b>Checking the Picco at %1$s…&lt;/b></string>
+    <string name="conn_picco_not_set_up">&lt;b>○ Picco not set up.&lt;/b> Positions still sync; only sending books and seeing the Picco’s list need this.</string>
+    <string name="conn_picco_unreachable">&lt;b>○ Can’t find the Picco.&lt;/b> Positions still sync; only sending books and refreshing the Picco’s list need this.</string>
+    <string name="conn_picco_not_found">&lt;b>○ No Picco found on this Wi-Fi.&lt;/b> Check the steps below, then look again.</string>
+    <string name="conn_step_1">On the Picco, open &lt;b>File Transfer&lt;/b>.</string>
+    <string name="conn_step_2">Choose &lt;b>Join a Network&lt;/b> and pick the same Wi-Fi as this Boox.</string>
+    <string name="conn_step_3">Come back here: NeoSync finds it by itself.</string>
+    <string name="conn_look">Look for the Picco</string>
+    <string name="conn_looking">Looking…</string>
+    <string name="conn_last_seen">Last seen at %1$s · &lt;u>enter address by hand&lt;/u></string>
+    <string name="conn_enter_by_hand">&lt;u>Enter address by hand&lt;/u></string>
+    <string name="conn_address_title">Picco address</string>
+    <string name="conn_address_ok">Save</string>
+    <string name="conn_address_cancel">Cancel</string>
 </resources>

@@ -5,11 +5,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.ConnectivityManager;
-import android.net.LinkAddress;
-import android.net.LinkProperties;
 import android.net.Network;
 import android.net.NetworkCapabilities;
-import android.net.RouteInfo;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.Editable;
@@ -62,7 +59,6 @@ import dev.neosync.boox.update.UpdateChecker;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.Inet4Address;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -649,8 +645,18 @@ public class MainActivity extends Activity implements JobSession.Screen {
 
     /** The last check's answer for the current address; null when unknown. */
     private Boolean piccoReachable() {
-        return settings.getPiccoAddress().equals(checkedPiccoAddress)
-                ? checkedPiccoReachable : null;
+        return lastPiccoCheck(settings.getPiccoAddress());
+    }
+
+    /** The last check's answer for this address (any screen's); null when unknown. Main thread. */
+    static Boolean lastPiccoCheck(String address) {
+        return address.equals(checkedPiccoAddress) ? checkedPiccoReachable : null;
+    }
+
+    /** Records whether the Picco at this address just answered (any screen). Main thread. */
+    static void rememberPiccoCheck(String address, boolean reachable) {
+        checkedPiccoAddress = address;
+        checkedPiccoReachable = reachable;
     }
 
     // --- Rendering ----------------------------------------------------------------
@@ -777,6 +783,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
     private SuggestionPicker.Input pickerInput() {
         SuggestionPicker.Input in = new SuggestionPicker.Input();
         in.jobRunning = JobSession.running();
+        in.fileAccessMissing = !Permissions.hasAllFilesAccess();
         in.autoSyncOn = settings.isAutoSyncEnabled();
         in.problem = settings.getProblemType();
         in.problemIsAlarm = isAlarm();
@@ -801,13 +808,21 @@ public class MainActivity extends Activity implements JobSession.Screen {
         boolean enabled = true;
         Runnable action;
         switch (s.kind) {
+            case FILE_ACCESS:
+                title = getString(R.string.sug_file_access_title);
+                body = getString(R.string.sug_file_access_body);
+                button = getString(R.string.button_allow);
+                primary = true;
+                dismissible = false;
+                action = () -> Permissions.openAllFilesAccessSettings(this);
+                break;
             case PROBLEM_NO_INTERNET:
                 title = getString(R.string.sug_no_internet_title);
                 body = getString(R.string.sug_no_internet_body);
                 button = getString(R.string.sug_no_internet_button);
                 primary = true;
                 dismissible = false;
-                action = this::openWifiPicker;
+                action = () -> WifiHelper.openWifiPicker(this);
                 break;
             case PROBLEM_AUTH:
                 title = getString(R.string.sug_auth_title);
@@ -1354,7 +1369,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
         findFailed = false;
         renderSlot();
         final String lastKnown = settings.getPiccoAddress();
-        final String[] net = localNetwork();
+        final String[] net = WifiHelper.localNetwork(this);
         new Thread(() -> {
             List<String> candidates = PiccoFinder.candidates(lastKnown, net[0], net[1]);
             String found = PiccoFinder.find(candidates,
@@ -1371,34 +1386,6 @@ public class MainActivity extends Activity implements JobSession.Screen {
                 render();
             });
         }, "NeoSync find Picco").start();
-    }
-
-    /** {gateway, own IPv4 address} of the current network; either may be null. */
-    private String[] localNetwork() {
-        String[] out = new String[2];
-        try {
-            ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-            Network network = cm != null ? cm.getActiveNetwork() : null;
-            LinkProperties lp = network != null ? cm.getLinkProperties(network) : null;
-            if (lp == null) {
-                return out;
-            }
-            for (RouteInfo route : lp.getRoutes()) {
-                if (route.isDefaultRoute() && route.getGateway() instanceof Inet4Address) {
-                    out[0] = route.getGateway().getHostAddress();
-                    break;
-                }
-            }
-            for (LinkAddress address : lp.getLinkAddresses()) {
-                if (address.getAddress() instanceof Inet4Address) {
-                    out[1] = address.getAddress().getHostAddress();
-                    break;
-                }
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "No network details: " + e);
-        }
-        return out;
     }
 
     // --- The Picco's book list -----------------------------------------------------
@@ -1442,8 +1429,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
 
     /** Records whether the Picco at this address just answered. UI thread. */
     private void markPicco(String address, boolean reachable) {
-        checkedPiccoAddress = address;
-        checkedPiccoReachable = reachable;
+        rememberPiccoCheck(address, reachable);
         renderChips();
     }
 
@@ -1524,7 +1510,7 @@ public class MainActivity extends Activity implements JobSession.Screen {
     String piccoErrorMessage(Exception e, String address) {
         return !(e instanceof IOException)
                 ? getString(R.string.transfer_unexpected, String.valueOf(e))
-                : hasLocalNetwork()
+                : WifiHelper.hasLocalNetwork(this)
                 ? getString(R.string.transfer_unreachable, address)
                 : getString(R.string.transfer_no_network);
     }
@@ -1767,7 +1753,11 @@ public class MainActivity extends Activity implements JobSession.Screen {
     }
 
     String deviceId() {
-        String androidId = Settings.Secure.getString(getContentResolver(),
+        return deviceId(this);
+    }
+
+    static String deviceId(android.content.Context context) {
+        String androidId = Settings.Secure.getString(context.getContentResolver(),
                 Settings.Secure.ANDROID_ID);
         return androidId != null ? androidId : "boox-companion";
     }
@@ -1789,46 +1779,5 @@ public class MainActivity extends Activity implements JobSession.Screen {
                 }
             });
         }).start();
-    }
-
-    /**
-     * Apps can't switch Wi-Fi networks themselves (Android 10+), so this opens
-     * the system's Wi-Fi panel over the app; the user picks the network and
-     * comes straight back. Falls back to the full Wi-Fi settings screen on
-     * firmware without the panel.
-     */
-    private void openWifiPicker() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            try {
-                startActivity(new Intent(Settings.Panel.ACTION_WIFI));
-                return;
-            } catch (android.content.ActivityNotFoundException ignored) {
-            }
-        }
-        try {
-            startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
-        } catch (android.content.ActivityNotFoundException e) {
-            Log.w(TAG, "No Wi-Fi settings screen: " + e);
-        }
-    }
-
-    /**
-     * True when the tablet currently has a local-network link (Wi-Fi or
-     * Ethernet). A Picco hotspot without internet access still counts, so the
-     * check looks at the transport, not at internet reachability.
-     */
-    private boolean hasLocalNetwork() {
-        ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-        if (cm == null) {
-            return true; // Cannot tell — fall back to the generic message.
-        }
-        Network network = cm.getActiveNetwork();
-        if (network == null) {
-            return false;
-        }
-        NetworkCapabilities caps = cm.getNetworkCapabilities(network);
-        return caps != null
-                && (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-                        || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET));
     }
 }

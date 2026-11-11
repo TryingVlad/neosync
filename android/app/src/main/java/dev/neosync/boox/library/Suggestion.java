@@ -4,7 +4,7 @@ package dev.neosync.boox.library;
 public final class Suggestion {
 
     public enum Kind {
-        JOB, PROBLEM_NO_INTERNET, PROBLEM_AUTH, PROBLEM_SERVER, PROBLEM_PAUSED,
+        JOB, FILE_ACCESS, PROBLEM_NO_INTERNET, PROBLEM_AUTH, PROBLEM_SERVER, PROBLEM_PAUSED,
         SETUP_PICCO, SEND_MISSING, FIX_COVERS, UPDATE
     }
 

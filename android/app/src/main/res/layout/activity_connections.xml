@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Connections (spec 5.3, mockup 3): why there are two links, and how each one is doing. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/white" android:fitsSystemWindows="true">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="28dp">
+
+<!-- Header: back arrow + title. -->
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+<ImageButton android:id="@+id/button_back" android:layout_width="48dp" android:layout_height="48dp" android:layout_marginStart="-12dp" android:src="@drawable/ic_arrow_back" android:background="@null" android:padding="12dp" android:contentDescription="@string/cd_back" />
+
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="@string/conn_title" style="@style/NeoSync.Title" />
+</LinearLayout>
+
+<!-- Diagram: positions go over the internet, book files over the same Wi-Fi. -->
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:orientation="vertical" style="@style/NeoSync.Card">
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/conn_diagram_header" style="@style/NeoSync.Section" />
+
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:orientation="horizontal" android:gravity="center_vertical">
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1.2" android:orientation="vertical" android:gravity="center_horizontal" android:background="@drawable/chip_bg" android:padding="8dp">
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_node_boox" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/black" />
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_node_boox_sub" style="@style/NeoSync.Small" />
+</LinearLayout>
+
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center_horizontal">
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_positions" style="@style/NeoSync.Small" />
+<View android:layout_width="match_parent" android:layout_height="6dp" android:background="@drawable/line_solid" />
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_internet" style="@style/NeoSync.Small" />
+</LinearLayout>
+
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1.2" android:orientation="vertical" android:gravity="center_horizontal" android:background="@drawable/chip_bg" android:padding="8dp">
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_node_server" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/black" />
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_node_server_sub" style="@style/NeoSync.Small" />
+</LinearLayout>
+
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center_horizontal">
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_positions" style="@style/NeoSync.Small" />
+<View android:layout_width="match_parent" android:layout_height="6dp" android:background="@drawable/line_solid" />
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_internet" style="@style/NeoSync.Small" />
+</LinearLayout>
+
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1.2" android:orientation="vertical" android:gravity="center_horizontal" android:background="@drawable/chip_bg" android:padding="8dp">
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_node_picco" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/black" />
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_node_picco_sub" style="@style/NeoSync.Small" />
+</LinearLayout>
+</LinearLayout>
+
+<!-- The direct Boox-Picco link: dashed while the Picco isn't reachable. -->
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:layout_marginStart="36dp" android:layout_marginEnd="36dp" android:orientation="vertical" android:gravity="center_horizontal">
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/conn_wire_files" style="@style/NeoSync.Small" />
+<View android:id="@+id/wire_wifi" android:layout_width="match_parent" android:layout_height="6dp" android:layerType="software" android:background="@drawable/line_dashed" />
+<TextView android:id="@+id/text_wire_wifi" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Small" android:textColor="@color/black" />
+</LinearLayout>
+</LinearLayout>
+
+<!-- This Boox: file access (spec 5.9). -->
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:orientation="vertical" style="@style/NeoSync.Card">
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/conn_boox_header" style="@style/NeoSync.Section" />
+<TextView android:id="@+id/text_file_access" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="" style="@style/NeoSync.Body" />
+<Button android:id="@+id/button_file_access" android:layout_width="match_parent" android:layout_marginTop="10dp" android:text="@string/button_allow" style="@style/NeoSync.Button.Secondary" android:visibility="gone" />
+</LinearLayout>
+
+<!-- Sync server: one sentence, the fix for the problem, and Sync all. -->
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:orientation="vertical" style="@style/NeoSync.Card">
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/conn_server_header" style="@style/NeoSync.Section" />
+<TextView android:id="@+id/text_server" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="" style="@style/NeoSync.Body" />
+<Button android:id="@+id/button_server_fix" android:layout_width="match_parent" android:layout_marginTop="10dp" android:text="" style="@style/NeoSync.Button.Secondary" android:visibility="gone" />
+<TextView android:id="@+id/link_sync_all" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="@string/conn_sync_all" android:textStyle="bold" style="@style/NeoSync.Link" />
+<TextView android:id="@+id/text_sync_all_note" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/conn_job_running" style="@style/NeoSync.Small" android:visibility="gone" />
+</LinearLayout>
+
+<!-- Picco: its state, and the steps to connect it when it can't be reached. -->
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:orientation="vertical" style="@style/NeoSync.Card">
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/conn_picco_header" style="@style/NeoSync.Section" />
+<TextView android:id="@+id/text_picco" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="" style="@style/NeoSync.Body" />
+
+<!-- The hotspot case: Wi-Fi without internet. -->
+<TextView android:id="@+id/text_hotspot" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/hotspot_hint" style="@style/NeoSync.Small" android:textColor="@color/black" android:background="@drawable/warn_bg" android:paddingStart="14dp" android:paddingTop="8dp" android:paddingEnd="10dp" android:paddingBottom="8dp" android:visibility="gone" />
+
+<LinearLayout android:id="@+id/group_picco_steps" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="horizontal">
+<TextView android:layout_width="28dp" android:layout_height="wrap_content" android:text="1." android:textStyle="bold" style="@style/NeoSync.Body" />
+<TextView android:id="@+id/text_step_1" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Body" />
+</LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:orientation="horizontal">
+<TextView android:layout_width="28dp" android:layout_height="wrap_content" android:text="2." android:textStyle="bold" style="@style/NeoSync.Body" />
+<TextView android:id="@+id/text_step_2" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="" style="@style/NeoSync.Body" />
+</LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:orientation="horizontal">
+<TextView android:layout_width="28dp" android:layout_height="wrap_content" android:text="3." android:textStyle="bold" style="@style/NeoSync.Body" />
+<TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/conn_step_3" style="@style/NeoSync.Body" />
+</LinearLayout>
+
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:orientation="horizontal">
+<Button android:id="@+id/button_look" android:layout_width="0dp" android:layout_weight="1" android:text="@string/conn_look" style="@style/NeoSync.Button.Primary" />
+<Button android:id="@+id/button_wifi" android:layout_width="0dp" android:layout_weight="1" android:layout_marginStart="10dp" android:text="@string/button_wifi_settings" style="@style/NeoSync.Button.Secondary" />
+</LinearLayout>
+</LinearLayout>
+
+<TextView android:id="@+id/link_address" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:layout_marginEnd="0dp" android:text="" style="@style/NeoSync.Link" android:textSize="15sp" android:textColor="@color/ink_soft" />
+</LinearLayout>
+
+</LinearLayout>
+</ScrollView>

@@ -7,6 +7,8 @@ public final class SuggestionPicker {
 
     public static final class Input {
         public boolean jobRunning;
+        /** All-files access isn't granted (spec 5.9): asked for ahead of everything but a job. */
+        public boolean fileAccessMissing;
         public boolean autoSyncOn;
         public SyncProblem.Type problem;
         public boolean problemIsAlarm;
@@ -27,6 +29,9 @@ public final class SuggestionPicker {
     public static Suggestion pick(Input in) {
         if (in.jobRunning) {
             return new Suggestion(Suggestion.Kind.JOB, 0, null);
+        }
+        if (in.fileAccessMissing) {
+            return new Suggestion(Suggestion.Kind.FILE_ACCESS, 0, null);
         }
         if (!in.autoSyncOn) {
             return new Suggestion(Suggestion.Kind.PROBLEM_PAUSED, 0, null);
