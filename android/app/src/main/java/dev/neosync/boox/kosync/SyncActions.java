@@ -125,7 +125,7 @@ public final class SyncActions {
         // Keep the place from before the jump (fields read before the write)
         // so "Undo jump" can put it back (spec §7.5).
         new UndoStore(context).save(book.path, book.progress, book.lastAccessMs,
-                book.extraAttributes, written, System.currentTimeMillis());
+                book.extraAttributes, written, remoteMs, System.currentTimeMillis());
         state.lastWrittenProgress = written;
         state.lastWrittenAccessMs = remoteMs;
         state.lastSyncMs = System.currentTimeMillis();
@@ -148,20 +148,36 @@ public final class SyncActions {
         return written;
     }
 
+    /** What undoJump did, for the book sheet to say. */
+    public enum UndoResult {
+        /** Place put back on the Boox and sent to the server: the Picco follows. */
+        RESTORED_SENT,
+        /** Place put back; sending failed (offline, slowed down), sent later by automatic sync. */
+        RESTORED_SEND_LATER,
+        /** No saved place for this book. */
+        NOTHING_TO_UNDO,
+        /** Writing to the Boox failed; the saved place is kept so it can be tried again. */
+        WRITE_FAILED
+    }
+
     /**
      * Puts back the Boox place saved before the latest jump, with lastAccess
-     * = now. lastWrittenProgress is left alone, so the watcher sees this as
-     * reading done here and sends it to the server: the Picco follows
-     * (spec §7.5). Like applyRemote, only a background Neo Reader is stopped;
-     * a book open in the foreground is never touched.
+     * = now, and sends it to the server right away so the server's record is
+     * this device's and the Picco follows (spec §7.5). Works with automatic
+     * sync on or off. lastWrittenProgress is left alone and the push dedup is
+     * reset first, so if the upload fails the watcher sees reading done here
+     * and sends it later. Like applyRemote, only a background Neo Reader is
+     * stopped; a book open in the foreground is never touched.
      *
-     * @return false when nothing was written
+     * Makes network requests: call off the main thread.
      */
-    public static boolean undoJump(Context context, OnyxMetadataRepository repository,
-                                   UndoStore store, OnyxMetadataRepository.Book book) {
+    public static UndoResult undoJump(Context context, OnyxMetadataRepository repository,
+                                      UndoStore store, SyncStateStore stateStore,
+                                      KoSyncClient client, OnyxMetadataRepository.Book book,
+                                      String hash) {
         UndoStore.Saved saved = store.get(book.path);
         if (saved == null) {
-            return false;
+            return UndoResult.NOTHING_TO_UNDO;
         }
         OnyxMetadataRepository.Book prev = new OnyxMetadataRepository.Book();
         prev.progress = saved.prevProgress;
@@ -170,8 +186,15 @@ public final class SyncActions {
         int total = prev.totalPages();
         if (page <= 0 || total <= 0) {
             store.clear(book.path); // nothing usable to put back
-            return false;
+            return UndoResult.NOTHING_TO_UNDO;
         }
+
+        // The restored place may be one this device already pushed before
+        // the jump; forget that BEFORE writing, so a scan running in between
+        // can't skip sending it.
+        SyncStateStore.BookState state = stateStore.get(book.path);
+        state.lastPushedProgress = "";
+        stateStore.put(book.path, state);
 
         ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         if (am != null) {
@@ -180,23 +203,26 @@ public final class SyncActions {
 
         if (!repository.writeProgress(book, page, total, System.currentTimeMillis(),
                 prev.positionV2())) {
-            return false;
+            return UndoResult.WRITE_FAILED;
         }
         // Firmware 4.x: put back the chapter-based position, through the
         // same path applyRemote writes it with.
         String chapter = OnyxMetadataRepository.chapterPositionValue(saved.prevExtra);
-        if (chapter != null && book.chapterPosition() != null) {
-            repository.writeChapterPosition(book.path, book.extraAttributes, chapter);
+        if (chapter != null && book.chapterPosition() != null
+                && repository.writeChapterPosition(book.path, book.extraAttributes, chapter) <= 0) {
+            return UndoResult.WRITE_FAILED;
         }
         store.clear(book.path);
 
-        // The restored place may be one this device already pushed before
-        // the jump; forget that, so the push dedup doesn't skip sending it.
-        SyncStateStore stateStore = new SyncStateStore(context);
-        SyncStateStore.BookState state = stateStore.get(book.path);
-        state.lastPushedProgress = "";
-        stateStore.put(book.path, state);
-        return true;
+        // Send the restored place now (fresh row, so the percentage comes
+        // from the restored chapter position).
+        OnyxMetadataRepository.Book fresh = repository.queryBook(book.path);
+        if (fresh == null || hash == null || client == null) {
+            return UndoResult.RESTORED_SEND_LATER;
+        }
+        KoSyncClient.Result result = uploadLocal(client, stateStore, fresh, hash);
+        return result.error == KoSyncClient.Error.OK
+                ? UndoResult.RESTORED_SENT : UndoResult.RESTORED_SEND_LATER;
     }
 
     /** The EPUB's spine table, or null for non-EPUBs and unreadable files. */

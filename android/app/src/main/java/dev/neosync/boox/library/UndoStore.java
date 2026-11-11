@@ -17,7 +17,8 @@ public class UndoStore {
         public long prevLastAccessMs;
         public String prevExtra; // Neo Reader's whole extraAttributes before the jump, may be null
         public String writtenProgress;
-        public long savedAtMs;
+        public long savedAtMs;   // Boox clock
+        public long remoteMs;    // server timestamp of the position the jump applied
     }
 
     public UndoStore(Context context) {
@@ -26,7 +27,8 @@ public class UndoStore {
     }
 
     public void save(String path, String prevProgress, long prevLastAccessMs,
-                     String prevExtraAttributes, String writtenProgress, long nowMs) {
+                     String prevExtraAttributes, String writtenProgress, long remoteMs,
+                     long nowMs) {
         if (path == null) {
             return;
         }
@@ -39,6 +41,7 @@ public class UndoStore {
             }
             json.put("written", writtenProgress);
             json.put("savedAt", nowMs);
+            json.put("remote", remoteMs);
             prefs.edit().putString(path, json.toString()).apply();
         } catch (Exception ignored) {
         }
@@ -58,6 +61,7 @@ public class UndoStore {
             saved.prevExtra = json.has("extra") ? json.getString("extra") : null;
             saved.writtenProgress = json.optString("written", null);
             saved.savedAtMs = json.optLong("savedAt", 0);
+            saved.remoteMs = json.optLong("remote", 0);
             return saved;
         } catch (Exception e) {
             return null;

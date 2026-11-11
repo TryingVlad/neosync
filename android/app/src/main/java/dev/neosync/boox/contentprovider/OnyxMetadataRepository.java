@@ -121,14 +121,24 @@ public class OnyxMetadataRepository {
         return queryBooks(null);
     }
 
+    /** The book's row as it is now, or null when it isn't in the library. */
+    public Book queryBook(String path) {
+        List<Book> books = queryBooks(COL_PATH + " = ?", new String[]{path});
+        return books.isEmpty() ? null : books.get(0);
+    }
+
     private List<Book> queryBooks(String selection) {
+        return queryBooks(selection, null);
+    }
+
+    private List<Book> queryBooks(String selection, String[] selectionArgs) {
         List<Book> books = new ArrayList<>();
         try (Cursor cursor = resolver.query(
                 METADATA_URI,
                 new String[]{COL_PATH, COL_NAME, COL_PROGRESS, COL_LAST_ACCESS, COL_READING_STATUS,
                         COL_EXTRA, "uuid", "hashTag"},
                 selection,
-                null,
+                selectionArgs,
                 COL_LAST_ACCESS + " DESC")) {
             if (cursor == null) {
                 Log.w(TAG, "queryBooks: null cursor — Onyx provider unavailable?");
