@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NeoSync redesign</title>
+<style>
+  :root { --ink:#111; --mid:#555; --soft:#999; --line:#ccc; --paper:#fff; --bg:#e9e9e6; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); font-family: Roboto, "Helvetica Neue", Arial, sans-serif; color:var(--ink); }
+  header.page { padding:28px 32px 8px; max-width:1500px; margin:0 auto; }
+  header.page h1 { margin:0 0 6px; font-size:24px; }
+  header.page p { margin:0; color:#444; font-size:15px; max-width:900px; line-height:1.45; }
+  .row { display:flex; flex-wrap:wrap; gap:36px; padding:24px 32px 48px; max-width:1500px; margin:0 auto; align-items:flex-start; }
+  .shot { width:465px; }
+  .shot h2 { font-size:15px; margin:0 0 10px; letter-spacing:.02em; }
+  .shot h2 span { display:inline-block; background:var(--ink); color:#fff; border-radius:50%; width:22px; height:22px; text-align:center; line-height:22px; font-size:12px; margin-right:6px; }
+
+  /* the Boox */
+  .device { width:465px; height:620px; background:#333; border-radius:22px; padding:16px 16px 34px; box-shadow:0 6px 20px rgba(0,0,0,.18); }
+  .screen { position:relative; width:100%; height:100%; background:var(--paper); overflow:hidden; border-radius:3px; padding:18px 18px 0; font-size:12px; }
+
+  .notes { margin:14px 4px 0; padding:0; list-style:none; font-size:13px; line-height:1.45; color:#333; }
+  .notes li { margin:0 0 7px; padding-left:20px; position:relative; }
+  .notes li b.n { position:absolute; left:0; top:0; font-size:11px; border:1.5px solid var(--ink); border-radius:50%; width:15px; height:15px; line-height:12px; text-align:center; }
+
+  /* app chrome */
+  .bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .bar .title { font-size:20px; font-weight:700; }
+  .icon { width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:17px; }
+  .back { font-size:18px; margin-right:8px; }
+
+  .chips { display:flex; gap:8px; margin-bottom:10px; }
+  .chip { flex:1; border:1.5px solid var(--ink); border-radius:10px; padding:7px 9px; display:flex; align-items:center; gap:7px; }
+  .chip .dot { width:9px; height:9px; border-radius:50%; background:var(--ink); flex:none; }
+  .chip .dot.off { background:#fff; border:1.5px solid var(--ink); }
+  .chip b { display:block; font-size:12px; }
+  .chip small { display:block; color:var(--mid); font-size:10.5px; }
+  .chip .chev { margin-left:auto; color:var(--mid); }
+
+  .suggest { border:1.5px dashed var(--ink); border-radius:10px; padding:8px 10px; display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .suggest p { margin:0; flex:1; font-size:11.5px; line-height:1.35; }
+  .suggest p b { font-size:12px; }
+  .suggest .x { color:var(--soft); font-size:13px; }
+
+  .btn { display:inline-block; border:1.5px solid var(--ink); border-radius:8px; padding:6px 11px; font-weight:700; font-size:11.5px; text-align:center; white-space:nowrap; }
+  .btn.primary { background:var(--ink); color:#fff; }
+  .btn.block { display:block; width:100%; padding:9px; font-size:12.5px; }
+  .btn.quiet { border-color:transparent; text-decoration:underline; padding-left:0; padding-right:0; }
+
+  .filters { display:flex; gap:6px; margin-bottom:6px; flex-wrap:nowrap; }
+  .f { border:1px solid var(--soft); border-radius:14px; padding:3px 9px; font-size:10.5px; white-space:nowrap; }
+  .f.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .search { margin-left:auto; font-size:13px; }
+
+  .book { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); align-items:center; }
+  .cover { width:34px; height:48px; border:1px solid var(--ink); flex:none; display:flex; align-items:center; justify-content:center; text-align:center; font-family:Georgia, serif; font-size:6.5px; line-height:1.1; padding:2px; background:#fafafa; }
+  .cover.dark { background:var(--ink); color:#fff; }
+  .cover.black { background:#000; color:#000; position:relative; }
+  .meta { flex:1; min-width:0; }
+  .meta .t { font-weight:700; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .meta .a { color:var(--mid); font-size:10.5px; margin-top:1px; }
+  .meta .s { font-size:10.5px; margin-top:3px; }
+  .pos { width:118px; flex:none; font-size:10px; }
+  .pos .l { display:flex; align-items:center; gap:5px; margin:2px 0; }
+  .pos .l i { font-style:normal; width:30px; color:var(--mid); }
+  .track { flex:1; height:5px; border:1px solid var(--ink); position:relative; }
+  .track b { position:absolute; left:0; top:0; bottom:0; background:var(--ink); }
+  .pos .l em { font-style:normal; width:24px; text-align:right; }
+  .none { flex:1; color:var(--soft); }
+
+  .pager { display:flex; justify-content:center; align-items:center; gap:16px; padding:9px 0; font-size:12px; }
+  .pager .pg { border:1.5px solid var(--ink); border-radius:6px; padding:2px 10px; }
+
+  /* sheet */
+  .scrim { position:absolute; inset:0; background:rgba(255,255,255,.72); }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:#fff; border-top:2px solid var(--ink); border-radius:16px 16px 0 0; padding:14px 18px 18px; }
+  .grab { width:40px; height:4px; background:var(--ink); border-radius:2px; margin:0 auto 12px; }
+  .sheet .head { display:flex; gap:12px; margin-bottom:12px; }
+  .sheet .head .cover { width:52px; height:72px; font-size:8px; }
+  .sheet h3 { margin:2px 0 2px; font-size:16px; }
+  .sheet .sub { color:var(--mid); font-size:11.5px; }
+  .compare { border:1.5px solid var(--ink); border-radius:10px; padding:8px 10px; margin-bottom:10px; }
+  .compare .l { display:flex; align-items:center; gap:8px; margin:5px 0; font-size:11.5px; }
+  .compare .l i { font-style:normal; width:62px; font-weight:700; }
+  .compare .l .track { height:7px; }
+  .compare .l em { font-style:normal; width:30px; text-align:right; font-weight:700; }
+  .compare .l small { width:84px; color:var(--mid); font-size:10px; }
+  .verdict { font-size:11.5px; margin:8px 0 2px; }
+  .links { display:flex; gap:18px; margin-top:10px; font-size:11.5px; }
+  .links span { text-decoration:underline; }
+  .hint { color:var(--mid); font-size:10.5px; margin-top:6px; line-height:1.35; }
+
+  /* panel */
+  .panel h3 { font-size:17px; margin:2px 0 4px; }
+  .lead { font-size:12px; line-height:1.45; margin:0 0 12px; }
+  .card { border:1.5px solid var(--ink); border-radius:10px; padding:10px 12px; margin-bottom:10px; }
+  .card .k { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--mid); margin-bottom:5px; font-weight:700; }
+  .steps { margin:4px 0 0; padding-left:18px; font-size:11.5px; line-height:1.5; }
+  .diagram { display:flex; align-items:center; justify-content:space-between; font-size:10.5px; text-align:center; margin:4px 0 2px; }
+  .node { border:1.5px solid var(--ink); border-radius:8px; padding:6px 4px; width:88px; }
+  .node b { display:block; font-size:11.5px; }
+  .wire { flex:1; text-align:center; color:var(--mid); font-size:9.5px; position:relative; padding:0 4px; }
+  .wire hr { border:0; border-top:1.5px solid var(--ink); margin:2px 0; }
+  .wire hr.broken { border-top:1.5px dashed var(--soft); }
+
+  /* settings */
+  .sec { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; margin:9px 0 2px; }
+  .item { display:flex; align-items:center; padding:4px 0; border-bottom:1px solid var(--line); gap:10px; }
+  .item .m { flex:1; }
+  .item .m b { font-size:12.5px; display:block; font-weight:500; }
+  .item .m small { color:var(--mid); font-size:10.5px; }
+  .item .v { color:var(--mid); font-size:11px; }
+  .toggle { width:30px; height:16px; border-radius:9px; background:var(--ink); position:relative; flex:none; }
+  .toggle::after { content:""; position:absolute; right:2px; top:2px; width:12px; height:12px; border-radius:50%; background:#fff; }
+
+  .callout { position:absolute; width:17px; height:17px; border-radius:50%; background:#d33; color:#fff; font-size:10px; font-weight:700; text-align:center; line-height:17px; box-shadow:0 0 0 2px #fff; z-index:5; }
+</style>
+<style>
+.chip.alert { background:#111; color:#fff; } .chip.alert small{color:#ddd} .chip.alert .dot{background:#fff}
+.progress { border:2px solid #111; border-radius:10px; padding:9px 11px; margin-bottom:10px; }
+.progress .top { display:flex; justify-content:space-between; font-size:12px; font-weight:700; }
+.progress .bigtrack { height:8px; border:1.5px solid #111; margin:7px 0 5px; position:relative; }
+.progress .bigtrack b { position:absolute; left:0; top:0; bottom:0; background:#111; }
+.progress small { color:#555; font-size:10.5px; }
+.check { display:flex; gap:8px; align-items:flex-start; font-size:11px; line-height:1.35; margin:8px 0; }
+.box { width:14px; height:14px; border:1.5px solid #111; flex:none; margin-top:1px; }
+.box.on { background:#111; box-shadow: inset 0 0 0 2px #fff; }
+.mini { display:flex; gap:8px; align-items:center; padding:5px 0; border-bottom:1px solid #ccc; font-size:11.5px; }
+.mini .cover { width:24px; height:34px; font-size:5px; }
+.mini .arrow { color:#555; }
+.mini .m { flex:1; } .mini small { color:#555; font-size:10px; display:block; }
+.warn { border-left:3px solid #111; padding:4px 8px; font-size:10.5px; line-height:1.4; margin:8px 0; background:#f3f3f3; }
+.empty { text-align:center; padding:18px 10px 8px; color:#555; font-size:11.5px; line-height:1.45; }
+</style>
+</head>
+<body>
+<header class="page"><h1>NeoSync redesign: the other states</h1>
+<p>The same design in the moments that matter: a long job running, something broken, the cover fix, and the first launch. The red letters on the screens match the notes underneath.</p></header>
+<div class="row">
+
+<div class="shot"><h2><span>5</span>Sending books (any long job)</h2>
+<div class="device"><div class="screen"><div class="bar"><div class="title">NeoSync</div><div class="icon">⚙</div></div>
+<div class="chips"><div class="chip"><span class="dot"></span><div><b>Positions synced</b><small>2 min ago</small></div></div><div class="chip"><span class="dot"></span><div><b>Picco connected</b><small>192.168.1.244</small></div></div></div>
+<span class="callout" style="left:6px;top:104px">a</span>
+<div class="progress"><div class="top"><span>Sending books to the Picco</span><span>2 of 4</span></div><div class="bigtrack"><b style="width:50%"></b></div><small>Now: Masnavi · keep File Transfer open on the Picco</small><div style="text-align:right;margin-top:4px"><span class="btn" style="padding:3px 9px">Stop</span></div></div>
+<div class="filters"><span class="f on">All 19</span><span class="f">Reading</span><span class="f">Only here</span><span class="f">Only on Picco</span></div>
+<span class="callout" style="left:6px;top:228px">b</span>
+<div class="book"><div class="cover ">Bro&shy;mantasy</div><div class="meta"><div class="t">Bromantasy</div><div class="a">Máire Roche</div><div class="s">✓ Sent · 15:52</div></div><div class="pos"><div class="l"><i>Boox</i><span class="track"><b style="width:18%"></b></span><em>18%</em></div><div class="l"><i>Picco</i><span class="track"><b style="width:0%"></b></span><em>0%</em></div></div></div>
+<div class="book"><div class="cover ">Masnavi</div><div class="meta"><div class="t">Masnavi</div><div class="a">Jalal al-Din Rumi</div><div class="s"><b>Sending…</b></div></div><div class="pos"><div class="l"><i>Boox</i><span class="track"><b style="width:11%"></b></span><em>11%</em></div><div class="l"><i>Picco</i><span class="none">—</span></div></div></div>
+<div class="book"><div class="cover ">Mystical</div><div class="meta"><div class="t">Mystical Dimensions of Islam</div><div class="a">Annemarie Schimmel</div><div class="s">Waiting</div></div><div class="pos"><div class="l"><i>Boox</i><span class="track"><b style="width:0%"></b></span><em>0%</em></div><div class="l"><i>Picco</i><span class="none">—</span></div></div></div>
+<div class="book"><div class="cover ">Heart</div><div class="meta"><div class="t">The Heart’s Invisible Furies</div><div class="a">John Boyne</div><div class="s">Waiting</div></div><div class="pos"><div class="l"><i>Boox</i><span class="track"><b style="width:0%"></b></span><em>0%</em></div><div class="l"><i>Picco</i><span class="none">—</span></div></div></div>
+<div class="book"><div class="cover ">Fictions</div><div class="meta"><div class="t">Fictions</div><div class="a">Jorge Luis Borges</div><div class="s">✓ Same place · 13:37</div></div><div class="pos"><div class="l"><i>Boox</i><span class="track"><b style="width:88%"></b></span><em>88%</em></div><div class="l"><i>Picco</i><span class="track"><b style="width:88%"></b></span><em>88%</em></div></div></div>
+</div></div>
+<ul class="notes">
+<li><b class="n">a</b>Every long job (send books, sync all, add covers) uses <b>one progress card</b> in the suggestion slot: what it’s doing, how far along, one Stop button. It updates every few seconds, not every second, to keep e-ink refreshes down.</li>
+<li><b class="n">b</b>The affected rows show their own state (Sent, Sending, Waiting), so you can watch progress in the list itself. When the job ends, the card says what happened (“4 sent”) and goes away by itself.</li>
+</ul></div>
+
+<div class="shot"><h2><span>6</span>Something’s wrong</h2>
+<div class="device"><div class="screen"><div class="bar"><div class="title">NeoSync</div><div class="icon">⚙</div></div>
+<span class="callout" style="left:6px;top:52px">a</span>
+<div class="chips"><div class="chip alert"><span class="dot"></span><div><b>Positions not syncing</b><small>since 14:10 · tap to fix</small></div><span class="chev" style="color:#fff">›</span></div><div class="chip"><span class="dot off"></span><div><b>Picco not connected</b><small>list from 15:46</small></div></div></div>
+<span class="callout" style="left:6px;top:104px">b</span>
+<div class="suggest" style="border-style:solid;border-width:2px"><p><b>This Wi-Fi has no internet</b><br>You’re probably on the Picco’s hotspot. Positions need your usual Wi-Fi.</p><span class="btn primary">Wi-Fi</span></div>
+<div class="filters"><span class="f on">All 19</span><span class="f">Reading</span><span class="f">Only here</span><span class="f">Only on Picco</span></div>
+<span class="callout" style="left:6px;top:200px">c</span>
+<div class="book"><div class="cover dark">The Odyssey</div><div class="meta"><div class="t">The Odyssey</div><div class="a">Homer</div><div class="s">Read further here · waiting to sync</div></div><div class="pos"><div class="l"><i>Boox</i><span class="track"><b style="width:52%"></b></span><em>52%</em></div><div class="l"><i>Picco</i><span class="track"><b style="width:41%"></b></span><em>41%</em></div></div></div>
+<div class="book"><div class="cover ">Fictions</div><div class="meta"><div class="t">Fictions</div><div class="a">Jorge Luis Borges</div><div class="s">✓ Same place · 13:37</div></div><div class="pos"><div class="l"><i>Boox</i><span class="track"><b style="width:88%"></b></span><em>88%</em></div><div class="l"><i>Picco</i><span class="track"><b style="width:88%"></b></span><em>88%</em></div></div></div>
+<div class="book"><div class="cover ">Le Banquet</div><div class="meta"><div class="t">Le Banquet</div><div class="a">Platon</div><div class="s">✓ Same place · 15:45</div></div><div class="pos"><div class="l"><i>Boox</i><span class="track"><b style="width:65%"></b></span><em>65%</em></div><div class="l"><i>Picco</i><span class="track"><b style="width:65%"></b></span><em>65%</em></div></div></div>
+<div class="book"><div class="cover ">Captive Prince</div><div class="meta"><div class="t">Captive Prince</div><div class="a">C. S. Pacat</div><div class="s">Only on the Picco</div></div><div class="pos"><div class="l"><i>Boox</i><span class="none">—</span></div><div class="l"><i>Picco</i><span class="track"><b style="width:5%"></b></span><em>5%</em></div></div></div>
+<div class="pager"><span class="pg">‹</span>1 / 4<span class="pg">›</span></div>
+</div></div>
+<ul class="notes">
+<li><b class="n">a</b>A problem turns its chip <b>black</b>, the strongest signal on e-ink without colour. One glance from across the room tells you whether something is wrong.</li>
+<li><b class="n">b</b>When the cause is known, the suggestion slot explains it in plain words with the one button that fixes it. Here it’s the hotspot case; others are wrong password, server down, and sync paused (“Turn on”). It clears by itself once the server answers again.</li>
+<li><b class="n">c</b>Rows tell the truth: reading done here shows as “waiting to sync”, never as “Synced”.</li>
+</ul></div>
+
+<div class="shot"><h2><span>7</span>Adding missing covers</h2>
+<div class="device"><div class="screen"><div class="bar"><div class="title">NeoSync</div><div class="icon">⚙</div></div>
+<div class="chips"><div class="chip"><span class="dot"></span><div><b>Positions synced</b><small>2 min ago</small></div></div><div class="chip"><span class="dot"></span><div><b>Picco connected</b><small>192.168.1.244</small></div></div></div>
+<div class="scrim"></div>
+<div class="sheet">
+<div class="grab"></div>
+<h3 style="margin:0 0 4px">5 books would show a black cover on the Picco</h3>
+<div class="sub" style="margin-bottom:8px">NeoSync gives each one a cover. Your notes, highlights and place in Neo Reader stay as they are.</div>
+<span class="callout" style="left:4px;top:86px">a</span>
+<div class="mini"><div class="cover black">x</div><span class="arrow">→</span><div class="cover dark">Bro&shy;mantasy</div><div class="m">Bromantasy<small>picture from the book</small></div></div>
+<div class="mini"><div class="cover black">x</div><span class="arrow">→</span><div class="cover">Masnavi<br>· · ·</div><div class="m">Masnavi<small>its first page</small></div></div>
+<div class="mini"><div class="cover black">x</div><span class="arrow">→</span><div class="cover">Republic<br>· · ·</div><div class="m">Republic + 2 more<small>their first page</small></div></div>
+<span class="callout" style="left:4px;top:232px">b</span>
+<div class="warn"><b>2 of these are on the Picco too.</b> They’re replaced there, which resets the Picco’s place in them. NeoSync saves every place first; on the Picco, open each one and choose Sync Progress.</div>
+<div class="check"><span class="box"></span><span>Also fix 1 book that’s only on the Picco (Captive Prince)</span></div>
+<div class="btn primary block">Add 5 covers</div>
+<div class="hint">Originals are kept in Books/.neosync-backup.</div>
+</div></div></div>
+<ul class="notes">
+<li><b class="n">a</b>Opens from the “books would show a black cover” suggestion, and only when at least one book has that problem. You see <b>before → after</b> for each book instead of reading a paragraph about it.</li>
+<li><b class="n">b</b>The risk (the Picco’s place being reset) is said once, at the moment it matters, not on the home screen forever. The box for Picco-only books starts unticked, as it does today.</li>
+</ul></div>
+
+<div class="shot"><h2><span>8</span>First launch, no Picco yet</h2>
+<div class="device"><div class="screen"><div class="bar"><div class="title">NeoSync</div><div class="icon">⚙</div></div>
+<div class="chips"><div class="chip"><span class="dot"></span><div><b>Signed in</b><small>nothing synced yet</small></div></div><div class="chip"><span class="dot off"></span><div><b>Picco</b><small>not set up</small></div><span class="chev">›</span></div></div>
+<span class="callout" style="left:6px;top:104px">a</span>
+<div class="suggest" style="border-style:solid;border-width:2px"><p><b>Connect your Picco</b><br>Open File Transfer on the Picco, then tap Find. You’ll see its books here and can send new ones.</p><span class="btn primary">Find</span></div>
+<div class="filters"><span class="f on">All 12</span><span class="f">Reading</span><span class="f">Only here</span></div>
+<span class="callout" style="left:6px;top:200px">b</span>
+<div class="book"><div class="cover dark">The Odyssey</div><div class="meta"><div class="t">The Odyssey</div><div class="a">Homer</div><div class="s">Not synced yet</div></div><div class="pos"><div class="l"><i>Boox</i><span class="track"><b style="width:41%"></b></span><em>41%</em></div><div class="l"><i>Picco</i><span class="none">—</span></div></div></div>
+<div class="book"><div class="cover ">Fictions</div><div class="meta"><div class="t">Fictions</div><div class="a">Jorge Luis Borges</div><div class="s">Not synced yet</div></div><div class="pos"><div class="l"><i>Boox</i><span class="track"><b style="width:88%"></b></span><em>88%</em></div><div class="l"><i>Picco</i><span class="none">—</span></div></div></div>
+<div class="book"><div class="cover ">Le Banquet</div><div class="meta"><div class="t">Le Banquet</div><div class="a">Platon</div><div class="s">Not opened yet</div></div><div class="pos"><div class="l"><i>Boox</i><span class="none">—</span></div><div class="l"><i>Picco</i><span class="none">—</span></div></div></div>
+<div class="empty"><b style="color:#111">Read a few pages in Neo Reader.</b><br>NeoSync saves your place as you go. On the Picco, open the same book and choose <b>Sync Progress</b>.</div>
+</div></div>
+<ul class="notes">
+<li><b class="n">a</b>Setting up the Picco becomes a <b>step on the home screen</b>, not a field hidden in Settings. Auto-discovery means there’s no IP to type in most cases.</li>
+<li><b class="n">b</b>The library already works without the Picco (positions only), and a short line says what to do next. The 5-step guide stays for the parts it’s needed for: firmware, permissions and Boox battery settings.</li>
+</ul></div>
+
+</div></body></html>

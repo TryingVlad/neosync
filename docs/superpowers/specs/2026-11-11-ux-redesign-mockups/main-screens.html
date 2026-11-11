@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NeoSync redesign</title>
+<style>
+  :root { --ink:#111; --mid:#555; --soft:#999; --line:#ccc; --paper:#fff; --bg:#e9e9e6; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); font-family: Roboto, "Helvetica Neue", Arial, sans-serif; color:var(--ink); }
+  header.page { padding:28px 32px 8px; max-width:1500px; margin:0 auto; }
+  header.page h1 { margin:0 0 6px; font-size:24px; }
+  header.page p { margin:0; color:#444; font-size:15px; max-width:900px; line-height:1.45; }
+  .row { display:flex; flex-wrap:wrap; gap:36px; padding:24px 32px 48px; max-width:1500px; margin:0 auto; align-items:flex-start; }
+  .shot { width:465px; }
+  .shot h2 { font-size:15px; margin:0 0 10px; letter-spacing:.02em; }
+  .shot h2 span { display:inline-block; background:var(--ink); color:#fff; border-radius:50%; width:22px; height:22px; text-align:center; line-height:22px; font-size:12px; margin-right:6px; }
+
+  /* the Boox */
+  .device { width:465px; height:620px; background:#333; border-radius:22px; padding:16px 16px 34px; box-shadow:0 6px 20px rgba(0,0,0,.18); }
+  .screen { position:relative; width:100%; height:100%; background:var(--paper); overflow:hidden; border-radius:3px; padding:18px 18px 0; font-size:12px; }
+
+  .notes { margin:14px 4px 0; padding:0; list-style:none; font-size:13px; line-height:1.45; color:#333; }
+  .notes li { margin:0 0 7px; padding-left:20px; position:relative; }
+  .notes li b.n { position:absolute; left:0; top:0; font-size:11px; border:1.5px solid var(--ink); border-radius:50%; width:15px; height:15px; line-height:12px; text-align:center; }
+
+  /* app chrome */
+  .bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .bar .title { font-size:20px; font-weight:700; }
+  .icon { width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:17px; }
+  .back { font-size:18px; margin-right:8px; }
+
+  .chips { display:flex; gap:8px; margin-bottom:10px; }
+  .chip { flex:1; border:1.5px solid var(--ink); border-radius:10px; padding:7px 9px; display:flex; align-items:center; gap:7px; }
+  .chip .dot { width:9px; height:9px; border-radius:50%; background:var(--ink); flex:none; }
+  .chip .dot.off { background:#fff; border:1.5px solid var(--ink); }
+  .chip b { display:block; font-size:12px; }
+  .chip small { display:block; color:var(--mid); font-size:10.5px; }
+  .chip .chev { margin-left:auto; color:var(--mid); }
+
+  .suggest { border:1.5px dashed var(--ink); border-radius:10px; padding:8px 10px; display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .suggest p { margin:0; flex:1; font-size:11.5px; line-height:1.35; }
+  .suggest p b { font-size:12px; }
+  .suggest .x { color:var(--soft); font-size:13px; }
+
+  .btn { display:inline-block; border:1.5px solid var(--ink); border-radius:8px; padding:6px 11px; font-weight:700; font-size:11.5px; text-align:center; white-space:nowrap; }
+  .btn.primary { background:var(--ink); color:#fff; }
+  .btn.block { display:block; width:100%; padding:9px; font-size:12.5px; }
+  .btn.quiet { border-color:transparent; text-decoration:underline; padding-left:0; padding-right:0; }
+
+  .filters { display:flex; gap:6px; margin-bottom:6px; flex-wrap:nowrap; }
+  .f { border:1px solid var(--soft); border-radius:14px; padding:3px 9px; font-size:10.5px; white-space:nowrap; }
+  .f.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .search { margin-left:auto; font-size:13px; }
+
+  .book { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); align-items:center; }
+  .cover { width:34px; height:48px; border:1px solid var(--ink); flex:none; display:flex; align-items:center; justify-content:center; text-align:center; font-family:Georgia, serif; font-size:6.5px; line-height:1.1; padding:2px; background:#fafafa; }
+  .cover.dark { background:var(--ink); color:#fff; }
+  .cover.black { background:#000; color:#000; position:relative; }
+  .meta { flex:1; min-width:0; }
+  .meta .t { font-weight:700; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .meta .a { color:var(--mid); font-size:10.5px; margin-top:1px; }
+  .meta .s { font-size:10.5px; margin-top:3px; }
+  .pos { width:118px; flex:none; font-size:10px; }
+  .pos .l { display:flex; align-items:center; gap:5px; margin:2px 0; }
+  .pos .l i { font-style:normal; width:30px; color:var(--mid); }
+  .track { flex:1; height:5px; border:1px solid var(--ink); position:relative; }
+  .track b { position:absolute; left:0; top:0; bottom:0; background:var(--ink); }
+  .pos .l em { font-style:normal; width:24px; text-align:right; }
+  .none { flex:1; color:var(--soft); }
+
+  .pager { display:flex; justify-content:center; align-items:center; gap:16px; padding:9px 0; font-size:12px; }
+  .pager .pg { border:1.5px solid var(--ink); border-radius:6px; padding:2px 10px; }
+
+  /* sheet */
+  .scrim { position:absolute; inset:0; background:rgba(255,255,255,.72); }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:#fff; border-top:2px solid var(--ink); border-radius:16px 16px 0 0; padding:14px 18px 18px; }
+  .grab { width:40px; height:4px; background:var(--ink); border-radius:2px; margin:0 auto 12px; }
+  .sheet .head { display:flex; gap:12px; margin-bottom:12px; }
+  .sheet .head .cover { width:52px; height:72px; font-size:8px; }
+  .sheet h3 { margin:2px 0 2px; font-size:16px; }
+  .sheet .sub { color:var(--mid); font-size:11.5px; }
+  .compare { border:1.5px solid var(--ink); border-radius:10px; padding:8px 10px; margin-bottom:10px; }
+  .compare .l { display:flex; align-items:center; gap:8px; margin:5px 0; font-size:11.5px; }
+  .compare .l i { font-style:normal; width:62px; font-weight:700; }
+  .compare .l .track { height:7px; }
+  .compare .l em { font-style:normal; width:30px; text-align:right; font-weight:700; }
+  .compare .l small { width:84px; color:var(--mid); font-size:10px; }
+  .verdict { font-size:11.5px; margin:8px 0 2px; }
+  .links { display:flex; gap:18px; margin-top:10px; font-size:11.5px; }
+  .links span { text-decoration:underline; }
+  .hint { color:var(--mid); font-size:10.5px; margin-top:6px; line-height:1.35; }
+
+  /* panel */
+  .panel h3 { font-size:17px; margin:2px 0 4px; }
+  .lead { font-size:12px; line-height:1.45; margin:0 0 12px; }
+  .card { border:1.5px solid var(--ink); border-radius:10px; padding:10px 12px; margin-bottom:10px; }
+  .card .k { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--mid); margin-bottom:5px; font-weight:700; }
+  .steps { margin:4px 0 0; padding-left:18px; font-size:11.5px; line-height:1.5; }
+  .diagram { display:flex; align-items:center; justify-content:space-between; font-size:10.5px; text-align:center; margin:4px 0 2px; }
+  .node { border:1.5px solid var(--ink); border-radius:8px; padding:6px 4px; width:88px; }
+  .node b { display:block; font-size:11.5px; }
+  .wire { flex:1; text-align:center; color:var(--mid); font-size:9.5px; position:relative; padding:0 4px; }
+  .wire hr { border:0; border-top:1.5px solid var(--ink); margin:2px 0; }
+  .wire hr.broken { border-top:1.5px dashed var(--soft); }
+
+  /* settings */
+  .sec { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; margin:9px 0 2px; }
+  .item { display:flex; align-items:center; padding:4px 0; border-bottom:1px solid var(--line); gap:10px; }
+  .item .m { flex:1; }
+  .item .m b { font-size:12.5px; display:block; font-weight:500; }
+  .item .m small { color:var(--mid); font-size:10.5px; }
+  .item .v { color:var(--mid); font-size:11px; }
+  .toggle { width:30px; height:16px; border-radius:9px; background:var(--ink); position:relative; flex:none; }
+  .toggle::after { content:""; position:absolute; right:2px; top:2px; width:12px; height:12px; border-radius:50%; background:#fff; }
+
+  .callout { position:absolute; width:17px; height:17px; border-radius:50%; background:#d33; color:#fff; font-size:10px; font-weight:700; text-align:center; line-height:17px; box-shadow:0 0 0 2px #fff; z-index:5; }
+</style>
+</head>
+<body>
+<header class="page">
+  <h1>NeoSync redesign: library first, tools when you need them</h1>
+  <p>Four screens on a Go 10.3 (3:4, black and white). The red numbers on the screens match the notes underneath. Every feature that exists today still has a place. Covers, authors and clean titles come from each EPUB's own data.</p>
+</header>
+
+<div class="row">
+
+<!-- ============ 1. HOME ============ -->
+<div class="shot">
+  <h2><span>1</span>Home: the library</h2>
+  <div class="device"><div class="screen">
+    <div class="bar"><div class="title">NeoSync</div><div class="icon">⚙</div></div>
+
+    <span class="callout" style="left:6px;top:52px">a</span>
+    <div class="chips">
+      <div class="chip"><span class="dot"></span><div><b>Positions synced</b><small>2 min ago · Fictions</small></div><span class="chev">›</span></div>
+      <div class="chip"><span class="dot off"></span><div><b>Picco not connected</b><small>book list from 15:46</small></div><span class="chev">›</span></div>
+    </div>
+
+    <span class="callout" style="left:6px;top:104px">b</span>
+    <div class="suggest">
+      <p><b>4 books aren’t on the Picco yet</b><br>Bromantasy, Masnavi and 2 more · 6.1 MB</p>
+      <span class="btn">Send</span><span class="x">✕</span>
+    </div>
+
+    <span class="callout" style="left:6px;top:160px">c</span>
+    <div class="filters">
+      <span class="f on">All 19</span><span class="f">Reading</span><span class="f">Only here</span><span class="f">Only on Picco</span><span class="search">⌕</span>
+    </div>
+
+    <span class="callout" style="left:6px;top:196px">d</span>
+    <div class="book"><div class="cover dark">The Odyssey</div>
+      <div class="meta"><div class="t">The Odyssey</div><div class="a">Homer · tr. Emily Wilson</div><div class="s"><b>Picco is ahead</b> · tap to jump</div></div>
+      <div class="pos"><div class="l"><i>Boox</i><span class="track"><b style="width:41%"></b></span><em>41%</em></div><div class="l"><i>Picco</i><span class="track"><b style="width:73%"></b></span><em>73%</em></div></div></div>
+
+    <div class="book"><div class="cover">Fictions</div>
+      <div class="meta"><div class="t">Fictions</div><div class="a">Jorge Luis Borges</div><div class="s">✓ Same place · 13:37</div></div>
+      <div class="pos"><div class="l"><i>Boox</i><span class="track"><b style="width:88%"></b></span><em>88%</em></div><div class="l"><i>Picco</i><span class="track"><b style="width:88%"></b></span><em>88%</em></div></div></div>
+
+    <div class="book"><div class="cover">Psycho&shy;pathologie</div>
+      <div class="meta"><div class="t">Psychopathologie de la vie quotidienne</div><div class="a">Sigmund Freud</div><div class="s">✓ Same place · 15:46</div></div>
+      <div class="pos"><div class="l"><i>Boox</i><span class="track"><b style="width:2%"></b></span><em>2%</em></div><div class="l"><i>Picco</i><span class="track"><b style="width:2%"></b></span><em>2%</em></div></div></div>
+
+    <div class="book"><div class="cover black">x</div>
+      <div class="meta"><div class="t">Bromantasy</div><div class="a">Máire Roche</div><div class="s">Not on the Picco</div></div>
+      <div class="pos"><div class="l"><i>Boox</i><span class="track"><b style="width:18%"></b></span><em>18%</em></div><div class="l"><i>Picco</i><span class="none">—</span></div></div></div>
+
+    <div class="book"><div class="cover">Captive Prince</div>
+      <div class="meta"><div class="t">Captive Prince</div><div class="a">C. S. Pacat</div><div class="s">Only on the Picco</div></div>
+      <div class="pos"><div class="l"><i>Boox</i><span class="none">—</span></div><div class="l"><i>Picco</i><span class="track"><b style="width:5%"></b></span><em>5%</em></div></div></div>
+
+    <span class="callout" style="right:6px;bottom:10px">e</span>
+    <div class="pager"><span class="pg">‹</span>1 / 4<span class="pg">›</span></div>
+  </div></div>
+  <ul class="notes">
+    <li><b class="n">a</b>Two status chips keep <b>internet sync</b> and the <b>Picco on Wi-Fi</b> apart, so “In sync” and “Picco not reachable” no longer seem to contradict each other. Tap one for details (screen 3).</li>
+    <li><b class="n">b</b>One <b>suggestion</b> at a time, only when it applies. It replaces the always-visible Send missing books, Fix missing covers, the update banner and the “sync paused” state.</li>
+    <li><b class="n">c</b>Filters cover books on both devices, including books <b>only on this Boox</b>, which today you can’t see at all.</li>
+    <li><b class="n">d</b>Both positions sit side by side, so you see at a glance whether they match. Tap a row to act on that book. A black square marks a book the Picco will show without a cover.</li>
+    <li><b class="n">e</b>Pages instead of a long scroll, which suits e-ink better (one clean refresh per page).</li>
+  </ul>
+</div>
+
+<!-- ============ 2. BOOK SHEET ============ -->
+<div class="shot">
+  <h2><span>2</span>Tap a book: everything for that book</h2>
+  <div class="device"><div class="screen">
+    <div class="bar"><div class="title">NeoSync</div><div class="icon">⚙</div></div>
+    <div class="chips">
+      <div class="chip"><span class="dot"></span><div><b>Positions synced</b><small>2 min ago</small></div></div>
+      <div class="chip"><span class="dot off"></span><div><b>Picco not connected</b><small>list from 15:46</small></div></div>
+    </div>
+    <div class="book"><div class="cover dark">The Odyssey</div><div class="meta"><div class="t">The Odyssey</div><div class="a">Homer</div></div></div>
+    <div class="book"><div class="cover">Fictions</div><div class="meta"><div class="t">Fictions</div><div class="a">Borges</div></div></div>
+    <div class="scrim"></div>
+
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="head">
+        <div class="cover dark">The Odyssey</div>
+        <div><h3>The Odyssey</h3><div class="sub">Homer · tr. Emily Wilson</div><div class="sub">On both devices · EPUB · 1.4 MB</div></div>
+      </div>
+
+      <span class="callout" style="left:4px;top:118px">a</span>
+      <div class="compare">
+        <div class="l"><i>This Boox</i><span class="track"><b style="width:41%"></b></span><em>41%</em><small>Book 9 · yesterday</small></div>
+        <div class="l"><i>Picco</i><span class="track"><b style="width:73%"></b></span><em>73%</em><small>Book 16 · today 13:37</small></div>
+        <div class="verdict"><b>You read further on the Picco.</b></div>
+      </div>
+
+      <span class="callout" style="left:4px;top:212px">b</span>
+      <div class="btn primary block">Jump to the Picco’s place (73%)</div>
+      <div class="hint">Close the book in Neo Reader first; an open book can’t be moved. You can undo this for 24 hours.</div>
+
+      <span class="callout" style="left:4px;bottom:36px">c</span>
+      <div class="links"><span>Keep this Boox’s place instead</span></div>
+      <div class="links"><span>Send book file again</span><span>Add a cover</span><span>Open in Neo Reader</span></div>
+    </div>
+  </div></div>
+  <ul class="notes">
+    <li><b class="n">a</b>The comparison runs as soon as the sheet opens, so the “Compare positions” button goes away. Chapter and time (“Book 9 · yesterday”) instead of “Online: 1.3% · from NeoSync”.</li>
+    <li><b class="n">b</b>One clear main action, in plain words, only when the two positions differ. It replaces the “Fetch from Picco” / “Send to Picco” pair. Includes the new <b>undo</b>.</li>
+    <li><b class="n">c</b>Rare actions are small links: force the other direction, send the file, add a cover, open the book. For a book that isn’t on the Picco, “Send to Picco” becomes the main button instead.</li>
+  </ul>
+</div>
+
+<!-- ============ 3. STATUS PANEL ============ -->
+<div class="shot">
+  <h2><span>3</span>Tap “Picco not connected”</h2>
+  <div class="device"><div class="screen panel">
+    <div class="bar"><div style="display:flex;align-items:center"><span class="back">←</span><div class="title" style="font-size:17px">Connections</div></div></div>
+
+    <span class="callout" style="left:4px;top:56px">a</span>
+    <div class="card">
+      <div class="k">How NeoSync talks to the Picco</div>
+      <div class="diagram">
+        <div class="node"><b>This Boox</b>Neo Reader</div>
+        <div class="wire">positions<hr>internet</div>
+        <div class="node"><b>Sync server</b>crosspoint</div>
+        <div class="wire">positions<hr>internet</div>
+        <div class="node"><b>Picco</b>CrossPoint</div>
+      </div>
+      <div class="diagram" style="margin-top:8px">
+        <div class="node" style="visibility:hidden">x</div>
+        <div class="wire" style="flex:3">book files &amp; book list<hr class="broken">same Wi-Fi · <b style="color:#111">not connected</b></div>
+        <div class="node" style="visibility:hidden">x</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="k">Sync server</div>
+      <div style="font-size:12px"><b>● Working.</b> Last sync 2 min ago (Fictions, 88%).</div>
+      <div class="links" style="margin-top:6px"><span>Sync all books now</span></div>
+    </div>
+
+    <span class="callout" style="left:4px;top:322px">b</span>
+    <div class="card">
+      <div class="k">Picco · Wi-Fi</div>
+      <div style="font-size:12px;margin-bottom:6px"><b>○ Can’t find the Picco.</b> Positions still sync; only sending books and refreshing the Picco’s list need this.</div>
+      <ol class="steps">
+        <li>On the Picco, open <b>File Transfer</b>.</li>
+        <li>Choose <b>Join a Network</b> and pick the same Wi-Fi as this Boox.</li>
+        <li>Come back here: NeoSync finds it by itself.</li>
+      </ol>
+      <div style="display:flex;gap:8px;margin-top:10px"><span class="btn primary" style="flex:1">Look for the Picco</span><span class="btn" style="flex:1">Wi-Fi settings</span></div>
+      <div class="hint">Last seen at 192.168.1.244 · <u>enter address by hand</u></div>
+    </div>
+  </div></div>
+  <ul class="notes">
+    <li><b class="n">a</b>A small diagram explains once why there are two connections. This is the main point users get wrong (the hotspot problem).</li>
+    <li><b class="n">b</b>Step-by-step fix instead of an error paragraph. <b>“Look for the Picco”</b> finds it automatically on the network, so you don’t have to type an IP. The hotspot warning lives here too.</li>
+  </ul>
+</div>
+
+<!-- ============ 4. SETTINGS ============ -->
+<div class="shot">
+  <h2><span>4</span>Settings, regrouped</h2>
+  <div class="device"><div class="screen">
+    <div class="bar"><div style="display:flex;align-items:center"><span class="back">←</span><div class="title" style="font-size:17px">Settings</div></div></div>
+
+    <div class="sec">Sync</div>
+    <div class="item"><div class="m"><b>Automatic sync</b><small>Keeps positions in sync in the background</small></div><span class="toggle"></span></div>
+    <div class="item"><div class="m"><b>Account</b><small>Signed in as you@…</small></div><span class="v">›</span></div>
+
+    <div class="sec">Picco</div>
+    <div class="item"><div class="m"><b>Picco</b><small>Found at 192.168.1.244 · last seen 15:46</small></div><span class="v">›</span></div>
+    <div class="item"><div class="m"><b>Folder for new books</b><small>/books</small></div><span class="v">Change</span></div>
+
+    <div class="sec">Help</div>
+    <div class="item"><div class="m"><b>Setup guide</b><small>Picco firmware, permissions, Boox battery settings</small></div><span class="v">›</span></div>
+    <div class="item"><div class="m"><b>Report a problem</b><small>Copies a private report to paste on Reddit or GitHub</small></div><span class="v">›</span></div>
+
+    <span class="callout" style="left:4px;top:372px">a</span>
+    <div class="sec">Advanced</div>
+    <div class="item"><div class="m"><b>Book matching</b><small>By file name (CrossPoint default)</small></div><span class="v">›</span></div>
+    <div class="item"><div class="m"><b>Sync server</b><small>sync.crosspointreader.com</small></div><span class="v">›</span></div>
+    <div class="item"><div class="m"><b>Cover backups</b><small>Books/.neosync-backup · 3 files</small></div><span class="v">›</span></div>
+
+    <div class="sec">About</div>
+    <div class="item"><div class="m"><b>NeoSync 7.2.0</b><small>Up to date · open source · not affiliated with Onyx or CrossPoint</small></div></div>
+    <div class="item"><div class="m"><b>Buy me a coffee ☕</b></div><span class="v">›</span></div>
+  </div></div>
+  <ul class="notes">
+    <li><b class="n">a</b><b>Advanced</b> holds the settings that can break sync if changed by mistake (book matching, server). Each opens its own page with a warning.</li>
+    <li>The automatic sync toggle moves here from the home screen. When it’s off, home shows a “Sync is paused · Turn on” suggestion.</li>
+    <li>One row per setting, with the current value underneath: fewer bordered cards and buttons.</li>
+  </ul>
+</div>
+
+</div>
+</body>
+</html>
