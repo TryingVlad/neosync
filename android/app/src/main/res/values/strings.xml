@@ -333,7 +333,7 @@
     <string name="sheet_send_file">Send to Picco</string>
     <string name="sheet_jump_hint">Close the book in Neo Reader first; an open book can’t be moved. You can undo this for 24 hours.</string>
     <string name="sheet_keep_boox">Keep this Boox\'s place instead</string>
-    <string name="sheet_use_picco">Use the Picco\'s place instead</string>
+    <string name="sheet_use_picco">Use the %1$s\'s place instead</string>
     <string name="sheet_send_again">Send book file again</string>
     <string name="sheet_add_cover">Add a cover</string>
     <string name="sheet_open_reader">Open in Neo Reader</string>

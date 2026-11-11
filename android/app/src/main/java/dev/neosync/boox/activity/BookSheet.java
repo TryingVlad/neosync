@@ -83,6 +83,8 @@ final class BookSheet {
 
     private boolean checking;
     private boolean liveOk;
+    /** The server's record when this Boox wrote it (from the live check), else null. */
+    private RemotePosition ownOnServer;
     /** The Onyx row's "page/total" now (for the undo rule); null for Picco-only books. */
     private String booxProgress;
     /** An action (jump, send, undo, cover check) is in flight. */
@@ -128,7 +130,8 @@ final class BookSheet {
 
         bindHeader(v);
         linkUndo.setOnClickListener(x -> undo());
-        linkSendAgain.setOnClickListener(x -> sendFile());
+        // "Again" replaces the Picco's copy (R22); the primary Send skips one already there.
+        linkSendAgain.setOnClickListener(x -> sendFile(true));
         linkCover.setOnClickListener(x -> addCover());
         linkOpen.setOnClickListener(x -> openInReader());
     }
@@ -217,22 +220,32 @@ final class BookSheet {
             boolean ok = r != null && (r.error == KoSyncClient.Error.OK
                     || r.error == KoSyncClient.Error.NOT_FOUND);
             RemotePosition live = null;
+            RemotePosition own = null;
             if (r != null && r.error == KoSyncClient.Error.OK && r.progress != null) {
                 live = RemotePosition.from(r.progress);
-                a.remoteStore.recordFromOthers(hash, null, live, a.deviceId());
+                // Under every spelling the list may key this book by.
+                a.remoteStore.recordFromOthers(hash, SyncActions.alternateHashes(path, hash),
+                        live, a.deviceId());
                 if (live.isFromDevice(a.deviceId())) {
                     // The server holds this Boox's own place: the box keeps
-                    // the other device's last known one, like the list does.
+                    // the other device's last known one, like the list does,
+                    // and BookComparison is told the place is already sent.
+                    own = live;
                     live = null;
                 }
             }
+            final boolean nothingOnline = r != null && r.error == KoSyncClient.Error.NOT_FOUND;
             final RemotePosition other = live;
+            final RemotePosition ownRecord = own;
             final BooxState boox = readBoox();
             a.runOnUiThread(() -> {
                 checking = false;
                 liveOk = ok;
+                ownOnServer = ownRecord;
                 if (other != null) {
                     e.remote = other;
+                } else if (nothingOnline) {
+                    e.remote = null; // a stored record is stale: the server has none
                 }
                 apply(boox);
                 render();
@@ -281,7 +294,7 @@ final class BookSheet {
         bindBar(barOther, pctOther, whenOther, r != null ? r.percentage : -1,
                 r != null ? r.timestampMs : 0);
 
-        BookComparison c = BookComparison.of(e, liveOk, a.piccoConfigured());
+        BookComparison c = BookComparison.of(e, liveOk, a.piccoConfigured(), ownOnServer);
         if (checking) {
             verdict.setText(R.string.sheet_checking);
             verdict.setVisibility(View.VISIBLE);
@@ -316,7 +329,7 @@ final class BookSheet {
                 break;
             case SEND_FILE:
                 primary.setText(R.string.sheet_send_file);
-                primary.setOnClickListener(x -> sendFile());
+                primary.setOnClickListener(x -> sendFile(false));
                 break;
             default:
                 break;
@@ -329,7 +342,7 @@ final class BookSheet {
             linkInstead.setText(R.string.sheet_keep_boox);
             linkInstead.setOnClickListener(x -> sendPlace());
         } else if (instead == BookComparison.Action.JUMP_TO_REMOTE) {
-            linkInstead.setText(R.string.sheet_use_picco);
+            linkInstead.setText(a.getString(R.string.sheet_use_picco, labelOther.getText()));
             linkInstead.setOnClickListener(x -> jump());
         }
         showLink(linkInstead, instead != BookComparison.Action.NONE, enabled);
@@ -438,7 +451,8 @@ final class BookSheet {
             String written = book == null ? null : SyncActions.applyRemote(app, a.repository,
                     a.stateStore, book, progressOf(r));
             if (written == null) {
-                // Most often the book is open in Neo Reader (or was never opened there).
+                // Writing Neo Reader's row failed (no row for this path, or the
+                // provider refused); an open book is the usual reason to ask about.
                 return a.getString(R.string.sheet_book_open);
             }
             changed = true;
@@ -498,7 +512,7 @@ final class BookSheet {
     }
 
     /** Copies the book file to the Picco (adding a cover first), as one small job. */
-    private void sendFile() {
+    private void sendFile(boolean force) {
         if (working || sendingFile || e.booxPath == null) {
             return;
         }
@@ -518,7 +532,7 @@ final class BookSheet {
         a.withPiccoFolder(address, folder -> {
             sendJob = SendMissingJob.oneBook(app, new PiccoClient(address), address,
                     folder, new File(e.booxPath), a.piccoLibrary,
-                    ex -> a.piccoErrorMessage(ex, address));
+                    ex -> a.piccoErrorMessage(ex, address), force);
             if (!a.startJob(sendJob)) {
                 sendingFile = false;
                 sendJob = null;

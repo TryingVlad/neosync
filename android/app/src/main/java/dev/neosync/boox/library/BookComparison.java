@@ -20,15 +20,39 @@ public final class BookComparison {
     }
 
     public static BookComparison of(LibraryEntry e, boolean liveCheckOk, boolean piccoConfigured) {
+        return of(e, liveCheckOk, piccoConfigured, null);
+    }
+
+    /**
+     * @param ownOnServer the server's record when this Boox wrote it (the live
+     *                    check's answer was our own), else null. When it holds
+     *                    the Boox's place, that place is already sent: no
+     *                    "Send this place", and with no other device's record
+     *                    the verdict is "Same place.". e.remote stays the
+     *                    other device's last record.
+     */
+    public static BookComparison of(LibraryEntry e, boolean liveCheckOk, boolean piccoConfigured,
+                                    RemotePosition ownOnServer) {
         if (e.booxPath == null) {
             return new BookComparison(Verdict.NOT_CHECKED, Action.NONE, Action.NONE);
         }
         boolean sendFile = piccoConfigured && e.piccoPath == null && e.isEpub;
         BookComparison c = compare(e, liveCheckOk);
+        if (liveCheckOk && serverHasThisPlace(e, ownOnServer)) {
+            c = new BookComparison(e.remote == null ? Verdict.SAME : c.verdict,
+                    c.primary == Action.SEND_PLACE ? Action.NONE : c.primary,
+                    c.secondary == Action.SEND_PLACE ? Action.NONE : c.secondary);
+        }
         if (sendFile) {
             return new BookComparison(c.verdict, Action.SEND_FILE, Action.NONE);
         }
         return c;
+    }
+
+    /** The server's latest record is this Boox's own, at the Boox's place now. */
+    static boolean serverHasThisPlace(LibraryEntry e, RemotePosition ownOnServer) {
+        return ownOnServer != null && e.booxPct >= 0
+                && Math.abs(e.booxPct - ownOnServer.percentage) < SAME_PLACE;
     }
 
     private static BookComparison compare(LibraryEntry e, boolean liveCheckOk) {

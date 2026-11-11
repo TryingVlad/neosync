@@ -35,17 +35,19 @@ public final class SendMissingJob implements Job {
     private final PiccoLibraryStore piccoLibrary;
     /** Non-null for oneBook(): the message when the Picco can't be talked to. */
     private final Function<Exception, String> errorMessage;
+    /** oneBook(..., force): replace the Picco's copy instead of skipping it. */
+    private final boolean force;
     private volatile boolean delivered;
 
     /** Sends every file, in order (the list "Send missing books" confirmed). */
     public SendMissingJob(Context context, PiccoClient client, String address, String folder,
                           List<File> files, PiccoLibraryStore piccoLibrary) {
-        this(context, client, address, folder, files, piccoLibrary, null);
+        this(context, client, address, folder, files, piccoLibrary, null, false);
     }
 
     private SendMissingJob(Context context, PiccoClient client, String address, String folder,
                            List<File> files, PiccoLibraryStore piccoLibrary,
-                           Function<Exception, String> errorMessage) {
+                           Function<Exception, String> errorMessage, boolean force) {
         this.context = context;
         this.client = client;
         this.address = address;
@@ -53,6 +55,7 @@ public final class SendMissingJob implements Job {
         this.files = files;
         this.piccoLibrary = piccoLibrary;
         this.errorMessage = errorMessage;
+        this.force = force;
     }
 
     /**
@@ -65,8 +68,21 @@ public final class SendMissingJob implements Job {
                                          String folder, File file,
                                          PiccoLibraryStore piccoLibrary,
                                          Function<Exception, String> errorMessage) {
+        return oneBook(context, client, address, folder, file, piccoLibrary, errorMessage, false);
+    }
+
+    /**
+     * Like oneBook, but with force the book is sent even when the Picco has
+     * it: the Picco's copy (wherever it is) is overwritten in place, which
+     * resets the Picco's own reading position for it ("Send book file again").
+     */
+    public static SendMissingJob oneBook(Context context, PiccoClient client, String address,
+                                         String folder, File file,
+                                         PiccoLibraryStore piccoLibrary,
+                                         Function<Exception, String> errorMessage,
+                                         boolean force) {
         return new SendMissingJob(context, client, address, folder,
-                Collections.singletonList(file), piccoLibrary, errorMessage);
+                Collections.singletonList(file), piccoLibrary, errorMessage, force);
     }
 
     /** After finished: true when the book (oneBook) or every book is on the Picco. */
@@ -133,7 +149,8 @@ public final class SendMissingJob implements Job {
             return;
         }
         try {
-            if (client.hasBook(file.getName())) {
+            String existing = force ? piccoCopyOf(file) : null;
+            if (!force && client.hasBook(file.getName())) {
                 delivered = true;
                 l.finished(context.getString(R.string.transfer_already));
                 return;
@@ -143,7 +160,8 @@ public final class SendMissingJob implements Job {
                 new CoverFixer(context).fixInPlace(file);
             }
             l.progress(0, 1, key, SENDING);
-            PiccoClient.UploadResult result = client.upload(file, folder);
+            PiccoClient.UploadResult result = existing != null
+                    ? client.replace(file, existing) : client.upload(file, folder);
             final int message;
             switch (result.status) {
                 case SENT:
@@ -171,5 +189,16 @@ public final class SendMissingJob implements Job {
             l.progress(0, 1, key, FAILED);
             l.finished(errorMessage.apply(e));
         }
+    }
+
+    /** The Picco's path of the same book (by file name), or null. */
+    private String piccoCopyOf(File file) throws IOException {
+        String key = LibraryModel.keyOf(file.getPath());
+        for (String path : client.listBooks()) {
+            if (LibraryModel.keyOf(path).equals(key)) {
+                return path;
+            }
+        }
+        return null;
     }
 }
