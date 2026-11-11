@@ -77,7 +77,7 @@
     <string name="button_retry_sync">Try again</string>
     <string name="status_retrying">Trying again…</string>
 
-    <string name="transfer_no_address">Set the Picco address in Settings → Connection first.</string>
+    <string name="transfer_no_address">Set up the Picco first on the Connections screen (Settings → Picco).</string>
     <string name="transfer_no_network">The tablet isn’t connected to the Picco’s network. Connect it to the Picco’s hotspot — or put both devices on the same Wi-Fi — then try again.</string>
     <string name="transfer_checking">Looking for the Picco…</string>
     <string name="transfer_sending">Sending the book…</string>
@@ -87,7 +87,7 @@
     <string name="transfer_server_error">The Picco refused the upload (HTTP %1$d).</string>
     <string name="transfer_unexpected">Something went wrong talking to the Picco: %1$s</string>
     <string name="signin_https_required">The sync server address must start with https:// — your account details would otherwise travel unencrypted.</string>
-    <string name="transfer_no_file">Can’t read the book file. Allow book file access via the Setup guide (Settings → Setup guide).</string>
+    <string name="transfer_no_file">Can’t read the book file. Allow file access in Settings → Permissions → File access.</string>
     <string name="hint_picco_address">192.168.1.50 — shown on the Picco’s File Transfer screen</string>
 
     <string name="sync_all_none">No books to sync: none of the Picco’s books has been opened on this Boox.</string>
