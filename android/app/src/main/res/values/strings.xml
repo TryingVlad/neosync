@@ -11,8 +11,8 @@
     <string name="onb1_title">Keep your place on both devices</string>
     <string name="onb1_body">NeoSync carries your reading place between Neo Reader on this Boox and CrossPoint on your Picco.</string>
     <string name="onb1_point1">You read here in Neo Reader. NeoSync notices each page turn and saves your reading place online.</string>
-    <string name="onb1_point2">On the Picco, open the same book and choose Sync Progress. It jumps to where you stopped.</string>
-    <string name="onb1_point3">It works the other way too: read on the Picco, and Neo Reader opens at the new place.</string>
+    <string name="onb1_point2">The Picco doesn’t sync by itself. Open the same book there and choose Sync Progress: it jumps to where you stopped.</string>
+    <string name="onb1_point3">It works the other way too: after reading on the Picco, choose Sync Progress again, and Neo Reader opens at the new place.</string>
     <string name="onb1_note">Accurate to about a page. Your notes and highlights stay in Neo Reader; only the reading place is synced.</string>
 
     <string name="onb2_title">Your Picco needs CrossPoint</string>
@@ -28,8 +28,8 @@
     <string name="onb3_body">On the Picco, open Settings → Connectivity → CrossPoint Sync.</string>
     <string name="onb3_point1">Leave the server address empty. That uses CrossPoint’s free sync server, the same one NeoSync uses.</string>
     <string name="onb3_point2">Choose Sign Up to create your account, or create it here in NeoSync in a moment. Use the same username and password on both devices.</string>
-    <string name="onb3_point3">Sync Behavior: “Smart sync” decides by itself which device is ahead. “Ask every time” lets you pick Apply Remote or Upload Local.</string>
-    <string name="onb3_note">To sync on the Picco: open the book, press Confirm, then choose Sync Progress.</string>
+    <string name="onb3_point3">Sync Behavior: once you start a sync, “Smart sync” picks the device that is ahead. “Ask every time” lets you pick Apply Remote or Upload Local.</string>
+    <string name="onb3_note">The Picco only syncs when you ask: open the book, press Confirm, then choose Sync Progress. To hold Confirm instead, set Settings → Controls → Front buttons → Menu long press to CrossPoint Sync.</string>
 
     <string name="onb4_title">Use the same book file</string>
     <string name="onb4_body">NeoSync recognises a book by its file name. Put the same EPUB on both devices, with exactly the same file name.</string>
