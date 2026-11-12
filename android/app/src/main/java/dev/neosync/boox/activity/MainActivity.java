@@ -255,6 +255,8 @@ public class MainActivity extends Activity implements JobSession.Screen {
         }
 
         setContentView(R.layout.activity_main);
+
+        SystemBars.fit(this);
         repository = new OnyxMetadataRepository(this);
         stateStore = new SyncStateStore(this);
         piccoLibrary = new PiccoLibraryStore(this);

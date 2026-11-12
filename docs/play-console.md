@@ -11,9 +11,13 @@ Privacy policy URL:
 **Core feature:** Sync and file management between Neo Reader on a Boox
 e-reader and a CrossPoint (KOReader-compatible) e-reader.
 
-**Form field (500 characters max), as submitted:**
+**"All files access" field (500 max), as submitted:**
 
-> Syncing reading positions for Boox e-readers. On current Boox firmware, Neo Reader saves and reopens an EPUB by chapter position, given only as a raw file path. To apply a position synced from the user's other e-reader, NeoSync must read that EPUB's chapter table; without it the synced position isn't applied and outgoing positions are several percent off. SAF and MediaStore can't map those paths or index EPUBs. Explained in-app before the toggle. Books never leave the user's devices.
+> Syncing reading positions for Boox e-readers. On current Boox firmware, Neo Reader saves and reopens an EPUB by a chapter position. To apply a position synced from the user's other e-reader, NeoSync must read that EPUB's chapter table; without it the synced position isn't applied and outgoing positions are several percent off. The access is explained in-app before the toggle, and books never leave the user's devices.
+
+**"Technical reason" field, as submitted:**
+
+> Neo Reader (Onyx's built-in reader) identifies each book only by an absolute file path, and books can be in any folder, including Download. SAF returns content URIs that can't be matched to those paths, and on Android 11+ it can't grant the storage root or Download. MediaStore on Android 13+ only gives other apps' images, video and audio, not EPUB or PDF files. NeoSync must open exactly the file Neo Reader names, wherever it is, so only all-files access works.
 
 **Usage:** Core functionality only.
 

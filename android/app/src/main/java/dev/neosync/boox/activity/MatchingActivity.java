@@ -18,6 +18,7 @@ public class MatchingActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_matching);
+        SystemBars.fit(this);
         SyncSettings settings = new SyncSettings(this);
 
         findViewById(R.id.button_back).setOnClickListener(v -> finish());

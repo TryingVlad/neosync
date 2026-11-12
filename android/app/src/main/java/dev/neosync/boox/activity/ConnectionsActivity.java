@@ -134,6 +134,7 @@ public class ConnectionsActivity extends Activity {
         super.onCreate(savedInstanceState);
         getWindow().setWindowAnimations(0);
         setContentView(R.layout.activity_connections);
+        SystemBars.fit(this);
         settings = new SyncSettings(this);
         lastBookTitle = new LastBookTitle(this);
 

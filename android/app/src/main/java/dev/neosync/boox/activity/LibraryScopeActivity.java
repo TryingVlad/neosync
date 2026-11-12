@@ -38,6 +38,7 @@ public class LibraryScopeActivity extends Activity {
         super.onCreate(savedInstanceState);
         settings = new SyncSettings(this);
         setContentView(R.layout.activity_library_scope);
+        SystemBars.fit(this);
         findViewById(R.id.button_back).setOnClickListener(v -> finish());
 
         // Reading the whole Onyx library (and checking each file) is slow on

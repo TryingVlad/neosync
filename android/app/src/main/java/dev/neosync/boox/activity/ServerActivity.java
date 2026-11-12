@@ -30,6 +30,7 @@ public class ServerActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_server);
+        SystemBars.fit(this);
         settings = new SyncSettings(this);
 
         findViewById(R.id.button_back).setOnClickListener(v -> finish());

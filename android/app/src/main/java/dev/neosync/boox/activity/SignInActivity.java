@@ -32,6 +32,7 @@ public class SignInActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sign_in);
+        SystemBars.fit(this);
         settings = new SyncSettings(this);
 
         usernameField = findViewById(R.id.edit_username);

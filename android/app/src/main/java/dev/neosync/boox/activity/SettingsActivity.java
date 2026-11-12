@@ -51,6 +51,7 @@ public class SettingsActivity extends Activity {
         super.onCreate(savedInstanceState);
         settings = new SyncSettings(this);
         setContentView(R.layout.activity_settings);
+        SystemBars.fit(this);
 
         findViewById(R.id.button_back).setOnClickListener(v -> finish());
 

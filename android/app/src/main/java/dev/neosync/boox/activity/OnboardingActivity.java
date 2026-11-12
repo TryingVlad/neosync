@@ -45,6 +45,7 @@ public class OnboardingActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_onboarding);
+        SystemBars.fit(this);
         review = getIntent().getBooleanExtra(EXTRA_REVIEW, false);
 
         backButton = findViewById(R.id.button_back);
