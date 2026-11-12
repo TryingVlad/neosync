@@ -66,9 +66,11 @@ cover.
 Later releases install over it. NeoSync checks GitHub once a day and tells
 you on the home screen when a new version is out.
 
-> **Coming from 7.0.0 or older?** Uninstall it first. Those builds were signed
-> with a temporary key, so Android refuses newer versions as an update. You
-> will need to sign in again.
+> **Coming from 8.0.1 or older?** Uninstall it first, then install the new
+> one and sign in again. NeoSync's app ID changed in 8.1.0 (it is now
+> `com.tryingvlad.neosync`), so Android sees it as a different app: it
+> installs next to the old one instead of replacing it, and two NeoSyncs
+> syncing the same books get in each other's way.
 
 ## Set up
 
@@ -277,7 +279,7 @@ error.
 | *Not syncing* while on the Picco's hotspot | That network has no internet. Use the **Wi-Fi** button, or **Join a Network** on the Picco. |
 | The Picco can't be found | Open **File Transfer** on the Picco, put both devices on the same Wi-Fi, then **Look for the Picco**. |
 | The icon is greyed out | Long-press it and choose **Unfreeze**. |
-| A new version won't install over 7.0.0 or older | Uninstall the old one first. |
+| Two NeoSync icons after updating from 8.0.1 or older | Uninstall the older one. From 8.1.0 the app has a new ID, so it can't replace earlier versions. |
 | A book shows a black tile on the Picco | Open its sheet and choose **Add a cover**. |
 
 ### Reporting a problem

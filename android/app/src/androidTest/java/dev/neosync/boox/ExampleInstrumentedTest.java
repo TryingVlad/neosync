@@ -21,6 +21,6 @@ public class ExampleInstrumentedTest {
     public void useAppContext() {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        assertEquals("dev.neosync.boox", appContext.getPackageName());
+        assertEquals("com.tryingvlad.neosync.debug", appContext.getPackageName());
     }
 }
