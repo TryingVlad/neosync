@@ -1,0 +1,32 @@
+Read on your Boox, pick up on your Picco at the same page, and back.
+
+NeoSync keeps your reading place in sync between Neo Reader, the built-in reading app on Onyx Boox e-readers, and CrossPoint on a Boox Picco, or any other reader that supports KOReader's progress sync. You keep reading in Neo Reader, pen notes and highlights included. NeoSync runs quietly beside it.
+
+WHAT IT DOES
+
+• Syncs your place by itself. Read on one device, open the book on the other, and it's on the right page.
+• Shows both devices in one library: one row per book, with where you are on the Boox and on the Picco.
+• Lets you decide when they disagree. Jump to the Picco's place or send yours instead, and undo a jump for 24 hours.
+• Sends books to the Picco over your Wi-Fi, one at a time or every book it doesn't have yet.
+• Gives coverless books a cover, so the Picco stops showing a black tile. The original is backed up first.
+• Counts Picco reading in your Boox reading statistics.
+
+WHAT YOU NEED
+
+• A Boox with Neo Reader. Built and tested on a Go 10.3 Gen 2 Lumi (firmware 4.2, Android 15).
+• A Picco running CrossPoint firmware with CrossPoint Sync, or another KOReader-compatible reader.
+• The same EPUB on both devices, with the same file name. Only EPUBs are synced.
+• A KOReader sync account: the one you already use on the Picco, or a new one made in the app.
+
+PERMISSIONS, AND WHY
+
+• Access to your book files: on current Boox firmware, Neo Reader reopens an EPUB from a chapter position that NeoSync can only work out by reading the book's chapter list. Without it, synced places can't be applied to EPUBs. It's also used to show covers and to send books to the Picco. NeoSync only changes a book when you tap "Fix missing covers", and it keeps the original first.
+• Notifications: a small permanent notification keeps background sync running. You can turn automatic sync off at any time.
+
+PRIVACY
+
+Your books never leave your own devices. The sync server you choose receives your username, a hashed identifier for each book (never its title or the file) and your position. There are no ads, no analytics and no account with the developer. Full policy: https://github.com/TryingVlad/neosync/blob/main/docs/privacy.md
+
+Free and open source, made in my spare time: https://github.com/TryingVlad/neosync
+
+NeoSync is an independent project. It isn't made by or affiliated with Onyx, Boox, CrossPoint or KOReader.

@@ -35,8 +35,8 @@ android {
         applicationId "com.tryingvlad.neosync"
         minSdk 24
         targetSdk 36
-        versionCode 15
-        versionName "8.1.0"
+        versionCode 16
+        versionName "8.1.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
