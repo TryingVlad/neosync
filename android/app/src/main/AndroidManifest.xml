@@ -13,7 +13,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- specialUse, not dataSync: since Android 15 a dataSync service can't
+         start from BOOT_COMPLETED and is stopped after 6 hours a day. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- NeoReader only reads a synced position from Metadata on cold start;
          applying remote progress kills its cached background process. -->
@@ -80,7 +82,11 @@
         <service
             android:name=".service.SyncService"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Watches the on-device e-reader (NeoReader) for reading-position changes and syncs them with a KOReader progress server while the user reads." />
+        </service>
 
         <receiver
             android:name=".helper.BootReceiver"

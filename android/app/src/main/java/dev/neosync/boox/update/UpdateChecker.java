@@ -14,7 +14,8 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Tells sideloaded installs when a newer NeoSync is on GitHub. Asks the
+ * Tells sideloaded installs when a newer NeoSync is on GitHub. Installs from
+ * Google Play never ask: Play delivers their updates. Otherwise it asks the
  * public releases API at most once a day (no account, nothing sent but the
  * request itself) and remembers the answer, so screens can show it at once.
  */
@@ -60,8 +61,31 @@ public class UpdateChecker {
         }
     }
 
+    /**
+     * True when Google Play installed this copy. Play handles its updates,
+     * and Play policy forbids pointing those users at outside downloads.
+     */
+    public boolean installedFromPlay() {
+        String installer = null;
+        try {
+            String pkg = context.getPackageName();
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                installer = context.getPackageManager()
+                        .getInstallSourceInfo(pkg).getInstallingPackageName();
+            } else {
+                installer = context.getPackageManager().getInstallerPackageName(pkg);
+            }
+        } catch (Exception e) {
+            // Unknown installer: treat as sideloaded.
+        }
+        return "com.android.vending".equals(installer);
+    }
+
     /** The update known from the last check, or null. No network. */
     public Update knownUpdate() {
+        if (installedFromPlay()) {
+            return null;
+        }
         String latest = prefs.getString(KEY_LATEST, null);
         String url = prefs.getString(KEY_URL, null);
         if (latest == null || url == null || !isNewer(latest, currentVersion())) {
@@ -76,6 +100,9 @@ public class UpdateChecker {
      * any; failures keep the previous answer.
      */
     public Update check(boolean force) {
+        if (installedFromPlay()) {
+            return null;
+        }
         long last = prefs.getLong(KEY_CHECKED_MS, 0);
         if (!force && System.currentTimeMillis() - last < CHECK_INTERVAL_MS) {
             return knownUpdate();

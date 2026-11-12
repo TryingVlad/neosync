@@ -1,13 +1,17 @@
 package dev.neosync.boox.activity;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 
 import dev.neosync.boox.R;
 import dev.neosync.boox.kosync.SyncSettings;
@@ -33,6 +37,9 @@ public class OnboardingActivity extends Activity {
     private Button notifButton;
     private TextView counterView;
     private ScrollView scrollView;
+    /** API 33+: steps back through the guide; registered only past step 1. */
+    private Object backCallback;
+    private boolean backCallbackRegistered;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,6 +97,8 @@ public class OnboardingActivity extends Activity {
         outState.putInt("step", current);
     }
 
+    /** Android 12 and older; on 13+ the OnBackInvokedCallback handles back. */
+    @SuppressLint("GestureBackNavigation")
     @Override
     public void onBackPressed() {
         if (current > 0) {
@@ -110,6 +119,32 @@ public class OnboardingActivity extends Activity {
         nextButton.setText(!last ? R.string.onb_next
                 : review ? R.string.onb_done : R.string.onb_finish);
         scrollView.scrollTo(0, 0);
+        updateBackCallback();
+    }
+
+    /**
+     * On step 1 back leaves the guide (system default, with the predictive
+     * animation); on later steps it goes to the previous step.
+     */
+    private void updateBackCallback() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+        boolean want = current > 0;
+        if (want == backCallbackRegistered) {
+            return;
+        }
+        if (backCallback == null) {
+            backCallback = (OnBackInvokedCallback) () -> show(current - 1);
+        }
+        if (want) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    OnBackInvokedDispatcher.PRIORITY_DEFAULT, (OnBackInvokedCallback) backCallback);
+        } else {
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(
+                    (OnBackInvokedCallback) backCallback);
+        }
+        backCallbackRegistered = want;
     }
 
     private void refreshPermissions() {

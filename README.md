@@ -316,8 +316,12 @@ comment or message. The app sends nothing by itself.
 - **On your local network only:** book files and the Picco's book list,
   between the Boox and the Picco, over plain HTTP as CrossPoint's
   file-transfer server speaks it.
-- **To GitHub, once a day:** a request to its public API for the latest
-  release. It carries nothing but the app version.
+- **To GitHub, once a day (GitHub installs only):** a request to its public
+  API for the latest release. It carries nothing but the app version. Copies
+  installed from Google Play never make it.
+
+The full policy, including every use of file access, is in
+[docs/privacy.md](docs/privacy.md).
 
 ## How it works
 
