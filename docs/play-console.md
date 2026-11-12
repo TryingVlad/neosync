@@ -11,7 +11,13 @@ Privacy policy URL:
 **Core feature:** Sync and file management between Neo Reader on a Boox
 e-reader and a CrossPoint (KOReader-compatible) e-reader.
 
-**Why this access is needed:**
+**Form field (500 characters max), as submitted:**
+
+> Syncing reading positions for Boox e-readers. On current Boox firmware, Neo Reader saves and reopens an EPUB by chapter position, given only as a raw file path. To apply a position synced from the user's other e-reader, NeoSync must read that EPUB's chapter table; without it the synced position isn't applied and outgoing positions are several percent off. SAF and MediaStore can't map those paths or index EPUBs. Explained in-app before the toggle. Books never leave the user's devices.
+
+**Usage:** Core functionality only.
+
+**Longer explanation (for appeals or follow-up questions):**
 
 > NeoSync syncs reading positions for the books in Neo Reader, the Boox
 > e-reader's built-in reading app. Neo Reader's library is whatever EPUB and
@@ -29,9 +35,11 @@ e-reader and a CrossPoint (KOReader-compatible) e-reader.
 >
 > The Storage Access Framework doesn't fit: books are spread across arbitrary
 > folders, Neo Reader hands over raw paths rather than content URIs, and
-> MediaStore doesn't index EPUBs. The permission is optional: the onboarding
-> screen explains each use before the user is sent to the system settings
-> toggle, and without it sync falls back to matching by file name. Book files
+> MediaStore doesn't index EPUBs. The onboarding screen explains each use
+> before the user is sent to the system settings toggle. Without it, synced
+> positions can't be applied to EPUBs (Neo Reader on current firmware
+> reopens from a chapter position NeoSync can only compute from the file),
+> and outgoing positions are several percent off. Book files
 > are never uploaded to any server.
 
 **Video:** record on the Boox: onboarding step 5 (the explanation) → tap

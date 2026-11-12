@@ -36,12 +36,16 @@ own KOReader sync server and enter its address in NeoSync instead.
 
 ## Permissions
 
-- **Access to all files (optional).** NeoSync reads your book files to find
+- **Access to all files.** NeoSync reads your book files to find
   each EPUB's chapter list (so positions are exact), to show covers, to send
   books to your Picco, and to fingerprint books if you choose "by file
   contents" matching. It changes a book file only when you tap **Fix missing
   covers**, and it first copies the original to `Books/.neosync-backup`.
-  Without this access, sync still works by file name.
+  You can refuse it. Neo Reader on current Boox firmware reopens an EPUB
+  from a chapter position that NeoSync can only work out by reading the
+  file, so without this access Neo Reader can't open EPUBs at positions synced
+  from your other device, and positions sent from the Boox are a few percent
+  less exact.
 - **Notifications.** A permanent notification keeps background sync running.
 - **Run at startup, and a foreground service.** These restart sync after the
   Boox reboots.

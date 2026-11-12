@@ -40,7 +40,7 @@
     <string name="onb5_title">Let NeoSync work in the background</string>
     <string name="onb5_body">NeoSync asks for two permissions, and Boox needs to be told not to stop it.</string>
     <string name="onb5_files_label">Access to your book files</string>
-    <string name="onb5_files_why">Optional, and books never leave your devices. NeoSync reads your book files to: find each EPUB’s chapters, so reading places are exact; show covers; send books to the Picco over your Wi-Fi; and, if you choose “by file contents” matching, fingerprint a book. It changes a book only when you tap Fix missing covers, and first keeps the original in Books/.neosync-backup. Without this access, sync still works by file name.</string>
+    <string name="onb5_files_why">Needed for EPUB sync. Books never leave your devices. NeoSync reads your book files to: find each EPUB’s chapters, so reading places are exact; show covers; send books to the Picco over your Wi-Fi; and, if you choose “by file contents” matching, fingerprint a book. It changes a book only when you tap Fix missing covers, and first keeps the original in Books/.neosync-backup. You can say no, but then Neo Reader can’t open EPUBs at places synced from your other device, and places sent from the Boox are less exact.</string>
     <string name="onb5_notif_label">Notification</string>
     <string name="onb5_notif_why">A small permanent notification keeps sync running.</string>
     <string name="onb5_grant">Allow</string>
